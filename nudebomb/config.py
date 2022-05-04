@@ -98,6 +98,14 @@ def _set_languages(config):
         sys.exit(1)
 
 
+def _set_timestamps(config) -> None:
+    """Set the timestamp attribute."""
+    timestamps = config["nudebomb"]["timestamps"].get(bool) and not config["nudebomb"][
+        "dry_run"
+    ].get(bool)
+    config["nudebomb"]["timestamps"].set(timestamps)
+
+
 def get_config(
     args: typing.Optional[Namespace] = None, modname=PROGRAM_NAME
 ) -> AttrDict:
@@ -116,6 +124,7 @@ def get_config(
     _set_after(config)
     _set_default_mkvmerge_bin(config)
     _set_unique_lang_list(config, "subs_languages")
+    _set_timestamps(config)
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):
         raise ValueError()
