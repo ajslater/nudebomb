@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  nudebomb-build-builder:
+    build:
+      context: .
+      dockerfile: build.Dockerfile
+    image: ajslater/nudebomb-builder
+    container_name: nudebomb-build-builder
+  nudebomb-test:
+    image: ajslater/nudebomb-builder
+    container_name: nudebomb-test
+    volumes:
+      - ./test-results:/app/test-results:rw
+    command: ./test.sh
+  nudebomb-lint:
+    image: ajslater/nudebomb-builder
+    container_name: nudebomb-lint
+    command: ./lint.sh
+  nudebomb-build:
+    image: ajslater/nudebomb-builder
+    container_name: nudebomb-build
+    volumes:
+      - ./dist:/app/dist:rw
+    command: poetry build

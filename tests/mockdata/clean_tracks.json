@@ -1,0 +1,86 @@
+{
+  "attachments": [],
+  "chapters": [],
+  "container": {
+    "properties": {
+      "container_type": 17,
+      "date_local": "2018-02-25T14:28:49+00:00",
+      "date_utc": "2018-02-25T14:28:49Z",
+      "duration": 7598624000000,
+      "is_providing_timestamps": true,
+      "muxing_application": "libebml v1.3.5 + libmatroska v1.4.8",
+      "segment_uid": "68ee1fb60aab469cb0dabf9d9c187b1f",
+      "writing_application": "mkvmerge v21.0.0 ('Tardigrades Will Inherit The Earth') 64-bit"
+    },
+    "recognized": true,
+    "supported": true,
+    "type": "Matroska"
+  },
+  "errors": [],
+  "file_name": "/movies/test.mkv",
+  "global_tags": [],
+  "identification_format_version": 10,
+  "track_tags": [],
+  "tracks": [
+    {
+      "codec": "MPEG-4p10/AVC/h.264",
+      "id": 0,
+      "properties": {
+        "codec_id": "V_MPEG4/ISO/AVC",
+        "codec_private_data": "01640029ffe1001a67640029acc8501e01e6c044000003000400000300c23c60c65801000668e938273c8f",
+        "codec_private_length": 43,
+        "default_duration": 41666666,
+        "default_track": true,
+        "display_dimensions": "1920x960",
+        "enabled_track": true,
+        "forced_track": false,
+        "language": "und",
+        "minimum_timestamp": 0,
+        "number": 1,
+        "packetizer": "mpeg4_p10_video",
+        "pixel_dimensions": "1920x960",
+        "uid": 14010143368931152847
+      },
+      "type": "video"
+    },
+    {
+      "codec": "AC-3",
+      "id": 2,
+      "properties": {
+        "audio_channels": 6,
+        "audio_sampling_frequency": 48000,
+        "codec_id": "A_AC3",
+        "codec_private_length": 0,
+        "default_duration": 32000000,
+        "default_track": false,
+        "enabled_track": true,
+        "forced_track": false,
+        "language": "eng",
+        "minimum_timestamp": 0,
+        "number": 3,
+        "track_name": "English",
+        "uid": 6255991820631803578
+      },
+      "type": "audio"
+    },
+    {
+      "codec": "SubRip/SRT",
+      "id": 5,
+      "properties": {
+        "codec_id": "S_TEXT/UTF8",
+        "codec_private_length": 0,
+        "default_track": false,
+        "enabled_track": true,
+        "encoding": "UTF-8",
+        "forced_track": false,
+        "language": "eng",
+        "number": 6,
+        "text_subtitles": true,
+        "track_name": "English",
+        "uid": 7634840392052583582
+      },
+      "type": "subtitles"
+    }
+  ],
+  "warnings": []
+}
