@@ -1,0 +1,14 @@
+nudebomb:
+  after: null
+  dry_run: False
+  languages: null
+  mkvmerge_bin: null
+  paths: []
+  recurse: False
+  strip_und_language: False
+  subtitles: True
+  subs_languages: null
+  symlinks: True
+  timestamps: False
+  title: True
+  verbose: False

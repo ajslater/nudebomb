@@ -1,0 +1,65 @@
+jobs:
+  build:
+    machine:
+      image: ubuntu-2004:current
+    steps:
+      - checkout
+      - run:
+          command: docker-compose build nudebomb-build-builder
+          name: Install Build Dependencies
+      - run:
+          command: ci/create-output-dirs.sh
+          name: Create Output Dirs
+      - run:
+          command: docker-compose up --exit-code-from nudebomb-test nudebomb-test
+          name: Test
+      - store_test_results:
+          path: test-results/pytest
+      - store_artifacts:
+          path: test-results/coverage
+      - run:
+          command: docker-compose up --exit-code-from nudebomb-lint nudebomb-lint
+          name: Lint
+      - run:
+          command: docker-compose up --exit-code-from nudebomb-build nudebomb-build
+          name: Build
+      - persist_to_workspace:
+          paths:
+            - ./README.md
+            - ./ci
+            - ./dist
+            - ./pyproject.toml
+          root: .
+  deploy:
+    docker:
+      - image: cimg/python:3.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          command: pip install poetry
+          name: Install poetry
+      - run:
+          command: ci/publish-pypi.sh
+          name: Publish Package to PyPi
+version: 2.1
+workflows:
+  main:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - circleci
+                - develop
+                - main
+                - /.*-ci/
+      - deploy:
+          filters:
+            branches:
+              only:
+                - circleci
+                - main
+          requires:
+            - build
+  version: 2.1

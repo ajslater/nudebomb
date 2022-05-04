@@ -1,0 +1,17 @@
+*.egg-info
+*.pyc
+*~
+.DS_Store
+.coverage*
+.eslintcache
+.mypy_cache
+.ropeproject
+.venv
+MANIFEST
+TODO.md
+__pycache__
+build
+dist
+monkeytype.sqlite3
+node_modules
+test-results
