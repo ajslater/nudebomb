@@ -5,7 +5,7 @@
 - Fixes
 
   - Fix treestamps type issue.
-  - Timestmaps do not set on dry run.
+  - Timestamps do not set on dry run.
 
 ## v0.1.0
 
