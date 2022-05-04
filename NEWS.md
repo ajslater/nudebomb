@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.1.2
+
+- Fixes
+
+  - Timestamps more resilient to errors.
+
 ## v0.1.1
 
 - Fixes
