@@ -25,6 +25,10 @@ class TestIntegrated:
         shutil.copy(src_path, self.dest_path)
         self.src_tracks = mkv_tracks(self.dest_path)
 
+    def teardown_method(self):
+        if TEST_DIR.exists():
+            shutil.rmtree(TEST_DIR, ignore_errors=True)
+
     def test_dry_run(self):
         main(("nudebomb", "-l", "eng,und", "-d", str(self.dest_path)))
         out_tracks = mkv_tracks(self.dest_path)
