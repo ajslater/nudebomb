@@ -17,10 +17,11 @@ from nudebomb.version import PROGRAM_NAME
 
 TEMPLATE = MappingTemplate(
     {
-        "nudebomb": MappingTemplate(
+        PROGRAM_NAME: MappingTemplate(
             {
                 "after": Optional(str),
                 "dry_run": bool,
+                "ignore": Sequence(str),
                 "languages": Sequence(str),
                 "mkvmerge_bin": Optional(str),
                 "paths": Sequence(str),
@@ -54,7 +55,7 @@ if system() == "Windows":
 
 
 def _set_after(config) -> None:
-    after = config["nudebomb"]["after"].get()
+    after = config[PROGRAM_NAME]["after"].get()
     if after is None:
         return
 
@@ -64,32 +65,32 @@ def _set_after(config) -> None:
         after_dt = parse(after)
         timestamp = mktime(after_dt.timetuple())
 
-    config["nudebomb"]["after"].set(timestamp)
+    config[PROGRAM_NAME]["after"].set(timestamp)
 
 
 def _set_default_mkvmerge_bin(config):
-    if config["nudebomb"]["mkvmerge_bin"].get():
+    if config[PROGRAM_NAME]["mkvmerge_bin"].get():
         return
 
     if system() == "Windows":
-        config["nudebomb"]["mkvmerge_bin"].set(
+        config[PROGRAM_NAME]["mkvmerge_bin"].set(
             "C:\\\\Program Files\\MKVToolNix\\mkvmerge.exe"
         )
     else:
-        config["nudebomb"]["mkvmerge_bin"].set("mkvmerge")
+        config[PROGRAM_NAME]["mkvmerge_bin"].set("mkvmerge")
 
 
 def _set_unique_lang_list(config, key):
-    if config["nudebomb"][key].get() is not None:
-        items = set(config["nudebomb"][key].get())
-        if not config["nudebomb"]["strip_und_language"].get():
+    if config[PROGRAM_NAME][key].get() is not None:
+        items = set(config[PROGRAM_NAME][key].get())
+        if not config[PROGRAM_NAME]["strip_und_language"].get():
             items.add("und")
-        config["nudebomb"][key].set(sorted(frozenset(items)))
+        config[PROGRAM_NAME][key].set(sorted(frozenset(items)))
 
 
 def _set_languages(config):
     _set_unique_lang_list(config, "languages")
-    if not config["nudebomb"]["languages"].get():
+    if not config[PROGRAM_NAME]["languages"].get():
         cprint(
             "Nudebomb will not run unless you set languages to keep on the "
             "command line, environment variables or config files.",
@@ -98,12 +99,18 @@ def _set_languages(config):
         sys.exit(1)
 
 
+def _set_ignore(config) -> None:
+    """Remove duplicates from the ignore list."""
+    ignore: list[str] = config[PROGRAM_NAME]["ignore"].get(list)
+    config[PROGRAM_NAME]["ignore"].set(tuple(sorted(set(ignore))))
+
+
 def _set_timestamps(config) -> None:
     """Set the timestamp attribute."""
-    timestamps = config["nudebomb"]["timestamps"].get(bool) and not config["nudebomb"][
-        "dry_run"
-    ].get(bool)
-    config["nudebomb"]["timestamps"].set(timestamps)
+    timestamps = config[PROGRAM_NAME]["timestamps"].get(bool) and not config[
+        PROGRAM_NAME
+    ]["dry_run"].get(bool)
+    config[PROGRAM_NAME]["timestamps"].set(timestamps)
 
 
 def get_config(
@@ -124,6 +131,7 @@ def get_config(
     _set_after(config)
     _set_default_mkvmerge_bin(config)
     _set_unique_lang_list(config, "subs_languages")
+    _set_ignore(config)
     _set_timestamps(config)
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):

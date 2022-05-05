@@ -64,6 +64,13 @@ def get_arguments(params=None):
         "languages.",
     )
     parser.add_argument(
+        "-i",
+        "--ignore",
+        action=CommaListAction,
+        dest="ignore",
+        help="List of globs to ignore.",
+    )
+    parser.add_argument(
         "-L",
         "--no-symlinks",
         action="store_false",
