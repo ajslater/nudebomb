@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.1.3
+
+- Fixes
+
+  - Fix timestamps not recording sometimes.
+
 ## v0.1.2
 
 - Fixes
