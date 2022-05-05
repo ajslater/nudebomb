@@ -1,6 +1,7 @@
 nudebomb:
   after: null
   dry_run: False
+  ignore: []
   languages: null
   mkvmerge_bin: null
   paths: []

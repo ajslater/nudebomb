@@ -21,6 +21,13 @@ class Walk:
         self._langfiles = LangFiles(config.languages)
         self._timestamps: dict[Path, Treestamps] = {}
 
+    def _is_path_ignored(self, path: Path) -> bool:
+        """Return if path should be ignored."""
+        for ignore_glob in self._config.ignore:
+            if path.match(ignore_glob):
+                return True
+        return False
+
     def strip_path(self, top_path, path):
         """Strip a single mkv file."""
         if not path.suffix == ".mkv":
@@ -71,7 +78,9 @@ class Walk:
 
     def walk_file(self, top_path, path):
         """Walk a file."""
-        if path.is_symlink() and not self._config.symlinks:
+        if self._is_path_ignored(path) or (
+            not self._config.symlinks and path.is_symlink()
+        ):
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
@@ -88,6 +97,7 @@ class Walk:
                 self._config.paths,
                 PROGRAM_NAME,
                 self._config.verbose,
+                self._config.ignore,
                 self._config,
                 TIMESTAMPS_CONFIG_KEYS,
             )
