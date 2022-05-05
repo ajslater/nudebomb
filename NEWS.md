@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.0
+
+- Features
+
+  - Ignore option
+
 ## v0.1.3
 
 - Fixes
