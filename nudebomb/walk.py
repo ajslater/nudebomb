@@ -93,10 +93,11 @@ class Walk:
             print("Searching for MKV files to process...")
 
         if self._config.timestamps:
-            self._timestamps = Treestamps.path_to_treestamps_map_factory(
+            self._timestamps = Treestamps.map_factory(
                 self._config.paths,
                 PROGRAM_NAME,
                 self._config.verbose,
+                self._config.symlinks,
                 self._config.ignore,
                 self._config,
                 TIMESTAMPS_CONFIG_KEYS,
