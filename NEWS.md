@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.1
+
+- Fixes
+
+  - Timestamps respect symlinks option
+
 ## v0.2.0
 
 - Features
