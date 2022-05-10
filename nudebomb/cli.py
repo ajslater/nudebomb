@@ -3,6 +3,7 @@ from argparse import Action, ArgumentParser, Namespace
 from typing import Optional
 
 from nudebomb.config import get_config
+from nudebomb.version import VERSION
 from nudebomb.walk import Walk
 
 
@@ -19,7 +20,8 @@ class CommaListAction(Action):
 
 def get_arguments(params=None):
     """Command line interface."""
-    parser = ArgumentParser(description="Strips unnecessary tracks from MKV files.")
+    description = "Strips unnecessary tracks from MKV files."
+    parser = ArgumentParser(description=description)
     parser.add_argument(
         "-d",
         "--dry-run",
@@ -109,6 +111,9 @@ def get_arguments(params=None):
         help="Only strip mkvs after the specified timestamp. "
         "Supersedes recorded timestamp files. Can be an epoch number or "
         "datetime string.",
+    )
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {VERSION}"
     )
     parser.add_argument(
         "paths",

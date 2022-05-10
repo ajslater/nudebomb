@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.2
+
+- Fixes
+
+  - Fix timestamps factory breaking.
+
 ## v0.2.1
 
 - Fixes
