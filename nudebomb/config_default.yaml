@@ -8,7 +8,7 @@ nudebomb:
   recurse: False
   strip_und_language: False
   subtitles: True
-  subs_languages: null
+  sub_languages: null
   symlinks: True
   timestamps: False
   title: True

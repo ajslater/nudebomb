@@ -52,8 +52,8 @@ class MKVFile:
 
     def _filtered_tracks(self, track_type):
         """Return a tuple consisting of tracks to keep and tracks to remove."""
-        if track_type == self.SUBTITLE_TRACK_NAME and self._config.subs_languages:
-            languages_to_keep = self._config.subs_languages
+        if track_type == self.SUBTITLE_TRACK_NAME and self._config.sub_languages:
+            languages_to_keep = self._config.sub_languages
         else:
             languages_to_keep = self._config.languages
 
