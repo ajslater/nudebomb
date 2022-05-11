@@ -4,6 +4,7 @@ import os
 from copy import deepcopy
 from pathlib import Path
 
+from termcolor import cprint
 from treestamps import Treestamps
 
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
@@ -40,6 +41,8 @@ class Walk:
             mtime = self._timestamps.get(top_path, {}).get(path)
 
         if mtime is not None and mtime > path.stat().st_mtime:
+            if self._config.verbose:
+                cprint(f"Skip unchanged {path}", "white", attrs=["dark"])
             return
 
         config = deepcopy(self._config)
@@ -55,32 +58,31 @@ class Walk:
         if not self._config.recurse:
             return
 
-        dirs = []
         filenames = []
 
-        for filename in os.scandir(dir):
-            path = Path(filename)
-            if path.is_dir():
-                dirs.append(path)
+        for filename in sorted(os.listdir(dir)):
+            entry_path = dir / filename
+            if entry_path.is_dir():
+                self.walk_file(top_path, entry_path)
             else:
-                filenames.append(path)
+                filenames.append(entry_path)
 
-        for path in sorted(dirs):
-            self.walk_dir(top_path, path)
-
-        for path in sorted(filenames):
+        for path in filenames:
             self.walk_file(top_path, path)
 
         if self._config.timestamps:
             timestamps = self._timestamps[top_path]
             timestamps.set(dir, compact=True)
-            timestamps.dump()
 
     def walk_file(self, top_path, path):
         """Walk a file."""
-        if self._is_path_ignored(path) or (
-            not self._config.symlinks and path.is_symlink()
-        ):
+        if self._is_path_ignored(path):
+            if self._config.verbose:
+                cprint(f"Skip ignored {path}", "white", attrs=["dark"])
+            return
+        if not self._config.symlinks and path.is_symlink():
+            if self._config.verbose:
+                cprint(f"Skip symlink {path}", "white", attrs=["dark"])
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
@@ -108,5 +110,6 @@ class Walk:
             self.walk_file(top_path, path)
 
         if self._config.timestamps:
-            for timestamps in self._timestamps.values():
+            for top_path, timestamps in self._timestamps.items():
+                print(f"Saving timestamps for {top_path}")
                 timestamps.dump()
