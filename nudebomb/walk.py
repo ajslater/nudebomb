@@ -42,7 +42,9 @@ class Walk:
 
         if mtime is not None and mtime > path.stat().st_mtime:
             if self._config.verbose:
-                cprint(f"Skip unchanged {path}", "white", attrs=["dark"])
+                cprint(f"Skip unchanged {path}", "cyan", attrs=["dark"])
+            else:
+                cprint(".", "cyan", end="")
             return
 
         dirpath = Treestamps.dirpath(path)
@@ -80,10 +82,14 @@ class Walk:
         if self._is_path_ignored(path):
             if self._config.verbose:
                 cprint(f"Skip ignored {path}", "white", attrs=["dark"])
+            else:
+                cprint(".", "white", attrs=["dark"], end="")
             return
         if not self._config.symlinks and path.is_symlink():
             if self._config.verbose:
                 cprint(f"Skip symlink {path}", "white", attrs=["dark"])
+            else:
+                cprint(".", "white", attrs=["dark"], end="")
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
@@ -102,8 +108,9 @@ class Walk:
             sub_langs = ", ".join(sorted(self._config.sub_languages))
             print(f"Stripping subtitle languages except {sub_langs}.")
 
+        print("Searching for MKV files to process", end="")
         if self._config.verbose:
-            print("Searching for MKV files to process...")
+            print(":")
 
     def run(self):
         """Run the stripper against all configured paths."""
@@ -123,6 +130,8 @@ class Walk:
             path = Path(path_str)
             top_path = Treestamps.dirpath(path)
             self.walk_file(top_path, path)
+        if not self._config.verbose:
+            print("done.")
 
         if self._config.timestamps:
             for top_path, timestamps in self._timestamps.items():

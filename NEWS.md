@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.4
+
+- Features
+
+  - Progress dots in non-verbose mode.
+
 ## v0.2.3
 
 - Features

@@ -65,7 +65,7 @@ class MKVFile:
         for track in tracks:
             if self._config.verbose:
                 cprint(
-                    f"{track_type}: {track.id} {track.lang}", "white", attrs=["dark"]
+                    f"\t{track_type}: {track.id} {track.lang}", "white", attrs=["dark"]
                 )
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
@@ -152,7 +152,7 @@ class MKVFile:
     def remove_tracks(self):
         """Remove the unwanted tracks."""
         if self._config.verbose:
-            print(f"Checking {self.path}")
+            cprint(f"Checking {self.path}:", "white", attrs=["dark"])
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
         output += "============================\n"
@@ -181,7 +181,9 @@ class MKVFile:
 
         if not num_remove_ids:
             if self._config.verbose:
-                cprint(f"Not remuxing {self.path}", "white", attrs=["dark"])
+                cprint(f"\tNot remuxing {self.path}", "green", attrs=["dark"])
+            else:
+                cprint(".", "green", attrs=["bold"], end="")
             return
 
         try:
