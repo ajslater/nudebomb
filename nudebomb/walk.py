@@ -19,7 +19,7 @@ class Walk:
     def __init__(self, config):
         """Initialize."""
         self._config = config
-        self._langfiles = LangFiles(config.languages)
+        self._langfiles = LangFiles(config)
         self._timestamps: dict[Path, Treestamps] = {}
 
     def _is_path_ignored(self, path: Path) -> bool:
@@ -45,8 +45,9 @@ class Walk:
                 cprint(f"Skip unchanged {path}", "white", attrs=["dark"])
             return
 
+        dirpath = Treestamps.dirpath(path)
         config = deepcopy(self._config)
-        config.languages = self._langfiles.get_langs(top_path, path)
+        config.languages = self._langfiles.get_langs(top_path, dirpath)
         mkv_obj = MKVFile(config, path)
         mkv_obj.remove_tracks()
 

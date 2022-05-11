@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.3
+
+- Fixes
+
+  - Searching for langfiles obeys symlinks preference.
+
 ## v0.2.2
 
 - Fixes

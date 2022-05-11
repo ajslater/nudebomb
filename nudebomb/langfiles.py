@@ -31,11 +31,12 @@ def lang_to_alpha3(lang):
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, languages):
+    def __init__(self, config):
         """Initialize."""
+        self._config = config
         self._lang_roots = {}
         langs = set()
-        for lang in languages:
+        for lang in self._config.languages:
             langs.add(lang_to_alpha3(lang))
         self._languages = frozenset(langs)
 
@@ -50,7 +51,12 @@ class LangFiles:
             self._lang_roots[path] = set()
             for fn in LANGS_FNS:
                 langpath = path / fn
-                if not langpath.exists() or not langpath.is_file():
+                if (
+                    not langpath.exists()
+                    or not langpath.is_file()
+                    or (not self._config.symlinks and langpath.is_symlink())
+                ):
+                    # ignore is already handled before we get here in walk.py
                     continue
                 newlangs = set()
                 with langpath.open("r") as langfile:
@@ -68,6 +74,6 @@ class LangFiles:
         while True:
             langs |= self.read_lang_files(path)
             path = path.parent
-            if path == top_path or path == path.parent:
+            if path in (top_path, path.parent):
                 break
-        return sorted(langs)
+        return frozenset(langs)
