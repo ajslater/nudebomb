@@ -27,7 +27,7 @@ TEMPLATE = MappingTemplate(
                 "paths": Sequence(str),
                 "recurse": bool,
                 "strip_und_language": bool,
-                "subs_languages": Optional(Sequence(str)),
+                "sub_languages": Optional(Sequence(str)),
                 "subtitles": bool,
                 "symlinks": bool,
                 "timestamps": bool,
@@ -43,7 +43,7 @@ TIMESTAMPS_CONFIG_KEYS = set(
         "mkvmerge_bin",
         "recurse",
         "strip_und_language",
-        "subs_languages",
+        "sub_languages",
         "subtitles",
         "symlinks",
         "title",
@@ -130,13 +130,11 @@ def get_config(
     _set_languages(config)
     _set_after(config)
     _set_default_mkvmerge_bin(config)
-    _set_unique_lang_list(config, "subs_languages")
+    _set_unique_lang_list(config, "sub_languages")
     _set_ignore(config)
     _set_timestamps(config)
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):
         raise ValueError()
     ad.paths = sorted(frozenset(ad.nudebomb.paths))
-    if ad.nudebomb.verbose:
-        print(f"Config: {ad}")
     return ad.nudebomb

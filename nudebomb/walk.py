@@ -90,10 +90,24 @@ class Walk:
         else:
             self.strip_path(top_path, path)
 
-    def run(self):
-        """Run the stripper against all configured paths."""
+    def print_info(self):
+        """Print intentions before we begin."""
+        langs = ", ".join(sorted(self._config.languages))
+        if self._config.sub_languages:
+            audio = "audio "
+        else:
+            audio = ""
+        print(f"Stripping {audio}languages except {langs}.")
+        if self._config.sub_languages:
+            sub_langs = ", ".join(sorted(self._config.sub_languages))
+            print(f"Stripping subtitle languages except {sub_langs}.")
+
         if self._config.verbose:
             print("Searching for MKV files to process...")
+
+    def run(self):
+        """Run the stripper against all configured paths."""
+        self.print_info()
 
         if self._config.timestamps:
             self._timestamps = Treestamps.map_factory(

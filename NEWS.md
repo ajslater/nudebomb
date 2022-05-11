@@ -2,6 +2,11 @@
 
 ## v0.2.3
 
+- Features
+
+  - More output about what nudebomb is doing.
+  - Renamed subs_languages config option to sub_languages.
+
 - Fixes
 
   - Searching for langfiles obeys symlinks preference.

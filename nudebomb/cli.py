@@ -38,7 +38,7 @@ def get_arguments(params=None):
         "-l",
         "--languages",
         action=CommaListAction,
-        help="Comma-separated list of subtitle and audio languages to retain. "
+        help="Comma-separated list of audio and subtitle languages to retain. "
         "e.g. eng,fre.",
     )
     parser.add_argument(
@@ -50,7 +50,7 @@ def get_arguments(params=None):
     )
     parser.add_argument(
         "-s",
-        "--subs-languages",
+        "--sub-languages",
         action=CommaListAction,
         required=False,
         help="Comma-separated list of subtitle specific languages to retain. "
