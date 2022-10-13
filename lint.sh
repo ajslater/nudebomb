@@ -1,10 +1,12 @@
 #!/bin/bash
 # Lint checks
 set -euxo pipefail
-#poetry run isort --check-only --color .
-#poetry run black --check .
+poetry run isort --check-only --color .
+poetry run black --check .
 poetry run pyright
+poetry run bandit -r -c "pyproject.toml" --confidence-level=medium --severity-level=medium nudebomb
 poetry run vulture .
+poetry run eradicate --recursive .
 if [ "$(uname)" = "Darwin" ]; then
     # Radon is only of interest to development
     poetry run radon mi --min B .
@@ -15,7 +17,7 @@ npm run check
 if [ "$(uname)" = "Darwin" ]; then
     # shellcheck disable=2035
     hadolint *Dockerfile
-    shfmt -d -i 4 ./*.sh #./**/*.sh
+    shellharden ./*.sh ./**/*.sh
     circleci config check .circleci/config.yml
 fi
 shellcheck --external-sources ./*.sh
