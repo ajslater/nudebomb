@@ -53,7 +53,7 @@ Valid lang file names are: 'lang', 'langs', '.lang', or '.langs'
 They include comma separated list of languages to keep like the `-l` option.
 
 e.g. You may have an entire collecttion of different TV shows with a root lang file
-containing the `eng` language. Under that directory you may have a specifi TV show directory
+containing the `eng` language. Under that directory you may have a specific TV show directory
 with lang file containing `jpn`. All mkvs in season directories under that would then
 keep both the `eng` and `jpn` languages, while other TV shows would keep only `eng` languages.
 
