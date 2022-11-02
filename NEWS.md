@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.5
+
+- Features
+
+  - Update confuse library to latest version
+
 ## v0.2.4
 
 - Features
