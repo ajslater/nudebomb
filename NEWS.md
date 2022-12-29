@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.2.6
+
+- Features
+
+- Update poetry lockfile & dev deps
+
 ## v0.2.5
 
 - Features
