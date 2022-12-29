@@ -4,7 +4,7 @@
 
 - Features
 
-- Update poetry lockfile & dev deps
+  - Update poetry lockfile & dev deps
 
 ## v0.2.5
 
