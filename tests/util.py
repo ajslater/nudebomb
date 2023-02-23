@@ -1,9 +1,7 @@
 """Common test utilities."""
 import json
 import subprocess
-
 from pathlib import Path
-
 
 TEST_FN = "test5.mkv"
 SRC_DIR = Path("tests/test_files")
@@ -13,6 +11,7 @@ __all__ = ()
 
 
 def mkv_tracks(path):
+    """Get tracks from mkv."""
     cmd = ("mkvmerge", "-J", str(path))
     proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
     data = json.loads(proc.stdout)

@@ -1,6 +1,5 @@
 """Walk directory trees and strip mkvs."""
 import os
-
 from copy import deepcopy
 from pathlib import Path
 

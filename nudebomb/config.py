@@ -2,7 +2,6 @@
 import os
 import sys
 import typing
-
 from argparse import Namespace
 from platform import system
 from time import mktime
@@ -13,7 +12,6 @@ from dateutil.parser import parse
 from termcolor import cprint
 
 from nudebomb.version import PROGRAM_NAME
-
 
 TEMPLATE = MappingTemplate(
     {
@@ -37,18 +35,16 @@ TEMPLATE = MappingTemplate(
         )
     }
 )
-TIMESTAMPS_CONFIG_KEYS = set(
-    (
-        "languages",
-        "mkvmerge_bin",
-        "recurse",
-        "strip_und_language",
-        "sub_languages",
-        "subtitles",
-        "symlinks",
-        "title",
-    )
-)
+TIMESTAMPS_CONFIG_KEYS = {
+    "languages",
+    "mkvmerge_bin",
+    "recurse",
+    "strip_und_language",
+    "sub_languages",
+    "subtitles",
+    "symlinks",
+    "title",
+}
 
 if system() == "Windows":
     os.system("color")

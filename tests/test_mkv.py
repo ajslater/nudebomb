@@ -1,7 +1,6 @@
 """Test MKVFile object."""
 import os
 import shutil
-
 from pathlib import Path
 
 from nudebomb.config import get_config
@@ -9,14 +8,14 @@ from nudebomb.mkv import MKVFile
 
 from .util import SRC_PATH, TEST_FN, mkv_tracks
 
-
 __all__ = ()
 
-TEST_DIR = Path("/tmp/nudebomb.test_remux")
+TEST_DIR = Path("/tmp/nudebomb.test_remux")  # noqa
 TEST_MKV = TEST_DIR / TEST_FN
 
 
 def assert_eng_und_only(out_tracks):
+    """Asset english and undefined only tracks."""
     audio_count = 0
     subs_count = 0
     for track in out_tracks:
@@ -37,7 +36,10 @@ def assert_eng_und_only(out_tracks):
 
 
 class TestMkv:
+    """Test MKV."""
+
     def setup_method(self):
+        """Set up method."""
         shutil.rmtree(TEST_DIR, ignore_errors=True)
         TEST_DIR.mkdir()
         shutil.copy(SRC_PATH, TEST_MKV)
@@ -46,9 +48,11 @@ class TestMkv:
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__1"] = "eng"
 
     def teardown_method(self):
+        """Tear down method."""
         shutil.rmtree(TEST_DIR)
 
     def test_dry_run(self):
+        """Test dry run."""
         config = get_config()
         config.dry_run = True
         mkvfile = MKVFile(config, TEST_MKV)
@@ -58,6 +62,7 @@ class TestMkv:
         assert out_tracks == self.src_tracks
 
     def test_run(self):
+        """Test run."""
         config = get_config()
         mkvfile = MKVFile(config, TEST_MKV)
         mkvfile.remove_tracks()
@@ -65,6 +70,7 @@ class TestMkv:
         assert_eng_und_only(out_tracks)
 
     def test_fail(self):
+        """Test fail."""
         config = get_config()
         config.languages = ["xxx"]
         mkvfile = MKVFile(config, TEST_MKV)

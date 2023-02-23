@@ -1,8 +1,6 @@
 """Module for reading lang files."""
 import pycountry
-
 from termcolor import cprint
-
 
 LANGS_FNS = ("lang", "langs", ".lang", ".langs")
 
@@ -17,7 +15,7 @@ def lang_to_alpha3(lang):
         try:
             lo = pycountry.languages.get(alpha_2=lang)
             lang = lo.alpha_3
-        except Exception:
+        except Exception:  # noqa
             pass
     else:
         cprint(
@@ -41,8 +39,7 @@ class LangFiles:
         self._languages = frozenset(langs)
 
     def read_lang_files(self, path):
-        """
-        Read the lang files and parse languages.
+        """Read the lang files and parse languages.
 
         lang_roots is a dictionary to cache paths and languages to avoid
         reparsing the same language files.
