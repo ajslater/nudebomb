@@ -13,7 +13,7 @@ __all__ = ()
 def mkv_tracks(path):
     """Get tracks from mkv."""
     cmd = ("mkvmerge", "-J", str(path))
-    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa S603
     data = json.loads(proc.stdout)
     return data.get("tracks")
 

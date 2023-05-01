@@ -47,7 +47,7 @@ TIMESTAMPS_CONFIG_KEYS = {
 }
 
 if system() == "Windows":
-    os.system("color")
+    os.system("color")  # noqa S605, S607
 
 
 def _set_after(config) -> None:

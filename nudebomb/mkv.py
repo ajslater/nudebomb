@@ -30,7 +30,9 @@ class MKVFile:
 
         # Ask mkvmerge for the json info
         command = (self._config.mkvmerge_bin, "-J", str(self.path))
-        proc = subprocess.run(command, capture_output=True, check=True, text=True)
+        proc = subprocess.run(
+            command, capture_output=True, check=True, text=True  # noqa S603
+        )
 
         # Process the json response
         json_data = json.loads(proc.stdout)
@@ -128,7 +130,9 @@ class MKVFile:
         sys.stdout.flush()
 
         # Call subprocess command to remux file
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, text=True  # noqa S603
+        )
         # Display Percentage until subprocess has finished
         while process.poll() is None:
             # Sleep for a quarter second and then display progress
