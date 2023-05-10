@@ -29,6 +29,7 @@ TEMPLATE = MappingTemplate(
                 "subtitles": bool,
                 "symlinks": bool,
                 "timestamps": bool,
+                "timestamps_check_config": bool,
                 "title": bool,
                 "verbose": bool,
             }
@@ -131,6 +132,6 @@ def get_config(
     _set_timestamps(config)
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):
-        raise ValueError()
+        raise TypeError
     ad.paths = sorted(frozenset(ad.nudebomb.paths))
     return ad.nudebomb

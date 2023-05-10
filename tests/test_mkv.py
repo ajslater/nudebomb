@@ -23,16 +23,17 @@ def assert_eng_und_only(out_tracks):
         if track_type not in MKVFile.REMOVABLE_TRACK_NAMES:
             continue
         lang = track["properties"]["language"]
-        print(track_type, lang)
+        print(track_type, lang)  # noqa T201
         assert lang in ["und", "eng"]
         if track_type == MKVFile.SUBTITLE_TRACK_NAME:
             subs_count += 1
         elif track_type == MKVFile.AUDIO_TRACK_NAME:
             audio_count += 1
         else:
-            raise AssertionError(f"Bad track type: {track_type}")
-    assert audio_count == 2
-    assert subs_count == 2
+            msg = f"Bad track type: {track_type}"
+            raise AssertionError(msg)
+    assert audio_count == 2  # noqa: PLR2004
+    assert subs_count == 2  # noqa: PLR2004
 
 
 class TestMkv:

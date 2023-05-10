@@ -56,4 +56,5 @@ class TestIntegrated:
         for track in out_tracks:
             track_type = track.get("type")
             if track_type == MKVFile.SUBTITLE_TRACK_NAME:
-                raise AssertionError(f"subtitle track should not exist: {track}")
+                msg = f"subtitle track should not exist: {track}"
+                raise AssertionError(msg)

@@ -13,7 +13,7 @@ RUN apt-get update \
 
 WORKDIR /app
 RUN chown circleci:circleci /app
-COPY --chown=circleci:circleci ci ci
+COPY --chown=circleci:circleci bin bin
 
 USER circleci
 COPY --chown=circleci:circleci pyproject.toml poetry.lock ./

@@ -110,7 +110,8 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            raise ValueError("Tried to remove all audio tracks.")
+            reason = "Tried to remove all audio tracks."
+            raise ValueError(reason)
 
         # Report what tracks will be removed
         output += f"Removing {track_type} track(s):\n"
@@ -190,9 +191,9 @@ class MKVFile:
             return
 
         try:
-            print(output, flush=True)
+            cprint(output, flush=True)
             if self._config.dry_run:
-                print("Dry run 100%")
+                cprint("Dry run 100%", "black", attrs=["bold"])
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
