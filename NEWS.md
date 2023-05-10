@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.3
+
+- Upstream treestamps fixes bugs.
+
 ## v0.3.2
 
 - Upstream treestamps returns to relative stamp paths for portability.

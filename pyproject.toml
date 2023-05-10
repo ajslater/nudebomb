@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "nudebomb"
-version = "0.3.2"
+version = "0.3.3"
 description = "Strip unused languages from mkv files en mass"
 authors = ["AJ Slater <aj@slater.net>"]
 license = "GPL-3.0-only"
@@ -30,7 +30,7 @@ confuse = "^2.0.0"
 pycountry = "^22.3.5"
 python-dateutil = "^2.8.2"
 "ruamel.yaml" = "^0.17.21"
-treestamps = "^0.4.2"
+treestamps = "^0.4.3"
 termcolor = "^2.3.0"
 
 [tool.poetry.group.dev.dependencies]
