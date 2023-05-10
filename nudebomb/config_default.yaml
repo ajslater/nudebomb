@@ -11,5 +11,6 @@ nudebomb:
   sub_languages: null
   symlinks: True
   timestamps: False
+  timestamps_check_config: True
   title: True
   verbose: False

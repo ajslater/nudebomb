@@ -1,5 +1,12 @@
 # 📰 Nudebomb News
 
+## v0.3.0
+
+- Features
+
+  - New ignore timestamps for one run but write them option.
+  - Update deps including new treestamps.
+
 ## v0.2.6
 
 - Features

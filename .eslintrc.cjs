@@ -2,7 +2,7 @@ module.exports = {
   root: true,
   env: {
     node: true,
-    es2021: true,
+    es2022: true,
   },
   extends: [
     "eslint:recommended",
@@ -18,7 +18,7 @@ module.exports = {
     ecmaFeatures: {
       impliedStrict: true,
     },
-    ecmaVersion: 2022,
+    ecmaVersion: "latest",
   },
   overrides: [
     {

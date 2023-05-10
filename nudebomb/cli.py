@@ -101,6 +101,14 @@ def get_arguments(params=None):
         "modified since the last run.",
     )
     parser.add_argument(
+        "-C",
+        "--timestamps-no-check-config",
+        dest="timestamps_check_config",
+        action="store_false",
+        default=True,
+        help="Do not compare program config options with loaded timestamps.",
+    )
+    parser.add_argument(
         "-c", "--config", action="store", help="Alternate config file path"
     )
     parser.add_argument(

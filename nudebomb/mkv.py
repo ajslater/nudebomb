@@ -3,7 +3,6 @@ import json
 import subprocess
 import sys
 import time
-
 from pathlib import Path
 
 from termcolor import cprint
@@ -31,7 +30,9 @@ class MKVFile:
 
         # Ask mkvmerge for the json info
         command = (self._config.mkvmerge_bin, "-J", str(self.path))
-        proc = subprocess.run(command, capture_output=True, check=True, text=True)
+        proc = subprocess.run(
+            command, capture_output=True, check=True, text=True  # noqa S603
+        )
 
         # Process the json response
         json_data = json.loads(proc.stdout)
@@ -109,7 +110,8 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            raise ValueError("Tried to remove all audio tracks.")
+            reason = "Tried to remove all audio tracks."
+            raise ValueError(reason)
 
         # Report what tracks will be removed
         output += f"Removing {track_type} track(s):\n"
@@ -129,7 +131,9 @@ class MKVFile:
         sys.stdout.flush()
 
         # Call subprocess command to remux file
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, text=True  # noqa S603
+        )
         # Display Percentage until subprocess has finished
         while process.poll() is None:
             # Sleep for a quarter second and then display progress
@@ -187,9 +191,9 @@ class MKVFile:
             return
 
         try:
-            print(output, flush=True)
+            cprint(output, flush=True)
             if self._config.dry_run:
-                print("Dry run 100%")
+                cprint("Dry run 100%", "black", attrs=["bold"])
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)

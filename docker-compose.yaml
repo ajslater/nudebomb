@@ -11,14 +11,14 @@ services:
     container_name: nudebomb-test
     volumes:
       - ./test-results:/app/test-results:rw
-    command: ./test.sh
+    command: make test
   nudebomb-lint:
     image: ajslater/nudebomb-builder
     container_name: nudebomb-lint
-    command: ./lint.sh
+    command: make lint
   nudebomb-build:
     image: ajslater/nudebomb-builder
     container_name: nudebomb-build
     volumes:
       - ./dist:/app/dist:rw
-    command: poetry build
+    command: make build

@@ -2,7 +2,6 @@
 import os
 import sys
 import typing
-
 from argparse import Namespace
 from platform import system
 from time import mktime
@@ -13,7 +12,6 @@ from dateutil.parser import parse
 from termcolor import cprint
 
 from nudebomb.version import PROGRAM_NAME
-
 
 TEMPLATE = MappingTemplate(
     {
@@ -31,27 +29,26 @@ TEMPLATE = MappingTemplate(
                 "subtitles": bool,
                 "symlinks": bool,
                 "timestamps": bool,
+                "timestamps_check_config": bool,
                 "title": bool,
                 "verbose": bool,
             }
         )
     }
 )
-TIMESTAMPS_CONFIG_KEYS = set(
-    (
-        "languages",
-        "mkvmerge_bin",
-        "recurse",
-        "strip_und_language",
-        "sub_languages",
-        "subtitles",
-        "symlinks",
-        "title",
-    )
-)
+TIMESTAMPS_CONFIG_KEYS = {
+    "languages",
+    "mkvmerge_bin",
+    "recurse",
+    "strip_und_language",
+    "sub_languages",
+    "subtitles",
+    "symlinks",
+    "title",
+}
 
 if system() == "Windows":
-    os.system("color")
+    os.system("color")  # noqa S605, S607
 
 
 def _set_after(config) -> None:
@@ -135,6 +132,6 @@ def get_config(
     _set_timestamps(config)
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):
-        raise ValueError()
+        raise TypeError
     ad.paths = sorted(frozenset(ad.nudebomb.paths))
     return ad.nudebomb
