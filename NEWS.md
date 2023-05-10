@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.1
+
+- Upstream treestamps fixes crashes and check_config option.
+
 ## v0.3.0
 
 - Features
