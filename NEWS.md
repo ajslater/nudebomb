@@ -1,6 +1,6 @@
 # 📰 Nudebomb News
 
-## v0.2.7
+## v0.3.0
 
 - Features
 
