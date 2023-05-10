@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.2
+
+- Upstream treestamps returns to relative stamp paths for portability.
+
 ## v0.3.1
 
 - Upstream treestamps fixes crashes and check_config option.
