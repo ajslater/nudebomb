@@ -7,34 +7,12 @@
     "remark-check": "remark .",
     "remark-fix": "remark . --output"
   },
-  "devDependencies": {
-    "@fsouza/prettierd": "^0.24.0",
-    "@prettier/plugin-xml": "^3.1.0",
-    "eslint_d": "^12.0.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-eslint-comments": "^3.2.0",
-    "eslint-plugin-json": "^3.1.0",
-    "eslint-plugin-markdown": "^3.0.0",
-    "eslint-plugin-prettier": "^5.0.0-alpha.2",
-    "eslint-plugin-yaml": "^0.5.0",
-    "markdown-eslint-parser": "^1.2.1",
-    "prettier": "^3.0.0",
-    "prettier-plugin-ini": "^1.0.0",
-    "prettier-plugin-packagejson": "^2.4.4",
-    "prettier-plugin-sh": "^0.13.0",
-    "prettier-plugin-toml": "^0.3.1",
-    "remark": "^14.0.2",
-    "remark-cli": "^11.0.0",
-    "remark-gfm": "^3.0.1",
-    "remark-preset-lint-consistent": "^5.1.1",
-    "remark-preset-lint-markdown-style-guide": "^5.1.2",
-    "remark-preset-lint-recommended": "^6.1.2",
-    "remark-preset-prettier": "^2.0.1"
-  },
   "prettier": {
-    "trailingComma": "es5",
-    "arrowParens": "always",
-    "tabWidth": 2
+    "plugins": [
+      "@prettier/plugin-xml",
+      "prettier-plugin-packagejson",
+      "prettier-plugin-sh"
+    ]
   },
   "remarkConfig": {
     "plugins": [
@@ -44,5 +22,27 @@
       "preset-lint-recommended",
       "preset-prettier"
     ]
+  },
+  "devDependencies": {
+    "@fsouza/prettierd": "^0.24.0",
+    "@prettier/plugin-xml": "^3.1.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-json": "^3.1.0",
+    "eslint-plugin-markdown": "^3.0.0",
+    "eslint-plugin-prettier": "^5.0.0-alpha.2",
+    "eslint-plugin-yaml": "^0.5.0",
+    "eslint_d": "^12.0.0",
+    "markdown-eslint-parser": "^1.2.1",
+    "prettier": "^3.0.0",
+    "prettier-plugin-packagejson": "^2.4.4",
+    "prettier-plugin-sh": "^0.13.0",
+    "remark": "^14.0.2",
+    "remark-cli": "^11.0.0",
+    "remark-gfm": "^3.0.1",
+    "remark-preset-lint-consistent": "^5.1.1",
+    "remark-preset-lint-markdown-style-guide": "^5.1.2",
+    "remark-preset-lint-recommended": "^6.1.2",
+    "remark-preset-prettier": "^2.0.1"
   }
 }
