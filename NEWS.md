@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.4
+
+- Update deps.
+
 ## v0.3.3
 
 - Upstream treestamps fixes bugs.

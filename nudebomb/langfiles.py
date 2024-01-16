@@ -13,8 +13,8 @@ def lang_to_alpha3(lang):
         pass
     elif len(lang) == 2:  # noqa PLR2004
         try:
-            lo = pycountry.languages.get(alpha_2=lang)
-            lang = lo.alpha_3
+            if lo := pycountry.languages.get(alpha_2=lang):
+                lang = lo.alpha_3
         except Exception:  # noqa
             pass
     else:

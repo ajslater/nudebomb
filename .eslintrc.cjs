@@ -71,6 +71,7 @@ module.exports = {
     "!.circleci",
     ".mypy_cache",
     ".pytest_cache",
+    ".ruff_cache",
     ".venv",
     "dist",
     "node_modules",
