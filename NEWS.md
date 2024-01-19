@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.5
+
+- Require python 3.10
+
 ## v0.3.4
 
 - Update deps.

@@ -1,7 +1,6 @@
 """Confuse config for comicbox."""
 import os
 import sys
-import typing
 from argparse import Namespace
 from platform import system
 from time import mktime
@@ -110,9 +109,7 @@ def _set_timestamps(config) -> None:
     config[PROGRAM_NAME]["timestamps"].set(timestamps)
 
 
-def get_config(
-    args: typing.Optional[Namespace] = None, modname=PROGRAM_NAME
-) -> AttrDict:
+def get_config(args: Namespace | None = None, modname=PROGRAM_NAME) -> AttrDict:
     """Get the config dict, layering env and args over defaults."""
     config = Configuration(PROGRAM_NAME, modname=modname, read=False)
     try:
