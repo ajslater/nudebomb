@@ -1,6 +1,5 @@
 """Command line interface for nudebomb."""
 from argparse import Action, ArgumentParser, Namespace
-from typing import Optional
 
 from nudebomb.config import get_config
 from nudebomb.version import VERSION
@@ -138,7 +137,7 @@ def get_arguments(params=None):
     return Namespace(nudebomb=nns)
 
 
-def main(args: Optional[tuple[str, ...]] = None):
+def main(args: tuple[str, ...] | None = None):
     """Process command line arguments, config and walk inputs."""
     arguments = get_arguments(args)
     config = get_config(arguments)
