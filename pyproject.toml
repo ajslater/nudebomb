@@ -42,11 +42,11 @@ codespell = "^2.1.0"
 coverage = { extras = ["toml"], version = "^7.0" }
 neovim = "^0.3.1"
 pyright = "^1.1.237"
-pytest = "^7.0.0"
+pytest = "^8.0.0"
 pytest-cov = "^4.0.0"
 pytest-gitignore = "^1.3"
-radon = {version = "^6.0.1", extras = ["toml"]}
-ruff = "^0.1.13"
+radon = { version = "^6.0.1", extras = ["toml"] }
+ruff = "^0.2.1"
 types-python-dateutil = "^2.8.0"
 vulture = "^2.1"
 
@@ -58,10 +58,10 @@ nudebomb = "nudebomb.cli:main"
 "Issues" = "https://github.com/ajslater/nudebomb/issues"
 
 [tool.codespell]
-skip=".git,.mypy_cache,.pytest_cache,.ruff_cache,.venv,*~,./dist,./node_modules,./package-lock.json,./poetry.lock,./test-results"
-builtin="clear,rare,code"
-check-hidden=true
-ignore-words-list="thead"
+skip = ".git,.mypy_cache,.pytest_cache,.ruff_cache,.venv,*~,./dist,./node_modules,./package-lock.json,./poetry.lock,./test-results"
+builtin = "clear,rare,code"
+check-hidden = true
+ignore-words-list = "thead"
 
 [tool.coverage.run]
 source = ["nudebomb"]
@@ -77,14 +77,13 @@ omit = [
   "dist/*",
   "node_modules/*",
   "test-results/*",
-  "typings/*"
+  "typings/*",
 ]
 
 [tool.coverage.html]
 directory = "test-results/coverage"
 
 [tool.pytest.ini_options]
-junit_family = "xunit2"
 addopts = """
   --junitxml=test-results/pytest/junit.xml
   -ra
@@ -93,17 +92,9 @@ addopts = """
   --cov-append
   --cov-report=html
   --cov-report=term
-  --ignore=.git
-  --ignore=.mypy_cache
-  --ignore=.pytest_cache
-  --ignore=.venv
-  --ignore=dist
-  --ignore=node_modules
-  --ignore=test-results
-  --ignore=typings
-  --ignore=vulture_whitelist.py
-  --ignore-glob=*__pycache__*
 """
+junit_family = "xunit2"
+testpaths = "tests"
 
 [tool.pyright]
 exclude = [
@@ -119,7 +110,7 @@ exclude = [
   "poetry.lock",
   "test-results",
   "typings",
-  "vulture_whitelist.py"
+  "vulture_whitelist.py",
 ]
 pythonVersion = "3.10"
 pythonPlatform = "All"
@@ -132,27 +123,86 @@ exclude = "*~,.git/*,.mypy_cache/*,.pytest_cache/*,.ruff_cache/*,.venv/*,__pycac
 
 [tool.ruff]
 extend-exclude = ["cache", "typings"]
-extend-ignore = ["S101", "D203", "D213",
+target-version = "py310"
+[tool.ruff.lint]
+extend-ignore = [
+  "S101",
+  "D203",
+  "D213",
   # Format ignores
-  "W191", "E501", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001",
-  "Q002", "Q003", "COM812", "COM819", "ISC001", "ISC002"
+  "W191",
+  "E501",
+  "E111",
+  "E114",
+  "E117",
+  "D206",
+  "D300",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "COM812",
+  "COM819",
+  "ISC001",
+  "ISC002",
 ]
-extend-select = ["A", "ARG", "B", "B9", "C", "C4", "C90", "D", "DJ",
-  "DTZ", "E", "EM", "EXE", "F", "I", "ICN", "INP", "ISC", "PIE", "PL",
-  "PT", "PTH", "PYI", "Q", "N", "RET", "RSE", "RUF", "S", "SIM", "SLF",
-  "T10", "T20", "TCH", "TID", "TRY", "UP", "W", "YTT"
+extend-select = [
+  "A",
+  "ARG",
+  "B",
+  "B9",
+  "C",
+  "C4",
+  "C90",
+  "D",
+  "DJ",
+  "DTZ",
+  "E",
+  "EM",
+  "EXE",
+  "F",
+  "I",
+  "ICN",
+  "INP",
+  "ISC",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "Q",
+  "N",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "T10",
+  "T20",
+  "TCH",
+  "TID",
+  "TRY",
+  "UP",
+  "W",
+  "YTT",
   # "ANN", "ERA", "COM"
 ]
 external = ["V101"]
-# format = "grouped"
-# show-source = true
-target-version = "py310"
 task-tags = ["TODO", "FIXME", "XXX", "http", "HACK"]
 
-[tool.ruff.pycodestyle]
+[tool.ruff.lint.pycodestyle]
 ignore-overlong-task-comments = true
 
 [tool.vulture]
-exclude = [".git/", ".mypy_cache/", ".pytest_cache", ".ruff_cache", ".venv", "*__pycache__*"]
+exclude = [
+  ".git/",
+  ".mypy_cache/",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".venv",
+  "*__pycache__*",
+  "node_modules",
+]
 min_confidence = 61
 sort_by_size = true
