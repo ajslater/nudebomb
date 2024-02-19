@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.6
+
+- Fix treestamps wal file bug with illegal characters in filename.
+
 ## v0.3.5
 
 - Require python 3.10
