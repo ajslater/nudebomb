@@ -1,4 +1,5 @@
 """Test Track class."""
+
 import json
 
 from nudebomb.track import Track

@@ -1,4 +1,5 @@
 """Module for reading lang files."""
+
 import pycountry
 from termcolor import cprint
 

@@ -1,4 +1,5 @@
 """Command line interface for nudebomb."""
+
 from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
 
 from termcolor import colored
@@ -23,16 +24,25 @@ def get_arguments(params=None):
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
     epilog = (
-        "Dot color key:\n" +
-        colored("\tMKV ignored", "white", attrs=["dark"]) + "\n" +
-        colored("\tMKV timestamp unchanged", "cyan") +"\n" +
-        colored("\tMKV already stripped", "green")+"\n" +
-        colored("\tMKV not remuxed on dry run", "black", attrs=["bold"])+"\n" +
-        colored("\tWarning", "yellow")+"\n" +
-        colored("\tError", "red")+ "\n"
+        "Dot color key:\n"
+        + colored("\tMKV ignored", "white", attrs=["dark"])
+        + "\n"
+        + colored("\tMKV timestamp unchanged", "cyan")
+        + "\n"
+        + colored("\tMKV already stripped", "green")
+        + "\n"
+        + colored("\tMKV not remuxed on dry run", "black", attrs=["bold"])
+        + "\n"
+        + colored("\tWarning", "yellow")
+        + "\n"
+        + colored("\tError", "red")
+        + "\n"
     )
-    parser = ArgumentParser(description=description, epilog=epilog,
-                            formatter_class=RawDescriptionHelpFormatter)
+    parser = ArgumentParser(
+        description=description,
+        epilog=epilog,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "-d",
         "--dry-run",
