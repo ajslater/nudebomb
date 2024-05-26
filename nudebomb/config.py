@@ -1,4 +1,5 @@
 """Confuse config for comicbox."""
+
 import os
 import sys
 from argparse import Namespace

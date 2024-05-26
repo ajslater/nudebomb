@@ -6,4 +6,10 @@
 .venv
 /node_modules
 /test-results
+/tests/**/*.json
+/tests/**/*.xml
+/tests/**/*.yaml
 __pycache__
+dist
+package-lock.json
+poetry.lock

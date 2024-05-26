@@ -1,4 +1,5 @@
 """MKV file operations."""
+
 import json
 import subprocess
 import sys
@@ -190,7 +191,7 @@ class MKVFile:
 
         if not num_remove_ids:
             if self._config.verbose:
-                cprint(f"\tNot remuxing {self.path}", "green", attrs=["dark"])
+                cprint(f"\tAlready stripped {self.path}", "green", attrs=["dark"])
             else:
                 cprint(".", "green", attrs=["bold"], end="")
             return
@@ -198,7 +199,7 @@ class MKVFile:
         try:
             cprint(output, flush=True)
             if self._config.dry_run:
-                cprint("Dry run 100%", "black", attrs=["bold"])
+                cprint("\tNot remuxing on dry run {self.path}", "black", attrs=["bold"])
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)

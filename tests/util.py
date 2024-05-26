@@ -1,4 +1,5 @@
 """Common test utilities."""
+
 import json
 import subprocess
 from pathlib import Path

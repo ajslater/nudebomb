@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.7
+
+- Add a dot color key to help.
+
 ## v0.3.6
 
 - Fix treestamps wal file bug with illegal characters in filename.

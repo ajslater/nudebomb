@@ -1,4 +1,5 @@
 """Integration tests."""
+
 import shutil
 from pathlib import Path
 
