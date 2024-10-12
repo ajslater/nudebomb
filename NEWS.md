@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.8
+
+- Fix crash with unresolved path and timestamps
+
 ## v0.3.7
 
 - Add a dot color key to help.

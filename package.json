@@ -1,5 +1,5 @@
 {
-  "version": "0.3.7",
+  "version": "0.1.0",
   "description": "linting for nudebomb",
   "type": "module",
   "scripts": {
@@ -8,9 +8,17 @@
     "remark-check": "remark .",
     "remark-fix": "remark . --output"
   },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "Firefox ESR",
+    "not op_mini all",
+    "not dead"
+  ],
   "prettier": {
     "plugins": [
       "@prettier/plugin-xml",
+      "prettier-plugin-nginx",
       "prettier-plugin-packagejson",
       "prettier-plugin-sh",
       "prettier-plugin-toml"
@@ -38,31 +46,31 @@
       "ignorePath": ".gitignore"
     }
   },
-  "dependencies": {
-    "@eslint/compat": "^1.0.1"
-  },
   "devDependencies": {
     "@fsouza/prettierd": "^0.25.1",
     "@prettier/plugin-xml": "^3.1.0",
-    "eslint": "^9.3.0",
+    "eslint": "^9.5.0",
     "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-alias": "^1.1.2",
     "eslint-plugin-array-func": "^5.0.1",
-    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-compat": "^6.0.0",
+    "eslint-plugin-depend": "^0.11.0",
+    "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jsonc": "^2.13.0",
     "eslint-plugin-markdown": "^5.0.0",
-    "eslint-plugin-no-constructor-bind": "^2.0.4",
     "eslint-plugin-no-secrets": "^1.0.2",
-    "eslint-plugin-no-use-extend-native": "^0.6.1",
-    "eslint-plugin-optimize-regex": "^1.2.0",
+    "eslint-plugin-no-unsanitized": "^4.1.2",
     "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-promise": "^7.1.0",
+    "eslint-plugin-regexp": "^2.6.0",
     "eslint-plugin-scanjs-rules": "^0.2.1",
     "eslint-plugin-security": "^3.0.0",
-    "eslint-plugin-simple-import-sort": "^12.1.0",
-    "eslint-plugin-sonarjs": "^1.0.3",
-    "eslint-plugin-switch-case": "^1.1.2",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-sonarjs": "^2.0.3",
     "eslint-plugin-toml": "^0.11.0",
-    "eslint-plugin-unicorn": "^53.0.0",
+    "eslint-plugin-unicorn": "^56.0.0",
     "eslint-plugin-yml": "^1.14.0",
+    "eslint_d": "^14.1.1",
     "prettier": "^3.2.5",
     "prettier-plugin-nginx": "^1.0.3",
     "prettier-plugin-packagejson": "^2.5.0",

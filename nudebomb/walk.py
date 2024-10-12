@@ -111,9 +111,10 @@ class Walk:
         self.print_info()
 
         if self._config.timestamps:
+            paths = tuple(str(Path(path).resolve()) for path in self._config.paths)
             copse_config = GrovestampsConfig(
                 PROGRAM_NAME,
-                paths=self._config.paths,
+                paths=paths,
                 verbose=self._config.verbose,
                 symlinks=self._config.symlinks,
                 ignore=self._config.ignore,

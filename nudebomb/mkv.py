@@ -31,8 +31,8 @@ class MKVFile:
 
         # Ask mkvmerge for the json info
         command = (self._config.mkvmerge_bin, "-J", str(self.path))
-        proc = subprocess.run(
-            command,  # noqa S603
+        proc = subprocess.run(  # noqa: S603
+            command,
             capture_output=True,
             check=True,
             text=True,
@@ -135,8 +135,8 @@ class MKVFile:
         sys.stdout.flush()
 
         # Call subprocess command to remux file
-        process = subprocess.Popen(
-            command,  # noqa: S603
+        process = subprocess.Popen(  # noqa: S603
+            command,
             stdout=subprocess.PIPE,
             text=True,
         )
