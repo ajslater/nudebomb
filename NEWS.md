@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.9
+
+- Resolve all top paths first thing. Fixes bad symlink behavior.
+
 ## v0.3.8
 
 - Fix crash with unresolved path and timestamps
