@@ -3,13 +3,11 @@ import eslintConfigPrettier from "eslint-config-prettier";
 import eslintPluginArrayFunc from "eslint-plugin-array-func";
 import eslintPluginCompat from "eslint-plugin-compat";
 import eslintPluginDepend from "eslint-plugin-depend";
+import eslintPluginImport from "eslint-plugin-import";
 import eslintPluginJsonc from "eslint-plugin-jsonc";
 import eslintPluginMarkdown from "eslint-plugin-markdown";
 import eslintPluginNoSecrets from "eslint-plugin-no-secrets";
-// import eslintPluginNoUnsanitized from "eslint-plugin-no-unsanitized";
-// https://github.com/mozilla/eslint-plugin-no-unsanitized/issues/241
-// import eslintPluginNoUseExtendNative from "eslint-plugin-no-use-extend-native";
-// Warnings break circleci build
+import eslintPluginNoUnsanitized from "eslint-plugin-no-unsanitized";
 import eslintPluginPrettier from "eslint-plugin-prettier";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
 import eslintPluginPromise from "eslint-plugin-promise";
@@ -49,10 +47,10 @@ export default [
   eslintPluginArrayFunc.configs.all,
   eslintPluginCompat.configs[FLAT_RECOMMENDED],
   eslintPluginDepend.configs[FLAT_RECOMMENDED],
+  eslintPluginImport.flatConfigs.recommended,
   ...eslintPluginJsonc.configs["flat/recommended-with-jsonc"],
   ...eslintPluginMarkdown.configs.recommended,
-  // eslintPluginNoUseExtendNative.configs.recommended,
-  // eslintPluginNoUnsanitized.configs.recommended,
+  eslintPluginNoUnsanitized.configs.recommended,
   eslintPluginPrettierRecommended,
   eslintPluginPromise.configs[FLAT_RECOMMENDED],
   eslintPluginRegexp.configs[FLAT_RECOMMENDED],
@@ -64,6 +62,8 @@ export default [
   eslintConfigPrettier, // Best if last
   {
     languageOptions: {
+      // eslint-plugin-import sets this to 2018.
+      ecmaVersion: "latest",
       globals: {
         ...globals.node,
       },
@@ -76,8 +76,6 @@ export default [
       jsonc: eslintPluginJsonc,
       markdown: eslintPluginMarkdown,
       "no-secrets": eslintPluginNoSecrets,
-      // "no-use-extend-native": eslintPluginNoUseExtendNative,
-      // "no-unsantized": eslintPluginNoUnsanitized,
       prettier: eslintPluginPrettier,
       promise: eslintPluginPromise,
       security: eslintPluginSecurity,
@@ -88,7 +86,13 @@ export default [
     },
     rules: {
       "array-func/prefer-array-from": "off", // for modern browsers the spread operator, as preferred by unicorn, works fine.
-      // "import/no-unresolved": ["error", { ignore: ["^[@]"] } ],
+      "depend/ban-dependencies": [
+        "error",
+        {
+          // import-x doesn't work with eslint 9 yet
+          allowed: ["eslint-plugin-import"],
+        },
+      ],
       "max-params": ["warn", 4],
       "no-console": "warn",
       "no-debugger": "warn",
@@ -125,6 +129,7 @@ export default [
     files: ["**/*.md/*.sh"],
     rules: {
       "prettier/prettier": ["error", { parser: "sh" }],
+      "sonarjs/no-implicit-global": "off",
     },
   },
   {
