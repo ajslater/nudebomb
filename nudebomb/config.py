@@ -3,6 +3,7 @@
 import os
 import sys
 from argparse import Namespace
+from pathlib import Path
 from platform import system
 from time import mktime
 
@@ -131,5 +132,7 @@ def get_config(args: Namespace | None = None, modname=PROGRAM_NAME) -> AttrDict:
     ad = config.get(TEMPLATE)
     if not isinstance(ad, AttrDict):
         raise TypeError
-    ad.paths = sorted(frozenset(ad.nudebomb.paths))
+    ad.paths = sorted(
+        frozenset(str(Path(path).resolve()) for path in ad.nudebomb.paths)
+    )
     return ad.nudebomb

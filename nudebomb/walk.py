@@ -51,7 +51,7 @@ class Walk:
         mkv_obj.remove_tracks()
 
         if self._config.timestamps:
-            self._timestamps[top_path.resolve()].set(path)
+            self._timestamps[top_path].set(path)
 
     def walk_dir(self, top_path, dir_path):
         """Walk a directory."""
@@ -71,7 +71,7 @@ class Walk:
             self.walk_file(top_path, path)
 
         if self._config.timestamps:
-            timestamps = self._timestamps[top_path.resolve()]
+            timestamps = self._timestamps[top_path]
             timestamps.set(dir_path, compact=True)
 
     def walk_file(self, top_path, path):
@@ -111,10 +111,9 @@ class Walk:
         self.print_info()
 
         if self._config.timestamps:
-            paths = tuple(str(Path(path).resolve()) for path in self._config.paths)
             copse_config = GrovestampsConfig(
                 PROGRAM_NAME,
-                paths=paths,
+                paths=self._config.paths,
                 verbose=self._config.verbose,
                 symlinks=self._config.symlinks,
                 ignore=self._config.ignore,
