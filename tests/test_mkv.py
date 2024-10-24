@@ -11,7 +11,7 @@ from .util import SRC_PATH, TEST_FN, mkv_tracks
 
 __all__ = ()
 
-TEST_DIR = Path("/tmp/nudebomb.test_remux")  # noqa
+TEST_DIR = Path("/tmp/nudebomb.test_remux")  # noqa: S108
 TEST_MKV = TEST_DIR / TEST_FN
 
 
@@ -24,7 +24,7 @@ def assert_eng_und_only(out_tracks):
         if track_type not in MKVFile.REMOVABLE_TRACK_NAMES:
             continue
         lang = track["properties"]["language"]
-        print(track_type, lang)  # noqa T201
+        print(track_type, lang)  # noqa: T201
         assert lang in ["und", "eng"]
         if track_type == MKVFile.SUBTITLE_TRACK_NAME:
             subs_count += 1

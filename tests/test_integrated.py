@@ -9,7 +9,7 @@ from nudebomb.mkv import MKVFile
 from .test_mkv import assert_eng_und_only
 from .util import SRC_DIR, TEST_FN, mkv_tracks
 
-TEST_DIR = Path("/tmp/nudebomb.test.integration")  # noqa
+TEST_DIR = Path("/tmp/nudebomb.test.integration")  # noqa:S108
 TEST_MKV = TEST_DIR / TEST_FN
 
 __all__ = ()

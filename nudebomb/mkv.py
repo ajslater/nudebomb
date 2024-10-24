@@ -3,7 +3,6 @@
 import json
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 from termcolor import cprint
@@ -134,30 +133,27 @@ class MKVFile:
         sys.stdout.write("Progress 0%")
         sys.stdout.flush()
 
-        # Call subprocess command to remux file
-        process = subprocess.Popen(  # noqa: S603
+        # Call command to remux file
+        with subprocess.Popen(  # noqa: S603
             command,
             stdout=subprocess.PIPE,
+            bufsize=1,
             text=True,
-        )
-        # Display Percentage until subprocess has finished
-        while process.poll() is None:
-            # Sleep for a quarter second and then display progress
-            # TODO replace with communicate timeout wait
-            time.sleep(0.25)
+        ) as process:
             if process.stdout:
                 for line in iter(process.stdout.readline, ""):
                     if "progress" in line.lower():
-                        sys.stdout.write(f"\r{line.strip()}")
+                        outline = f"\r{line.strip()}"
+                        sys.stdout.write(outline)
                         sys.stdout.flush()
-        sys.stdout.write("\n")
+            print(flush=True)  # noqa: T201
 
-        # Check if return code indicates an error
-        if retcode := process.poll():
-            kwargs = {}
-            if process.stdout is not None:
-                kwargs["output"] = process.stdout
-            raise subprocess.CalledProcessError(retcode, command, **kwargs)
+            # Check if return code indicates an error
+            if retcode := process.poll():
+                kwargs = {}
+                if process.stdout is not None:
+                    kwargs["output"] = process.stdout
+                raise subprocess.CalledProcessError(retcode, command, **kwargs)
 
     def remove_tracks(self):
         """Remove the unwanted tracks."""
