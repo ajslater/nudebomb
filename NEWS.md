@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.10
+
+- Remove latency from progress output.
+
 ## v0.3.9
 
 - Resolve all top paths first thing. Fixes bad symlink behavior.
