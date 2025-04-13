@@ -1,6 +1,5 @@
 """Walk directory trees and strip mkvs."""
 
-import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -60,7 +59,7 @@ class Walk:
 
         filenames = []
 
-        for filename in sorted(os.listdir(dir_path)):
+        for filename in sorted(dir_path.iterdir()):
             entry_path = dir_path / filename
             if entry_path.is_dir():
                 self.walk_file(top_path, entry_path)
