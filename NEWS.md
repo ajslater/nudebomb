@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.11
+
+- uv build system
+
 ## v0.3.10
 
 - Remove latency from progress output.
