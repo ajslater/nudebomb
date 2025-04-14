@@ -2,6 +2,8 @@
 
 ## v0.3.11
 
+- changed colors
+- updated treestamps
 - uv build system
 
 ## v0.3.10
