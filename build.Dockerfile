@@ -1,4 +1,5 @@
-FROM cimg/python:3.13-node
+# hadolint ignore=DL3007
+FROM nikolaik/python-nodejs:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -16,11 +17,7 @@ RUN chown circleci:circleci /app
 COPY --chown=circleci:circleci bin bin
 
 USER circleci
-COPY --chown=circleci:circleci pyproject.toml poetry.lock ./
-# hadolint ignore=DL3013
-RUN pip3 install --no-cache-dir poetry
-# hadolint ignore=DL3016,DL3059
-COPY --chown=circleci:circleci package.json package-lock.json ./
+COPY --chown=circleci:circleci pyproject.toml uv.lock package.json package-lock.json ./
 RUN npm install
 
 COPY --chown=circleci:circleci . .
@@ -28,4 +25,4 @@ RUN mkdir -p test-results dist
 
 # Install
 # hadolint ignore=DL3059
-RUN poetry install
+RUN uv install

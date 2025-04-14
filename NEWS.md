@@ -51,7 +51,7 @@
 
 - Features
 
-  - Update poetry lockfile & dev deps
+  - Update uv.lockfile & dev deps
 
 ## v0.2.5
 
