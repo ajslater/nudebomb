@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.12
+
+- treestamps fix
+
 ## v0.3.11
 
 - changed colors
