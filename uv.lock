@@ -299,7 +299,7 @@ wheels = [
 
 [[package]]
 name = "nudebomb"
-version = "0.3.11"
+version = "0.3.12"
 source = { editable = "." }
 dependencies = [
     { name = "confuse" },
@@ -332,7 +332,7 @@ requires-dist = [
     { name = "pycountry", specifier = ">=24.6.1,<25.0.0" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "ruamel-yaml", specifier = ">=0.18.4,<1.0.0" },
-    { name = "treestamps", specifier = ">=1.2.1,<2.0.0" },
+    { name = "treestamps", specifier = ">=1.2.2,<2.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -804,15 +804,15 @@ wheels = [
 
 [[package]]
 name = "treestamps"
-version = "1.2.1"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ruamel-yaml" },
     { name = "termcolor" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/e8/d6db6d24002ee0a4794d99b318bd7f3f54dadd43e5916aedeeb178ff64f8/treestamps-1.2.1.tar.gz", hash = "sha256:47cef27fb511ebfd177747a64957f0ec81d4672346f5fe73a55f10edfdff0865", size = 23035 }
+sdist = { url = "https://files.pythonhosted.org/packages/57/5c/d4d77370ad9ec56af5ee384e0ff11a0cb8f770ddd5ef606a798b507b3931/treestamps-1.2.2.tar.gz", hash = "sha256:f9940441d15a1be7a76eb27921e0142f48892822098660144b1a1c12e107e9c2", size = 23046 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/7c/7235574e439a9fb0ff4914ed838586de56870122f3b04cb05af2062a5166/treestamps-1.2.1-py3-none-any.whl", hash = "sha256:cc79a522dd248025de295da5e644e4640a7268f91c8ee2a2d9a785479c998bbc", size = 22736 },
+    { url = "https://files.pythonhosted.org/packages/3d/96/0735d714fff698b59c9d8ba17d525a431130cb4ede6b2a04ed92dbc3f2a0/treestamps-1.2.2-py3-none-any.whl", hash = "sha256:33fb4777dc1f857a63e19be5b940a5ac57e460267032f3b4e5e264e3013e427d", size = 22735 },
 ]
 
 [[package]]
