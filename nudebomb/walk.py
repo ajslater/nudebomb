@@ -37,10 +37,11 @@ class Walk:
             mtime = self._timestamps.get(top_path, {}).get(path)
 
         if mtime is not None and mtime > path.stat().st_mtime:
+            color = "green"
             if self._config.verbose:
-                cprint(f"Skip unchanged {path}", "cyan", attrs=["dark"])
+                cprint(f"Skip by timestamp {path}", color, attrs=["dark"])
             else:
-                cprint(".", "cyan", end="")
+                cprint(".", color, end="")
             return
 
         dir_path = Treestamps.get_dir(path)

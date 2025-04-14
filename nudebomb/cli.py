@@ -27,9 +27,9 @@ def get_arguments(params=None):
         "Dot color key:\n"
         + colored("\tMKV ignored", "white", attrs=["dark"])
         + "\n"
-        + colored("\tMKV timestamp unchanged", "cyan")
+        + colored("\tMKV stripped tracks")
         + "\n"
-        + colored("\tMKV already stripped", "green")
+        + colored("\tMKV already stripped or timestamp unchanged", "green")
         + "\n"
         + colored("\tMKV not remuxed on dry run", "black", attrs=["bold"])
         + "\n"
