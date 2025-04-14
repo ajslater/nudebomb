@@ -1,4 +1,4 @@
 #!/bin/bash
 # Run nudebomb in development
 set -euo pipefail
-poetry run ./nudebomb.py "$@"
+uv run ./nudebomb.py "$@"

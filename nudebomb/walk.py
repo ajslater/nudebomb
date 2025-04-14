@@ -1,6 +1,5 @@
 """Walk directory trees and strip mkvs."""
 
-import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -38,10 +37,11 @@ class Walk:
             mtime = self._timestamps.get(top_path, {}).get(path)
 
         if mtime is not None and mtime > path.stat().st_mtime:
+            color = "green"
             if self._config.verbose:
-                cprint(f"Skip unchanged {path}", "cyan", attrs=["dark"])
+                cprint(f"Skip by timestamp {path}", color, attrs=["dark"])
             else:
-                cprint(".", "cyan", end="")
+                cprint(".", color, end="")
             return
 
         dir_path = Treestamps.get_dir(path)
@@ -60,7 +60,7 @@ class Walk:
 
         filenames = []
 
-        for filename in sorted(os.listdir(dir_path)):
+        for filename in sorted(dir_path.iterdir()):
             entry_path = dir_path / filename
             if entry_path.is_dir():
                 self.walk_file(top_path, entry_path)

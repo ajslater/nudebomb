@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v0.3.11
+
+- changed colors
+- updated treestamps
+- uv build system
+
 ## v0.3.10
 
 - Remove latency from progress output.
@@ -51,7 +57,7 @@
 
 - Features
 
-  - Update poetry lockfile & dev deps
+  - Update uv.lockfile & dev deps
 
 ## v0.2.5
 
