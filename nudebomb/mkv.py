@@ -200,5 +200,5 @@ class MKVFile:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
         except Exception as exc:
-            cprint(str(exc), "red")
+            cprint(f"ERROR: {exc}", "red")
             tmp_path.unlink(missing_ok=True)
