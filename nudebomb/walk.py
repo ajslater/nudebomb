@@ -49,7 +49,6 @@ class Walk:
         config.languages = self._langfiles.get_langs(top_path, dir_path)
         mkv_obj = MKVFile(config, path)
         mkv_obj.remove_tracks()
-
         if self._config.timestamps:
             self._timestamps[top_path].set(path)
 

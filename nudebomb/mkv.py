@@ -39,10 +39,18 @@ class MKVFile:
 
         # Process the json response
         json_data = json.loads(proc.stdout)
+        cprint("")
+        if errors := json_data.get("errors"):
+            for error in errors:
+                cprint(f"ERROR: {error}", "red")
+        if warnings := json_data.get("warnings"):
+            for warning in warnings:
+                cprint(f"WARNING: {warning}", "yellow")
         tracks = json_data.get("tracks")
         if not tracks:
             cprint(
-                f"WARNING: No tracks for {self.path}. Might not be a valid movie.",
+                "WARNING: No tracks. Might not be a valid matroshka "
+                f"video file: {self.path}",
                 "yellow",
             )
             return
@@ -113,7 +121,7 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            reason = "Tried to remove all audio tracks."
+            reason = f"Tried to remove all audio tracks from {self.path}"
             raise ValueError(reason)
 
         # Report what tracks will be removed
@@ -157,6 +165,12 @@ class MKVFile:
 
     def remove_tracks(self):
         """Remove the unwanted tracks."""
+        if not self._track_map:
+            cprint(
+                f"ERROR: not removing tracks from mkv with no tracks: {self.path}",
+                "red",
+            )
+            return
         if self._config.verbose:
             cprint(f"Checking {self.path}:", "white", attrs=["dark"])
         # The command line args required to remux the mkv file
