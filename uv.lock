@@ -332,7 +332,7 @@ wheels = [
 
 [[package]]
 name = "nudebomb"
-version = "0.3.12"
+version = "0.3.14"
 source = { editable = "." }
 dependencies = [
     { name = "confuse" },

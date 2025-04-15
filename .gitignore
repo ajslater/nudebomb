@@ -4,6 +4,7 @@ __pycache__
 .eslintcache
 .mypy_cache
 .ropeproject
+.uv-publish-env
 .venv
 *.egg-info
 *.pyc
