@@ -8,9 +8,9 @@ dependencies = [
   "pycountry<25.0.0,>=24.6.1",
   "python-dateutil<3.0.0,>=2.8.2",
   "ruamel-yaml<1.0.0,>=0.18.4",
-  "treestamps<2.0.0,>=1.2.0",
+  "treestamps<2.0.0,>=1.2.3",
 ]
-version = "0.3.11"
+version = "0.3.12"
 description = "Strip unused languages from mkv files en mass"
 readme = "README.md"
 keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
