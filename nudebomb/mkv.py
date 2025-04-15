@@ -39,17 +39,16 @@ class MKVFile:
 
         # Process the json response
         json_data = json.loads(proc.stdout)
-        cprint("")
         if errors := json_data.get("errors"):
             for error in errors:
-                cprint(f"ERROR: {error}", "red")
+                cprint(f"\nERROR: {error}", "red")
         if warnings := json_data.get("warnings"):
             for warning in warnings:
-                cprint(f"WARNING: {warning}", "yellow")
+                cprint(f"\nWARNING: {warning}", "yellow")
         tracks = json_data.get("tracks")
         if not tracks:
             cprint(
-                "WARNING: No tracks. Might not be a valid matroshka "
+                "\nWARNING: No tracks. Might not be a valid matroshka "
                 f"video file: {self.path}",
                 "yellow",
             )

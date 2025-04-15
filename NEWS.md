@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.3.14
+
+- Remove errant newline
+
 ## v0.3.13
 
 - Warn and exit if mkv file has no tracks.
