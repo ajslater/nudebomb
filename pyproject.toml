@@ -10,7 +10,7 @@ dependencies = [
   "ruamel-yaml<1.0.0,>=0.18.4",
   "treestamps<2.0.0,>=1.2.3",
 ]
-version = "0.3.12"
+version = "0.3.13"
 description = "Strip unused languages from mkv files en mass"
 readme = "README.md"
 keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
@@ -38,6 +38,7 @@ dev = [
   "codespell<3.0.0,>=2.1.0",
   "coverage[toml]<8.0,>=7.0",
   "hatchling<2.0.0,>=1.27.0",
+  "icecream>=2.1.4",
   "neovim<1.0.0,>=0.3.1",
   "pyclean<4.0.0,>=3.1.0",
   "pyright<2.0.0,>=1.1.237",
