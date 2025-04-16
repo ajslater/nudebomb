@@ -1,21 +1,11 @@
 # 📰 Nudebomb News
 
-## v0.3.14
+# v0.4.0
 
-- Remove errant newline
-
-## v0.3.13
-
-- Warn and exit if mkv file has no tracks.
-
-## v0.3.12
-
-- treestamps fix
-
-## v0.3.11
-
+- updated treestamps - all timestamps will miss on first run
+- verbose option can be called multiple times
+- quiet option
 - changed colors
-- updated treestamps
 - uv build system
 
 ## v0.3.10
