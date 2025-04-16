@@ -119,7 +119,7 @@ def get_arguments(params=None):
         action="store_const",
         dest="verbose",
         const=0,
-        help="Display little to no output."
+        help="Display little to no output.",
     )
     parser.add_argument(
         "-r",
