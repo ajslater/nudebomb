@@ -74,7 +74,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            if self._config.verbose:
+            if self._config.verbose > 1:
                 cprint(
                     f"\t{track_type}: {track.id} {track.lang}", "white", attrs=["dark"]
                 )
@@ -120,8 +120,8 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            reason = f"Tried to remove all audio tracks from {self.path}"
-            raise ValueError(reason)
+            cprint(f"WARNING: No tracks to remove from {self.path}", "yellow")
+            return output, command, num_remove_ids
 
         # Report what tracks will be removed
         output += f"Removing {track_type} track(s):\n"
@@ -170,7 +170,7 @@ class MKVFile:
                 "red",
             )
             return
-        if self._config.verbose:
+        if self._config.verbose > 1:
             cprint(f"Checking {self.path}:", "white", attrs=["dark"])
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
@@ -199,9 +199,9 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids:
-            if self._config.verbose:
+            if self._config.verbose > 1:
                 cprint(f"\tAlready stripped {self.path}", "green", attrs=["dark"])
-            else:
+            elif self._config.verbose:
                 cprint(".", "green", attrs=["bold"], end="")
             return
 

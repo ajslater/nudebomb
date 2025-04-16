@@ -21,29 +21,55 @@ class Walk:
         self._config = config
         self._langfiles = LangFiles(config)
 
+    def _is_path_suffix_not_mkv(self, path: Path) -> bool:
+        """Return if the suffix should skipped."""
+        if path.suffix == ".mkv":
+            return False
+        if self._config.verbose > 2:  # noqa: PLR2004
+            cprint(f"Skip suffix is not 'mkv' f{path}")
+        return True
+
     def _is_path_ignored(self, path: Path) -> bool:
         """Return if path should be ignored."""
-        return any(path.match(ignore_glob) for ignore_glob in self._config.ignore)
+        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
+            if self._config.verbose > 1:
+                cprint(f"Skip ignored {path}", "white", attrs=["dark"])
+            elif self._config.verbose:
+                cprint(".", "white", attrs=["dark"], end="")
+            return True
+        return False
 
-    def strip_path(self, top_path, path):
-        """Strip a single mkv file."""
-        if path.suffix != ".mkv":
-            return
-
-        mtime = None
+    def _is_path_before_timestamp(self, top_path: Path, path: Path) -> bool:
+        """Return if the file was last updated before the timestamp."""
         if self._config.after:
             mtime = self._config.after
         elif self._config.timestamps:
             mtime = self._timestamps.get(top_path, {}).get(path)
+        else:
+            mtime = None
 
         if mtime is not None and mtime > path.stat().st_mtime:
             color = "green"
-            if self._config.verbose:
+            if self._config.verbose > 1:
                 cprint(f"Skip by timestamp {path}", color, attrs=["dark"])
-            else:
+            elif self._config.verbose:
                 cprint(".", color, end="")
-            return
+            return True
+        return False
 
+    def _is_path_skippable_symlink(self, path: Path):
+        if not self._config.symlinks and path.is_symlink():
+            color = "white"
+            attrs = ["dark"]
+            if self._config.verbose > 1:
+                cprint(f"Skip symlink {path}", color, attrs=attrs)
+            elif self._config.verbose:
+                cprint(".", color, attrs=attrs, end="")
+            return True
+        return False
+
+    def strip_path(self, top_path, path):
+        """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
         config.languages = self._langfiles.get_langs(top_path, dir_path)
@@ -60,11 +86,10 @@ class Walk:
         filenames = []
 
         for filename in sorted(dir_path.iterdir()):
-            entry_path = dir_path / filename
-            if entry_path.is_dir():
-                self.walk_file(top_path, entry_path)
+            if filename.is_dir():
+                self.walk_file(top_path, filename)
             else:
-                filenames.append(entry_path)
+                filenames.append(filename)
 
         for path in filenames:
             self.walk_file(top_path, path)
@@ -76,20 +101,16 @@ class Walk:
     def walk_file(self, top_path, path):
         """Walk a file."""
         if self._is_path_ignored(path):
-            if self._config.verbose:
-                cprint(f"Skip ignored {path}", "white", attrs=["dark"])
-            else:
-                cprint(".", "white", attrs=["dark"], end="")
             return
-        if not self._config.symlinks and path.is_symlink():
-            if self._config.verbose:
-                cprint(f"Skip symlink {path}", "white", attrs=["dark"])
-            else:
-                cprint(".", "white", attrs=["dark"], end="")
+        if self._is_path_skippable_symlink(path):
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
         else:
+            if self._is_path_suffix_not_mkv(path):
+                return
+            if self._is_path_before_timestamp(top_path, path):
+                return
             self.strip_path(top_path, path)
 
     def print_info(self):
@@ -102,7 +123,7 @@ class Walk:
             cprint(f"Stripping subtitle languages except {sub_langs}.")
 
         cprint("Searching for MKV files to process", end="")
-        if self._config.verbose:
+        if self._config.verbose > 1:
             cprint(":")
 
     def run(self):
@@ -126,7 +147,7 @@ class Walk:
             path = Path(path_str)
             top_path = Treestamps.get_dir(path)
             self.walk_file(top_path, path)
-        if not self._config.verbose:
+        if not self._config.verbose > 1:
             cprint("done.")
 
         if self._config.timestamps:

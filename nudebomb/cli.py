@@ -107,7 +107,20 @@ def get_arguments(params=None):
         dest="title",
         help="Do not rewrite the metadata title with the filename stem when remuxing.",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output.")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        help="Verbose output. Can be used multiple times for noisier output.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_const",
+        dest="verbose",
+        const=0,
+        help="Display little to no output.",
+    )
     parser.add_argument(
         "-r",
         "--recurse",

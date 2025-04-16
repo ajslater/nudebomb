@@ -8,7 +8,7 @@ from platform import system
 from time import mktime
 
 from confuse import Configuration
-from confuse.templates import AttrDict, MappingTemplate, Optional, Sequence
+from confuse.templates import AttrDict, Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import parse
 from termcolor import cprint
 
@@ -32,7 +32,7 @@ TEMPLATE = MappingTemplate(
                 "timestamps": bool,
                 "timestamps_check_config": bool,
                 "title": bool,
-                "verbose": bool,
+                "verbose": Integer(),
             }
         )
     }

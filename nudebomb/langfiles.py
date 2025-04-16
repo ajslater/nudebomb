@@ -63,7 +63,7 @@ class LangFiles:
                         for lang in line.strip().split(","):
                             newlang = lang_to_alpha3(lang.strip())
                             newlangs.add(newlang)
-                if self._config.verbose:
+                if self._config.verbose > 1:
                     newlangs_str = " ,".join(sorted(newlangs))
                     cprint(f"Also keeping {newlangs_str} for {path}", "cyan")
                 self._lang_roots[path] |= newlangs
