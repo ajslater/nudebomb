@@ -37,6 +37,7 @@ nudebomb = "nudebomb.cli:main"
 dev = [
   "codespell<3.0.0,>=2.1.0",
   "coverage[toml]<8.0,>=7.0",
+  "deepdiff>=8.4.2",
   "hatchling<2.0.0,>=1.27.0",
   "icecream>=2.1.4",
   "neovim<1.0.0,>=0.3.1",

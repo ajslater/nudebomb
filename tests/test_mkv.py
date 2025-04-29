@@ -6,8 +6,7 @@ from pathlib import Path
 
 from nudebomb.config import get_config
 from nudebomb.mkv import MKVFile
-
-from .util import SRC_PATH, TEST_FN, mkv_tracks
+from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
 
 __all__ = ()
 
@@ -37,7 +36,7 @@ def assert_eng_und_only(out_tracks):
     assert subs_count == 2  # noqa: PLR2004
 
 
-class TestMkv:
+class TestMkv(DiffTracksTest):
     """Test MKV."""
 
     def setup_method(self):
@@ -60,8 +59,7 @@ class TestMkv:
         mkvfile = MKVFile(config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
-
-        assert out_tracks == self.src_tracks
+        self._diff_tracks(out_tracks)
 
     def test_run(self):
         """Test run."""
@@ -78,5 +76,4 @@ class TestMkv:
         mkvfile = MKVFile(config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
-
-        assert out_tracks == self.src_tracks
+        self._diff_tracks(out_tracks)

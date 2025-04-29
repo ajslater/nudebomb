@@ -5,9 +5,8 @@ from pathlib import Path
 
 from nudebomb.cli import main
 from nudebomb.mkv import MKVFile
-
-from .test_mkv import assert_eng_und_only
-from .util import SRC_DIR, TEST_FN, mkv_tracks
+from tests.test_mkv import assert_eng_und_only
+from tests.util import SRC_DIR, TEST_FN, DiffTracksTest, mkv_tracks
 
 TEST_DIR = Path("/tmp/nudebomb.test.integration")  # noqa:S108
 TEST_MKV = TEST_DIR / TEST_FN
@@ -15,7 +14,7 @@ TEST_MKV = TEST_DIR / TEST_FN
 __all__ = ()
 
 
-class TestIntegrated:
+class TestIntegrated(DiffTracksTest):
     """Integrated tests."""
 
     def setup_method(self):
@@ -48,7 +47,7 @@ class TestIntegrated:
         """Test fail."""
         main(("nudebomb", "-l", "eng", str(TEST_DIR)))
         out_tracks = mkv_tracks(self.dest_path)
-        assert out_tracks == self.src_tracks
+        self._diff_tracks(out_tracks)
 
     def test_strip_all_subs(self):
         """Test strib all subs."""
