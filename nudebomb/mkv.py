@@ -74,7 +74,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            self._printer.extra_message(f"\t{track_type}: {track.id} {track.lang}")
+            self._printer.extra_info(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
@@ -172,7 +172,7 @@ class MKVFile:
                 f"not removing tracks from mkv with no tracks: {self.path}",
             )
             return
-        self._printer.extra_message(f"Checking {self.path}:")
+        self._printer.extra_info(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
         output += "============================\n"
@@ -200,7 +200,7 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids:
-            self._printer.skip_timestamp_message(f"\tAlready stripped {self.path}")
+            self._printer.skip_timestamp(f"\tAlready stripped {self.path}")
             return
 
         try:

@@ -26,13 +26,14 @@ class Walk:
         """Return if the suffix should skipped."""
         if path.suffix == ".mkv":
             return False
-        self._printer.skip_message(f"Skip: Suffix is not 'mkv': {path}")
+        self._printer.skip("Suffix is not 'mkv'", path)
         return True
 
     def _is_path_ignored(self, path: Path) -> bool:
         """Return if path should be ignored."""
         if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            self._printer.skip_message(f"Skip ignored {path}")
+            self._printer.skip("ignored", path)
+
             return True
         return False
 
@@ -46,13 +47,13 @@ class Walk:
             mtime = None
 
         if mtime is not None and mtime > path.stat().st_mtime:
-            self._printer.skip_timestamp_message(f"Skip by timestamps {path}")
+            self._printer.skip_timestamp(f"Skip by timestamps {path}")
             return True
         return False
 
     def _is_path_skippable_symlink(self, path: Path):
         if not self._config.symlinks and path.is_symlink():
-            self._printer.skip_message(f"Skip symlink {path}")
+            self._printer.skip("symlink", path)
             return True
         return False
 
