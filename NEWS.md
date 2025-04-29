@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.2
+
+- fix colors
+
 # v0.4.1
 
 - updated colors
