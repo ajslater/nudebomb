@@ -5,8 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from termcolor import cprint
-
 from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
 from nudebomb.track import Track
@@ -204,7 +202,7 @@ class MKVFile:
             return
 
         try:
-            cprint(output, flush=True)
+            self._printer.work_manifest(output)
             if self._config.dry_run:
                 self._printer.dry_run("\tNot remuxing on dry run {self.path}")
             else:

@@ -9,7 +9,7 @@ class Printer:
     def __init__(self, verbose: int):
         """Initialize verbosity and flags."""
         self._verbose = verbose
-        self._last_verboseg = True
+        self._after_newline = True
 
     def _message(
         self, reason, color="white", attrs=None, *, force_verbose=False, end="\n"
@@ -19,14 +19,14 @@ class Printer:
             return
         if (self._verbose == 1 and not force_verbose) or not reason:
             cprint(".", color, attrs=attrs, end="", flush=True)
-            self._last_verboseg = False
+            self._after_newline = False
             return
-        if not self._last_verboseg:
+        if not self._after_newline:
             reason = "\n" + reason
         attrs = attrs if attrs else []
         cprint(reason, color, attrs=attrs, end=end, flush=True)
         if end:
-            self._last_verboseg = True
+            self._after_newline = True
 
     def skip(self, message, path):
         """Skip Message."""
@@ -60,14 +60,18 @@ class Printer:
             sub_langs = ", ".join(sorted(sub_languages))
             self.config(f"Stripping subtitle languages except {sub_langs}.")
 
+    def work_manifest(self, message):
+        """Work manifest for what we plan to do to the mkv."""
+        self._message(message, force_verbose=True)
+
     def start_operation(self):
         """Start searching method."""
         cprint("Searching for MKV files to process", end="")
         if self._verbose > 1:
             cprint(":")
-            self._last_verboseg = True
+            self._after_newline = True
         else:
-            self._last_verboseg = False
+            self._after_newline = False
 
     def dry_run(self, message):
         """Dry run message."""
@@ -77,14 +81,14 @@ class Printer:
         """Operation done."""
         if self._verbose:
             cprint("done.")
-            self._last_verboseg = True
+            self._after_newline = True
 
     def warn(self, message: str, exc: Exception | None = None):
         """Warning."""
         message = "WARNING: " + message
         if exc:
             message += f": {exc}"
-        self._last_verboseg = False
+        self._after_newline = False
         self._message(message, color="light_yellow", force_verbose=True)
 
     def error(self, message: str, exc: Exception | None = None):
