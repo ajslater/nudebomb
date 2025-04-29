@@ -37,6 +37,11 @@ class Printer:
         attrs = ["dark"] if self._verbose > 1 else ["bold"]
         self.message(message, "green", attrs=attrs)
 
+    def extra_message(self, message):
+        """High verbosity messages."""
+        if self._verbose > 2:  # noqa: PLR2004
+            self.message(message, attrs=["dark"])
+
     def print_info(self, languages: tuple | list, sub_languages: tuple | list):
         """Print mkv info."""
         langs = ", ".join(sorted(languages))
@@ -84,6 +89,7 @@ class Printer:
         message = "WARNING: " + message
         if exc:
             message += f": {exc}"
+        self._last_verbose_message = False
         self.message(message, color="yellow", force_verbose=True)
 
     def error(self, message: str, exc: Exception | None = None):

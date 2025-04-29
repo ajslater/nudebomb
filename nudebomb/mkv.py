@@ -24,8 +24,8 @@ class MKVFile:
         """Initialize."""
         self._config = config
         self.path = Path(path)
-        self._init_track_map()
         self._printer = Printer(self._config.verbose)
+        self._init_track_map()
 
     def _init_track_map(self):
         self._track_map = {}
@@ -74,9 +74,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            self._printer.message(
-                f"\t{track_type}: {track.id} {track.lang}", "white", attrs=["dark"]
-            )
+            self._printer.extra_message(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
@@ -99,16 +97,19 @@ class MKVFile:
         # Build the keep tracks options
         keep_ids = set()
 
-        output += f"Retaining {track_type} track(s):\n"
+        retaining_output = ""
         for count, track in enumerate(keep):
             keep_ids.add(str(track.id))
-            output += f"   {track}\n"
+            retaining_output += f"   {track}\n"
 
             # Set the first track as default
             command += [
                 "--default-track",
                 ":".join((str(track.id), "0" if count else "1")),
             ]
+        if retaining_output:
+            output += f"Retaining {track_type} track(s):\n"
+            output += retaining_output
 
         # Set which tracks are to be kept
         if keep_ids:
@@ -123,9 +124,12 @@ class MKVFile:
             return output, command, num_remove_ids
 
         # Report what tracks will be removed
-        output += f"Removing {track_type} track(s):\n"
+        remove_output = ""
         for track in remove:
-            output += f"   {track}\n"
+            remove_output += f"   {track}\n"
+        if remove_output:
+            output += f"Removing {track_type} track(s):\n"
+            output += remove_output
 
         output += "----------------------------\n"
 
@@ -168,7 +172,7 @@ class MKVFile:
                 f"not removing tracks from mkv with no tracks: {self.path}",
             )
             return
-        self._printer.message(f"Checking {self.path}:", attrs=["dark"])
+        self._printer.extra_message(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
         output += "============================\n"
@@ -196,7 +200,7 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids:
-            attrs = ["dark"] if self._config.verbose > 1 else ["bold"]
+            attrs = [] if self._config.verbose > 1 else ["bold"]
             end = "\n" if self._config.verbose > 1 else ""
             self._printer.message(
                 f"\tAlready stripped {self.path}", "green", attrs=attrs, end=end
