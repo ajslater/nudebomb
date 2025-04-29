@@ -3,13 +3,13 @@
 from copy import deepcopy
 from pathlib import Path
 
-from termcolor import cprint
 from treestamps import Grovestamps, GrovestampsConfig
 from treestamps.tree import Treestamps
 
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
 from nudebomb.mkv import MKVFile
+from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
 
@@ -20,22 +20,19 @@ class Walk:
         """Initialize."""
         self._config = config
         self._langfiles = LangFiles(config)
+        self._printer = Printer(self._config.verbose)
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""
         if path.suffix == ".mkv":
             return False
-        if self._config.verbose > 2:  # noqa: PLR2004
-            cprint(f"Skip suffix is not 'mkv' f{path}")
+        self._printer.skip_message(f"Skip: Suffix is not 'mkv': {path}")
         return True
 
     def _is_path_ignored(self, path: Path) -> bool:
         """Return if path should be ignored."""
         if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            if self._config.verbose > 1:
-                cprint(f"Skip ignored {path}", "white", attrs=["dark"])
-            elif self._config.verbose:
-                cprint(".", "white", attrs=["dark"], end="")
+            self._printer.skip_message(f"Skip ignored {path}")
             return True
         return False
 
@@ -49,22 +46,13 @@ class Walk:
             mtime = None
 
         if mtime is not None and mtime > path.stat().st_mtime:
-            color = "green"
-            if self._config.verbose > 1:
-                cprint(f"Skip by timestamp {path}", color, attrs=["dark"])
-            elif self._config.verbose:
-                cprint(".", color, end="")
+            self._printer.skip_message(f"Skip by timestamps {path}")
             return True
         return False
 
     def _is_path_skippable_symlink(self, path: Path):
         if not self._config.symlinks and path.is_symlink():
-            color = "white"
-            attrs = ["dark"]
-            if self._config.verbose > 1:
-                cprint(f"Skip symlink {path}", color, attrs=attrs)
-            elif self._config.verbose:
-                cprint(".", color, attrs=attrs, end="")
+            self._printer.skip_message(f"Skip symlink {path}")
             return True
         return False
 
@@ -113,22 +101,9 @@ class Walk:
                 return
             self.strip_path(top_path, path)
 
-    def print_info(self):
-        """Print intentions before we begin."""
-        langs = ", ".join(sorted(self._config.languages))
-        audio = "audio " if self._config.sub_languages else ""
-        cprint(f"Stripping {audio}languages except {langs}.")
-        if self._config.sub_languages:
-            sub_langs = ", ".join(sorted(self._config.sub_languages))
-            cprint(f"Stripping subtitle languages except {sub_langs}.")
-
-        cprint("Searching for MKV files to process", end="")
-        if self._config.verbose > 1:
-            cprint(":")
-
     def run(self):
         """Run the stripper against all configured paths."""
-        self.print_info()
+        self._printer.print_info(self._config.languages, self._config.sub_languages)
 
         if self._config.timestamps:
             copse_config = GrovestampsConfig(
@@ -147,8 +122,7 @@ class Walk:
             path = Path(path_str)
             top_path = Treestamps.get_dir(path)
             self.walk_file(top_path, path)
-        if not self._config.verbose > 1:
-            cprint("done.")
+        self._printer.done()
 
         if self._config.timestamps:
             self._timestamps.dump()
