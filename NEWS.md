@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.1
+
+- updated colors
+
 # v0.4.0
 
 - updated treestamps - all timestamps will miss on first run

@@ -64,10 +64,7 @@ class LangFiles:
                             newlangs.add(newlang)
                 if self._config.verbose > 1:
                     newlangs_str = " ,".join(sorted(newlangs))
-                    self._printer.keeping_langs(
-                        f"Also keeping {newlangs_str} for {path}"
-                    )
-
+                    self._printer.config(f"Also keeping {newlangs_str} for {path}")
                 self._lang_roots[path] |= newlangs
 
         return self._lang_roots[path]

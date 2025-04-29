@@ -200,19 +200,13 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids:
-            attrs = [] if self._config.verbose > 1 else ["bold"]
-            end = "\n" if self._config.verbose > 1 else ""
-            self._printer.message(
-                f"\tAlready stripped {self.path}", "green", attrs=attrs, end=end
-            )
+            self._printer.skip_timestamp_message(f"\tAlready stripped {self.path}")
             return
 
         try:
             cprint(output, flush=True)
             if self._config.dry_run:
-                self._printer.message(
-                    "\tNot remuxing on dry run {self.path}", "black", attrs=["bold"]
-                )
+                self._printer.dry_run("\tNot remuxing on dry run {self.path}")
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)

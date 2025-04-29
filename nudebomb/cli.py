@@ -20,24 +20,29 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, items)
 
 
+COLOR_KEY = (
+    ("MKV ignored/skipped", "dark_grey", []),
+    ("MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
+    ("MKV already stripped", "green", []),
+    ("MKV stripped tracks", "white", []),
+    ("MKV not remuxed on dry run", "dark_grey", ["bold"]),
+    ("WARNING", "light_yellow", []),
+    ("ERROR", "light_red", []),
+)
+
+
+def get_dot_color_key():
+    """Create dot color key."""
+    epilogue = "Dot color key:\n"
+    for text, color, attrs in COLOR_KEY:
+        epilogue += "\t" + colored(text, color=color, attrs=attrs) + "\n"
+    return epilogue
+
+
 def get_arguments(params=None):
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
-    epilog = (
-        "Dot color key:\n"
-        + colored("\tMKV ignored", "white", attrs=["dark"])
-        + "\n"
-        + colored("\tMKV stripped tracks")
-        + "\n"
-        + colored("\tMKV already stripped or timestamp unchanged", "green")
-        + "\n"
-        + colored("\tMKV not remuxed on dry run", "black", attrs=["bold"])
-        + "\n"
-        + colored("\tWarning", "yellow")
-        + "\n"
-        + colored("\tError", "red")
-        + "\n"
-    )
+    epilog = get_dot_color_key()
     parser = ArgumentParser(
         description=description,
         epilog=epilog,

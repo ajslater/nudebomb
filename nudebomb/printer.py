@@ -30,17 +30,20 @@ class Printer:
 
     def skip_message(self, message):
         """Skip Message."""
-        self.message(message, attrs=["dark"])
+        self.message(message, color="dark_grey")
+
+    def skip_timestamp_message(self, message):
+        """Skip by timestamp."""
+        self.message(message, color="light_green", attrs=["dark", "bold"])
 
     def skip_already_optimized(self, message):
         """Skip already optimized."""
-        attrs = ["dark"] if self._verbose > 1 else ["bold"]
-        self.message(message, "green", attrs=attrs)
+        self.message(message, "green")
 
     def extra_message(self, message):
         """High verbosity messages."""
         if self._verbose > 2:  # noqa: PLR2004
-            self.message(message, attrs=["dark"])
+            self.message(message, color="dark_grey", attrs=["bold"])
 
     def print_info(self, languages: tuple | list, sub_languages: tuple | list):
         """Print mkv info."""
@@ -59,9 +62,9 @@ class Printer:
 
     def dry_run(self, message):
         """Dry run message."""
-        self.message(message, "black", attrs=["bold"], force_verbose=True)
+        self.message(message, "dark_grey", attrs=["bold"], force_verbose=True)
 
-    def keeping_langs(self, message):
+    def config(self, message):
         """Keep languages config message."""
         self.message(message, "cyan")
 
@@ -77,11 +80,11 @@ class Printer:
         if exc:
             message += f": {exc}"
         self._last_verbose_message = False
-        self.message(message, color="yellow", force_verbose=True)
+        self.message(message, color="light_yellow", force_verbose=True)
 
     def error(self, message: str, exc: Exception | None = None):
         """Error."""
         message = "ERROR: " + message
         if exc:
             message += f": {exc}"
-        self.message(message, color="red", force_verbose=True)
+        self.message(message, color="light_red", force_verbose=True)
