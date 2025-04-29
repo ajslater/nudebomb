@@ -5,6 +5,8 @@ from contextlib import suppress
 import pycountry
 from termcolor import cprint
 
+from nudebomb.printer import Printer
+
 LANGS_FNS = ("lang", "langs", ".lang", ".langs")
 
 
@@ -38,6 +40,7 @@ class LangFiles:
         for lang in self._config.languages:
             langs.add(lang_to_alpha3(lang))
         self._languages = frozenset(langs)
+        self._printer = Printer(self._config.verbose)
 
     def read_lang_files(self, path):
         """
@@ -65,7 +68,10 @@ class LangFiles:
                             newlangs.add(newlang)
                 if self._config.verbose > 1:
                     newlangs_str = " ,".join(sorted(newlangs))
-                    cprint(f"Also keeping {newlangs_str} for {path}", "cyan")
+                    self._printer.keeping_langs(
+                        f"Also keeping {newlangs_str} for {path}"
+                    )
+
                 self._lang_roots[path] |= newlangs
 
         return self._lang_roots[path]
