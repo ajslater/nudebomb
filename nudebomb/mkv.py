@@ -8,6 +8,7 @@ from pathlib import Path
 from termcolor import cprint
 
 from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.printer import Printer
 from nudebomb.track import Track
 
 
@@ -23,6 +24,7 @@ class MKVFile:
         """Initialize."""
         self._config = config
         self.path = Path(path)
+        self._printer = Printer(self._config.verbose)
         self._init_track_map()
 
     def _init_track_map(self):
@@ -41,16 +43,14 @@ class MKVFile:
         json_data = json.loads(proc.stdout)
         if errors := json_data.get("errors"):
             for error in errors:
-                cprint(f"\nERROR: {error}", "red")
+                self._printer.error(error)
         if warnings := json_data.get("warnings"):
             for warning in warnings:
-                cprint(f"\nWARNING: {warning}", "yellow")
+                self._printer.warn(warning)
         tracks = json_data.get("tracks")
         if not tracks:
-            cprint(
-                "\nWARNING: No tracks. Might not be a valid matroshka "
-                f"video file: {self.path}",
-                "yellow",
+            self._printer.warn(
+                f"No tracks. Might not be a valid matroshka video file: {self.path}",
             )
             return
 
@@ -74,10 +74,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            if self._config.verbose > 1:
-                cprint(
-                    f"\t{track_type}: {track.id} {track.lang}", "white", attrs=["dark"]
-                )
+            self._printer.extra_message(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
@@ -100,16 +97,19 @@ class MKVFile:
         # Build the keep tracks options
         keep_ids = set()
 
-        output += f"Retaining {track_type} track(s):\n"
+        retaining_output = ""
         for count, track in enumerate(keep):
             keep_ids.add(str(track.id))
-            output += f"   {track}\n"
+            retaining_output += f"   {track}\n"
 
             # Set the first track as default
             command += [
                 "--default-track",
                 ":".join((str(track.id), "0" if count else "1")),
             ]
+        if retaining_output:
+            output += f"Retaining {track_type} track(s):\n"
+            output += retaining_output
 
         # Set which tracks are to be kept
         if keep_ids:
@@ -120,13 +120,16 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            cprint(f"WARNING: No tracks to remove from {self.path}", "yellow")
+            self._printer.warn(f"No tracks to remove from {self.path}")
             return output, command, num_remove_ids
 
         # Report what tracks will be removed
-        output += f"Removing {track_type} track(s):\n"
+        remove_output = ""
         for track in remove:
-            output += f"   {track}\n"
+            remove_output += f"   {track}\n"
+        if remove_output:
+            output += f"Removing {track_type} track(s):\n"
+            output += remove_output
 
         output += "----------------------------\n"
 
@@ -165,13 +168,11 @@ class MKVFile:
     def remove_tracks(self):
         """Remove the unwanted tracks."""
         if not self._track_map:
-            cprint(
-                f"ERROR: not removing tracks from mkv with no tracks: {self.path}",
-                "red",
+            self._printer.error(
+                f"not removing tracks from mkv with no tracks: {self.path}",
             )
             return
-        if self._config.verbose > 1:
-            cprint(f"Checking {self.path}:", "white", attrs=["dark"])
+        self._printer.extra_message(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
         output += "============================\n"
@@ -199,19 +200,16 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids:
-            if self._config.verbose > 1:
-                cprint(f"\tAlready stripped {self.path}", "green", attrs=["dark"])
-            elif self._config.verbose:
-                cprint(".", "green", attrs=["bold"], end="")
+            self._printer.skip_timestamp_message(f"\tAlready stripped {self.path}")
             return
 
         try:
             cprint(output, flush=True)
             if self._config.dry_run:
-                cprint("\tNot remuxing on dry run {self.path}", "black", attrs=["bold"])
+                self._printer.dry_run("\tNot remuxing on dry run {self.path}")
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
         except Exception as exc:
-            cprint(f"ERROR: {exc}", "red")
+            self._printer.error("", exc)
             tmp_path.unlink(missing_ok=True)

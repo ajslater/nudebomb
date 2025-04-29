@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from deepdiff import DeepDiff
+
 TEST_FN = "test5.mkv"
 SRC_DIR = Path("tests/test_files")
 SRC_PATH = SRC_DIR / TEST_FN
@@ -24,3 +26,11 @@ def read(filename):
     path = Path(__file__).parent / "mockdata" / filename
     with path.open("r") as stream:
         return stream.read()
+
+
+class DiffTracksTest:
+    def _diff_tracks(self, out_tracks):
+        diff = DeepDiff(self.src_tracks, out_tracks)  # type: ignore[reportAttributeAccessIssue]
+        if diff:
+            print(diff)  # noqa: T201
+        assert not diff

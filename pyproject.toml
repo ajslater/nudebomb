@@ -8,9 +8,9 @@ dependencies = [
   "pycountry<25.0.0,>=24.6.1",
   "python-dateutil<3.0.0,>=2.8.2",
   "ruamel-yaml<1.0.0,>=0.18.4",
-  "treestamps<3.0.0,>=2.0.0",
+  "treestamps<3.0.0,>=2.2.1",
 ]
-version = "0.4.0"
+version = "0.4.1"
 description = "Strip unused languages from mkv files en mass"
 readme = "README.md"
 keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
@@ -37,6 +37,7 @@ nudebomb = "nudebomb.cli:main"
 dev = [
   "codespell<3.0.0,>=2.1.0",
   "coverage[toml]<8.0,>=7.0",
+  "deepdiff>=8.4.2",
   "hatchling<2.0.0,>=1.27.0",
   "icecream>=2.1.4",
   "neovim<1.0.0,>=0.3.1",
@@ -139,7 +140,6 @@ extend-ignore = [
   "E114",    # formatted
   "E117",    # over-indented
   "E501",    # 88 char line
-  "FBT001",  # boolean params
   "ISC001",  # formatted
   "PERF203", # try block in loop
   "S101",    # assert
