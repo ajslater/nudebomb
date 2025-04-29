@@ -57,15 +57,6 @@ class Printer:
         else:
             self._last_verbose_message = False
 
-    def container_repacking_done(self):
-        """Only done for repack if very verbose."""
-        if self._verbose > 1:
-            self.done()
-
-    def copied_message(self):
-        """Dot for copied file."""
-        self.skip_message("")
-
     def dry_run(self, message):
         """Dry run message."""
         self.message(message, "black", attrs=["bold"], force_verbose=True)
@@ -73,10 +64,6 @@ class Printer:
     def keeping_langs(self, message):
         """Keep languages config message."""
         self.message(message, "cyan")
-
-    def packed_message(self):
-        """Dot for repacked file."""
-        self.message("")
 
     def done(self):
         """Operation done."""
