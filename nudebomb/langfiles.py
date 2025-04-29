@@ -3,7 +3,6 @@
 from contextlib import suppress
 
 import pycountry
-from termcolor import cprint
 
 from nudebomb.printer import Printer
 
@@ -21,10 +20,7 @@ def lang_to_alpha3(lang):
             if lo := pycountry.languages.get(alpha_2=lang):
                 lang = lo.alpha_3
     else:
-        cprint(
-            f"WARNING: Languages should be in two or three letter format: {lang}",
-            "yellow",
-        )
+        Printer(2).warn(f"Languages should be in two or three letter format: {lang}")
 
     return lang
 
