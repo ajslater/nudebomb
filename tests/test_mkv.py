@@ -4,7 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-from nudebomb.config import get_config
+from nudebomb.config import NudebombConfig
 from nudebomb.mkv import MKVFile
 from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
 
@@ -47,6 +47,7 @@ class TestMkv(DiffTracksTest):
         self.src_tracks = mkv_tracks(TEST_MKV)
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__0"] = "und"
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__1"] = "eng"
+        self._config = NudebombConfig().get_config()
 
     def teardown_method(self):
         """Tear down method."""
@@ -54,26 +55,23 @@ class TestMkv(DiffTracksTest):
 
     def test_dry_run(self):
         """Test dry run."""
-        config = get_config()
-        config.dry_run = True
-        mkvfile = MKVFile(config, TEST_MKV)
+        self._config.dry_run = True
+        mkvfile = MKVFile(self._config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
         self._diff_tracks(out_tracks)
 
     def test_run(self):
         """Test run."""
-        config = get_config()
-        mkvfile = MKVFile(config, TEST_MKV)
+        mkvfile = MKVFile(self._config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
         assert_eng_und_only(out_tracks)
 
     def test_fail(self):
         """Test fail."""
-        config = get_config()
-        config.languages = ["xxx"]
-        mkvfile = MKVFile(config, TEST_MKV)
+        self._config.languages = ["xxx"]
+        mkvfile = MKVFile(self._config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
         self._diff_tracks(out_tracks)

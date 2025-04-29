@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.3
+
+- fix minor printing errors
+
 # v0.4.2
 
 - fix colors

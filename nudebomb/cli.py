@@ -4,7 +4,7 @@ from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormat
 
 from termcolor import colored
 
-from nudebomb.config import get_config
+from nudebomb.config import NudebombConfig
 from nudebomb.version import VERSION
 from nudebomb.walk import Walk
 
@@ -180,7 +180,7 @@ def get_arguments(params=None):
 def main(args: tuple[str, ...] | None = None):
     """Process command line arguments, config and walk inputs."""
     arguments = get_arguments(args)
-    config = get_config(arguments)
+    config = NudebombConfig().get_config(arguments)
     # Iterate over all found mkv files
     walker = Walk(config)
     walker.run()
