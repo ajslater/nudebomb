@@ -10,7 +10,7 @@ dependencies = [
   "ruamel-yaml<1.0.0,>=0.18.4",
   "treestamps<3.0.0,>=2.2.1",
 ]
-version = "0.4.1"
+version = "0.4.2"
 description = "Strip unused languages from mkv files en mass"
 readme = "README.md"
 keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
