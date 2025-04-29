@@ -46,7 +46,7 @@ class Walk:
             mtime = None
 
         if mtime is not None and mtime > path.stat().st_mtime:
-            self._printer.skip_message(f"Skip by timestamps {path}")
+            self._printer.skip_timestamp_message(f"Skip by timestamps {path}")
             return True
         return False
 
@@ -103,7 +103,8 @@ class Walk:
 
     def run(self):
         """Run the stripper against all configured paths."""
-        self._printer.print_info(self._config.languages, self._config.sub_languages)
+        self._printer.print_config(self._config.languages, self._config.sub_languages)
+        self._printer.start_operation()
 
         if self._config.timestamps:
             copse_config = GrovestampsConfig(

@@ -45,14 +45,21 @@ class Printer:
         if self._verbose > 2:  # noqa: PLR2004
             self.message(message, color="dark_grey", attrs=["bold"])
 
-    def print_info(self, languages: tuple | list, sub_languages: tuple | list):
+    def config(self, message):
+        """Keep languages config message."""
+        self.message(message, "cyan", force_verbose=True)
+
+    def print_config(self, languages: tuple | list, sub_languages: tuple | list):
         """Print mkv info."""
         langs = ", ".join(sorted(languages))
         audio = "audio " if sub_languages else ""
-        self.message(f"Stripping {audio}languages except {langs}.", force_verbose=True)
+        self.config(f"Stripping {audio}languages except {langs}.")
         if sub_languages:
             sub_langs = ", ".join(sorted(sub_languages))
-            cprint(f"Stripping subtitle languages except {sub_langs}.")
+            self.config(f"Stripping subtitle languages except {sub_langs}.")
+
+    def start_operation(self):
+        """Start searching method."""
         cprint("Searching for MKV files to process", end="")
         if self._verbose > 1:
             cprint(":")
@@ -63,10 +70,6 @@ class Printer:
     def dry_run(self, message):
         """Dry run message."""
         self.message(message, "dark_grey", attrs=["bold"], force_verbose=True)
-
-    def config(self, message):
-        """Keep languages config message."""
-        self.message(message, "cyan")
 
     def done(self):
         """Operation done."""
