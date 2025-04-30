@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.4
+
+- new treestamps printer flushes more and has more consistent colors
+
 # v0.4.3
 
 - fix minor printing errors
