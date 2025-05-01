@@ -1,6 +1,6 @@
 # 📰 Nudebomb News
 
-# V0.4.5
+# v0.4.5
 
 - fix cli verbosity counting
 
