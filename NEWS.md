@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.5
+
+- fix cli verbosity counting
+
 # v0.4.4
 
 - new treestamps printer flushes more and has more consistent colors

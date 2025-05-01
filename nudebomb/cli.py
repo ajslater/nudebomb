@@ -174,6 +174,13 @@ def get_arguments(params=None):
     if params is not None:
         params = params[1:]
     nns = parser.parse_args(params)
+
+    # increment verbose
+    if nns.verbose is None:
+        nns.verbose = 1
+    elif nns.verbose > 0:
+        nns.verbose += 1
+
     return Namespace(nudebomb=nns)
 
 
