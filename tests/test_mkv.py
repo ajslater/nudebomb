@@ -3,10 +3,14 @@
 import os
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from nudebomb.config import NudebombConfig
 from nudebomb.mkv import MKVFile
 from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
+
+if TYPE_CHECKING:
+    from confuse import AttrDict
 
 __all__ = ()
 
@@ -44,10 +48,10 @@ class TestMkv(DiffTracksTest):
         shutil.rmtree(TEST_DIR, ignore_errors=True)
         TEST_DIR.mkdir()
         shutil.copy(SRC_PATH, TEST_MKV)
-        self.src_tracks = mkv_tracks(TEST_MKV)
+        self.src_tracks: list = mkv_tracks(TEST_MKV)  #  pyright: ignore[reportUninitializedInstanceVariable]
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__0"] = "und"
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__1"] = "eng"
-        self._config = NudebombConfig().get_config()
+        self._config: AttrDict = NudebombConfig().get_config()  #  pyright: ignore[reportUninitializedInstanceVariable]
 
     def teardown_method(self):
         """Tear down method."""

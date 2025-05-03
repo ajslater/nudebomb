@@ -3,6 +3,7 @@
 from contextlib import suppress
 
 import pycountry
+from confuse import AttrDict
 
 from nudebomb.printer import Printer
 
@@ -28,15 +29,15 @@ def lang_to_alpha3(lang):
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, config):
+    def __init__(self, config: AttrDict):
         """Initialize."""
-        self._config = config
-        self._lang_roots = {}
+        self._config: AttrDict = config
+        self._lang_roots: dict = {}
         langs = set()
         for lang in self._config.languages:
             langs.add(lang_to_alpha3(lang))
-        self._languages = frozenset(langs)
-        self._printer = Printer(self._config.verbose)
+        self._languages: frozenset[str] = frozenset(langs)
+        self._printer: Printer = Printer(self._config.verbose)
 
     def read_lang_files(self, path):
         """

@@ -3,6 +3,7 @@
 from copy import deepcopy
 from pathlib import Path
 
+from confuse import AttrDict
 from treestamps import Grovestamps, GrovestampsConfig
 from treestamps.tree import Treestamps
 
@@ -16,11 +17,12 @@ from nudebomb.version import PROGRAM_NAME
 class Walk:
     """Directory traversal class."""
 
-    def __init__(self, config):
+    def __init__(self, config: AttrDict):
         """Initialize."""
-        self._config = config
-        self._langfiles = LangFiles(config)
-        self._printer = Printer(self._config.verbose)
+        self._config: AttrDict = config
+        self._langfiles: LangFiles = LangFiles(config)
+        self._printer: Printer = Printer(self._config.verbose)
+        self._timestamps: Grovestamps | None = None
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""
@@ -41,7 +43,7 @@ class Walk:
         """Return if the file was last updated before the timestamp."""
         if self._config.after:
             mtime = self._config.after
-        elif self._config.timestamps:
+        elif self._timestamps:
             mtime = self._timestamps.get(top_path, {}).get(path)
         else:
             mtime = None
@@ -64,7 +66,7 @@ class Walk:
         config.languages = self._langfiles.get_langs(top_path, dir_path)
         mkv_obj = MKVFile(config, path)
         mkv_obj.remove_tracks()
-        if self._config.timestamps:
+        if self._timestamps:
             self._timestamps[top_path].set(path)
 
     def walk_dir(self, top_path, dir_path):
@@ -83,7 +85,7 @@ class Walk:
         for path in filenames:
             self.walk_file(top_path, path)
 
-        if self._config.timestamps:
+        if self._timestamps:
             timestamps = self._timestamps[top_path]
             timestamps.set(dir_path, compact=True)
 
@@ -108,7 +110,7 @@ class Walk:
         self._printer.start_operation()
 
         if self._config.timestamps:
-            copse_config = GrovestampsConfig(
+            grove_config = GrovestampsConfig(
                 PROGRAM_NAME,
                 paths=self._config.paths,
                 verbose=self._config.verbose,
@@ -118,7 +120,7 @@ class Walk:
                 program_config=self._config,
                 program_config_keys=TIMESTAMPS_CONFIG_KEYS,
             )
-            self._timestamps = Grovestamps(copse_config)
+            self._timestamps = Grovestamps(grove_config)
 
         for path_str in self._config.paths:
             path = Path(path_str)
@@ -126,5 +128,5 @@ class Walk:
             self.walk_file(top_path, path)
         self._printer.done()
 
-        if self._config.timestamps:
+        if self._timestamps:
             self._timestamps.dump()
