@@ -74,13 +74,16 @@ failOnWarnings = false
 reportAny = false
 reportExplicitAny = false
 reportImportCycles = true
+reportIncompatibleUnannotatedOverride = true
 reportMissingParameterType = false
 reportMissingTypeArgument = false
+reportUnannotatedClassAttribute = false
 reportUnknownArgumentType = false
 reportUnknownMemberType = false
 reportUnknownParameterType = false
 reportUnknownVariableType = false
 reportUnusedCallResult = false
+reportUnusedParameter = false # ruff does this
 reportMissingTypeStubs = false
 
 [tool.codespell]
