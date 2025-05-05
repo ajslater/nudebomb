@@ -9,6 +9,7 @@ dependencies = [
   "python-dateutil<3.0.0,>=2.8.2",
   "ruamel-yaml<1.0.0,>=0.18.4",
   "treestamps<3.0.0,>=2.2.6",
+  "typing-extensions>=4.13.2",
 ]
 version = "4.4.5"
 description = "Strip unused languages from mkv files en mass"

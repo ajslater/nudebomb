@@ -372,6 +372,7 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "ruamel-yaml" },
     { name = "treestamps" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -400,6 +401,7 @@ requires-dist = [
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "ruamel-yaml", specifier = ">=0.18.4,<1.0.0" },
     { name = "treestamps", specifier = ">=2.2.6,<3.0.0" },
+    { name = "typing-extensions", specifier = ">=4.13.2" },
 ]
 
 [package.metadata.requires-dev]
