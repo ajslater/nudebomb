@@ -8,6 +8,10 @@ subtitle tracks.
 You may find user focused nudebomb changes in the
 [NEWS file](https://github.com/ajslater/nudebomb/tree/NEWS.md).
 
+## 🕸️ HTML Docs
+
+[HTML formatted docs are available here](https://nudebomb.readthedocs.io)
+
 ## 📦 Installation
 
 ### Requirements
