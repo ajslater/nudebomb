@@ -3,31 +3,40 @@
 The Nudebomb recursively strips matroska media files of unwanted audio and
 subtitle tracks.
 
-## News
+## 📰 News
 
 You may find user focused nudebomb changes in the
 [NEWS file](https://github.com/ajslater/nudebomb/tree/NEWS.md).
 
-## Requirements
+## 📦 Installation
 
-- MKVToolNix
-- Python3
+### Requirements
 
-## Install
+- [MKVToolNix](https://mkvtoolnix.download/)
 
-    pip install
+Widely available via homebrew, apt or your favorite package manager..
 
-## Usage
+### Install
+
+```sh
+pip install nudebomb
+```
+
+## ⌨️ Use
 
 ### Posix
 
-    nudebomb -rl eng,fre /mnt/movies
+```sh
+nudebomb -rl eng,fre /mnt/movies
+```
 
 ### Windows
 
-    nudebomb -b C:\\Program/ Files\MKVToolNix\mkvmerge.exe -rl eng,jap \\nas\movies
+```powershell
+nudebomb -b C:\\Program/ Files\MKVToolNix\mkvmerge.exe -rl eng,jap \\nas\movies
+```
 
-## Config
+## 🎛️ Configuration
 
 You may configure Nudebomb options via the command, a yaml config file and
 environment variables.
@@ -43,7 +52,7 @@ NUDEBOMB_NUDEBOMB__LANGUAGES__0=und
 NUDEBOMB_NUDEBOMB__LANGUAGES__1=eng
 ```
 
-## Lang Files
+## ⌨️ Lang Files
 
 While you may have a primary language, you probably want videos from other
 countries to keep their native language as well. Lang files let you do this.
@@ -72,8 +81,12 @@ mkv files by polling and caching results from major online media databases. It's
 the right thing to do, but I don't care to implement it. Patches or forks
 welcome.
 
-## Inspiration
+## 💡 Inspiration
 
 Nudebomb is a radical fork of [mkvstrip](https://github.com/willforde/mkvstrip).
 It adds recursion, lang files, timestamps and more configuration to mkvstrip and
 fixes some minor bugs.
+
+## 🛠️ Development
+
+Nudebomb code is hosted at [Github](https://github.com/ajslater/nudebomb)
