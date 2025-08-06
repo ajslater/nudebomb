@@ -51,6 +51,7 @@ dev = [
   "radon[toml]~=6.0",
   "ruff~=0.12",
   "toml-cli~=0.7.0",
+  "ty>=0.0.1a16",
   "types-python-dateutil~=2.9",
   "vulture~=2.3",
 ]
