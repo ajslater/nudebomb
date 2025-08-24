@@ -1,20 +1,5 @@
 [project]
-name = "nudebomb"
-requires-python = "<4.0,>=3.10"
 authors = [{ name = "AJ Slater", email = "aj@slater.net" }]
-license = { text = "GPL-3.0-only" }
-dependencies = [
-  "confuse~=2.0",
-  "pycountry~=24.6",
-  "python-dateutil~=2.8",
-  "ruamel-yaml~=0.18",
-  "treestamps~=2.2.6",
-  "typing-extensions~=4.13",
-]
-version = "4.4.5"
-description = "Strip unused languages from mkv files en mass"
-readme = "README.md"
-keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
 classifiers = [
   "Environment :: Console",
   "Intended Audience :: End Users/Desktop",
@@ -24,12 +9,27 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Multimedia :: Video :: Conversion",
 ]
+dependencies = [
+  "confuse~=2.0",
+  "pycountry~=24.6",
+  "python-dateutil~=2.8",
+  "ruamel-yaml~=0.18",
+  "treestamps~=2.2.6",
+  "typing-extensions~=4.13",
+]
+description = "Strip unused languages from mkv files en mass"
+keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
+license = "GPL-3.0-only"
+name = "nudebomb"
+readme = "README.md"
+requires-python = "<4.0,>=3.10"
+version = "4.4.5"
 
 [project.urls]
-Source = "https://github.com/ajslater/nudebomb"
+Documentation = "https://nudebomb.readthedocs.io/news/"
+News = "https://nudebomb.readthedocs.io/"
 Issues = "https://github.com/ajslater/nudebomb/issues"
-homepage = "https://github.com/ajslater/nudebomb"
-documentation = "https://github.com/ajslater/nudebomb"
+Source = "https://github.com/ajslater/nudebomb"
 
 [project.scripts]
 nudebomb = "nudebomb.cli:main"
@@ -86,7 +86,7 @@ exclude = [
   "dist",
   "test-results",
   "typings",
-  "vulture_whitelist.py",
+  "vulture_ignorelist.py",
 ]
 pythonVersion = "3.10"
 failOnWarnings = false
@@ -96,6 +96,7 @@ reportImportCycles = true
 reportIncompatibleUnannotatedOverride = true
 reportMissingParameterType = false
 reportMissingTypeArgument = false
+reportMissingTypeStubs = false
 reportPrivateUsage = false # ruff does this
 reportUnannotatedClassAttribute = false
 reportUnknownArgumentType = false
@@ -104,13 +105,15 @@ reportUnknownParameterType = false
 reportUnknownVariableType = false
 reportUnusedCallResult = false
 reportUnusedParameter = false # ruff does this
-reportMissingTypeStubs = false
 
 [tool.codespell]
-skip = ".*,*~,./dist,./node_modules,./package.json,./package-lock.json,./uv.lock,./test-results"
 builtin = "clear,rare,code"
 check-hidden = true
 ignore-words-list = "thead"
+skip = ".*,*~,./dist,./node_modules,./package.json,./package-lock.json,./uv.lock,./test-results"
+
+[tool.coverage.html]
+directory = "test-results/coverage"
 
 [tool.coverage.run]
 source = ["nudebomb"]
@@ -123,15 +126,14 @@ omit = [
   "node_modules/*",
   "test-results/*",
   "typings/*",
+  "vulture_ignorelist.py",
 ]
-
-[tool.coverage.html]
-directory = "test-results/coverage"
 
 [tool.pytest.ini_options]
 addopts = """
   --junitxml=test-results/pytest/junit.xml
   -ra
+  --strict-config
   --strict-markers
   --cov
   --cov-append
@@ -145,8 +147,16 @@ testpaths = "tests"
 exclude = "*~,.*,.*/*,__pycache__/*,dist/*,node_modules/*,test-results/*,typings/*"
 
 [tool.ruff]
-extend-exclude = ["**/.*", "**/__pycache__", "dist", "test-results", "typings"]
+extend-exclude = [
+  "**/.*",
+  "**/__pycache__",
+  "dist",
+  "test-results",
+  "typings",
+  "vulture_ignorelist.py",
+]
 target-version = "py310"
+
 [tool.ruff.lint]
 extend-ignore = [
   "BLE001",  # catch bare exception
@@ -165,75 +175,98 @@ extend-ignore = [
   "W191",    # formatted
 ]
 extend-select = [
-  "A",
   # "AIR",
-  # "ANN",
-  "ARG",
-  "ASYNC",
-  "B",
-  "B9",
-  "BLE",
-  "C",
-  "C4",
-  "C90",
-  "COM",
-  # "CPY",
-  "D",
-  "DJ",
-  # "DOC",
-  "DTZ",
-  "E",
-  "EM",
   "ERA",
-  "EXE",
-  "F",
-  "FA",
   # "FAST",
+  # ########
+  # flake8 #
+  # ########
+  "YTT",
+  # "ANN",
+  "ASYNC",
+  "S",
+  "BLE",
   "FBT",
+  "B",
+  "A",
+  "COM",
+  "C4",
+  # "CPY",
+  "DTZ",
+  "T10",
+  "DJ",
+  "EM",
+  "EXE",
   "FIX",
-  "FLY",
-  # "FURB",
-  # "G",
-  "I",
-  "ICN",
-  "INP",
+  "FA",
   "INT",
   "ISC",
+  "ICN",
   "LOG",
-  # "PD",
-  "PERF",
-  "PGH",
+  # "G",
+  "INP",
   "PIE",
-  "PL",
-  "PT",
-  "PTH",
   "PYI",
-  # "Q", Formatted
-  "N",
-  # NPY,
-  "RET",
-  "RSE",
-  "RUF",
-  "S",
-  "SIM",
-  "SLF",
-  "SLOT",
-  "T10",
   "T20",
-  "TC",
-  "TCH",
-  # "TD",
+  "PT",
+  # "Q", Formatted
+  "RSE",
+  "RET",
+  "SLF",
+  "SIM",
+  "SLOT",
   "TID",
-  "TRY",
-  "UP",
+  # "TD",
+  "TC",
+  "ARG",
+  "PTH",
+  # ############
+  # end flake8 #
+  # ############
+  "FLY",
+  "I",
+  "C90",
+  # "NPY",
+  # "PD",
+  "N",
+  "PERF",
+  "E",
   "W",
-  "YTT",
+  # "DOC",
+  "D",
+  "F",
+  "PGH",
+  "PLE",
+  "PLR",
+  "PLW",
+  "UP",
+  "FURB",
+  "RUF",
+  "TRY",
 ]
 external = ["V101"]
 task-tags = ["TODO", "FIXME", "XXX", "http", "HACK"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SLF001", "T201", "T203"]
+
 [tool.ruff.lint.pycodestyle]
 ignore-overlong-task-comments = true
+
+[tool.ty.environment]
+python = "./.venv"
+python-version = "3.10"
+
+[tool.ty.src]
+exclude = [
+  "**/.*",
+  "**/__pycache__",
+  "**/node_modules",
+  "dist",
+  "test-results",
+  "typings",
+  "vulture_ignorelist.py",
+]
 
 [tool.vulture]
 exclude = [

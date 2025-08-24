@@ -32,5 +32,5 @@ class DiffTracksTest:
     def _diff_tracks(self, out_tracks):
         diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue]
         if diff:
-            print(diff)  # noqa: T201
+            print(diff)
         assert not diff
