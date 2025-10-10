@@ -3,6 +3,7 @@
 from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
 
 from termcolor import colored
+from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
 from nudebomb.version import VERSION
@@ -12,8 +13,9 @@ from nudebomb.walk import Walk
 class CommaListAction(Action):
     """Split arguments by commas into a list."""
 
-    DELINEATOR = ","
+    DELINEATOR: str = ","
 
+    @override
     def __call__(self, _, namespace, values, _option_string=None):
         """Split by delineator and assign to dest variable."""
         items = values.strip().split(self.DELINEATOR)
@@ -64,32 +66,40 @@ def get_arguments(params=None):
         "-l",
         "--languages",
         action=CommaListAction,
-        help="Comma-separated list of audio and subtitle languages to retain. "
-        "e.g. eng,fre.",
+        help=(
+            "Comma-separated list of audio and subtitle languages to retain. "
+            "e.g. eng,fre."
+        ),
     )
     parser.add_argument(
         "-U",
         "--strip-und-language",
         action="store_true",
-        help="Strip the 'und' undetermined or untagged language tracks. "
-        "By default nudebomb does not strip these tracks.",
+        help=(
+            "Strip the 'und' undetermined or untagged language tracks. "
+            "By default nudebomb does not strip these tracks."
+        ),
     )
     parser.add_argument(
         "-s",
         "--sub-languages",
         action=CommaListAction,
         required=False,
-        help="Comma-separated list of subtitle specific languages to retain. "
-        "Supersedes --languages.",
+        help=(
+            "Comma-separated list of subtitle specific languages to retain. "
+            "Supersedes --languages."
+        ),
     )
     parser.add_argument(
         "-S",
         "--no-subtitles",
         action="store_false",
         dest="subtitles",
-        help="If no subtitles match the languages to retain, strip all subtitles. "
-        "By default nudebomb keeps all subtitles if no subtitles match specified "
-        "languages.",
+        help=(
+            "If no subtitles match the languages to retain, strip all subtitles. "
+            "By default nudebomb keeps all subtitles if no subtitles match specified "
+            "languages."
+        ),
     )
     parser.add_argument(
         "-i",
@@ -136,8 +146,10 @@ def get_arguments(params=None):
         "-t",
         "--timestamps",
         action="store_true",
-        help="Read and write timestamps to strip only files that have been "
-        "modified since the last run.",
+        help=(
+            "Read and write timestamps to strip only files that have been "
+            "modified since the last run."
+        ),
     )
     parser.add_argument(
         "-C",
@@ -155,9 +167,11 @@ def get_arguments(params=None):
         "--after",
         action="store",
         dest="after",
-        help="Only strip mkvs after the specified timestamp. "
-        "Supersedes recorded timestamp files. Can be an epoch number or "
-        "datetime string.",
+        help=(
+            "Only strip mkvs after the specified timestamp. "
+            "Supersedes recorded timestamp files. Can be an epoch number or "
+            "datetime string."
+        ),
     )
     parser.add_argument(
         "-V", "--version", action="version", version=f"%(prog)s {VERSION}"

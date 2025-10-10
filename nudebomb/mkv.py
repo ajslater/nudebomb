@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from confuse import AttrDict
+
 from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
 from nudebomb.track import Track
@@ -13,20 +15,20 @@ from nudebomb.track import Track
 class MKVFile:
     """Strips matroska files of unwanted audio and subtitles."""
 
-    VIDEO_TRACK_NAME = "video"
-    AUDIO_TRACK_NAME = "audio"
-    SUBTITLE_TRACK_NAME = "subtitles"
-    REMOVABLE_TRACK_NAMES = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
+    VIDEO_TRACK_NAME: str = "video"
+    AUDIO_TRACK_NAME: str = "audio"
+    SUBTITLE_TRACK_NAME: str = "subtitles"
+    REMOVABLE_TRACK_NAMES: tuple[str, str] = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
 
-    def __init__(self, config, path):
+    def __init__(self, config: AttrDict, path: Path):
         """Initialize."""
-        self._config = config
-        self.path = Path(path)
-        self._printer = Printer(self._config.verbose)
+        self._config: AttrDict = config
+        self.path: Path = Path(path)
+        self._printer: Printer = Printer(self._config.verbose)
         self._init_track_map()
 
     def _init_track_map(self):
-        self._track_map = {}
+        self._track_map: dict = {}
 
         # Ask mkvmerge for the json info
         command = (self._config.mkvmerge_bin, "-J", str(self.path))

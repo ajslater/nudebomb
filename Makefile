@@ -79,7 +79,7 @@ fix: fix-backend
 ## Static typecheck
 ## @category Lint
 typecheck:
-	uv run pyright .
+	uv run basedpyright .
 
 .PHONY: lint
 ## Lint front and back end
@@ -112,6 +112,18 @@ dev-server:
 ## @category Deploy
 news:
 	head -40 NEWS.md
+
+.PHONY: docs
+## Build doc site
+## @category Docs
+docs:
+	uv run mkdocs build --strict --site-dir docs/site
+
+.PHONY: docs-server
+## Build doc site
+## @category Docs
+docs-server:
+	uv run mkdocs serve --open --dirty
 
 .PHONY: all
 

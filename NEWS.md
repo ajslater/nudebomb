@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+# v0.4.6
+
+- The confuse library dependency doesn't support Python 3.14. So neither does
+  nudebomb :(
+
 # v0.4.5
 
 - fix cli verbosity counting
@@ -71,75 +76,63 @@
 ## v0.3.0
 
 - Features
-
-  - New ignore timestamps for one run but write them option.
-  - Update deps including new treestamps.
+    - New ignore timestamps for one run but write them option.
+    - Update deps including new treestamps.
 
 ## v0.2.6
 
 - Features
-
-  - Update uv.lockfile & dev deps
+    - Update uv.lockfile & dev deps
 
 ## v0.2.5
 
 - Features
-
-  - Update confuse library to latest version
+    - Update confuse library to latest version
 
 ## v0.2.4
 
 - Features
-
-  - Progress dots in non-verbose mode.
+    - Progress dots in non-verbose mode.
 
 ## v0.2.3
 
 - Features
-
-  - More output about what nudebomb is doing.
-  - Renamed subs_languages config option to sub_languages.
+    - More output about what nudebomb is doing.
+    - Renamed subs_languages config option to sub_languages.
 
 - Fixes
-
-  - Searching for langfiles obeys symlinks preference.
+    - Searching for langfiles obeys symlinks preference.
 
 ## v0.2.2
 
 - Fixes
-
-  - Fix timestamps factory breaking.
+    - Fix timestamps factory breaking.
 
 ## v0.2.1
 
 - Fixes
-
-  - Timestamps respect symlinks option
+    - Timestamps respect symlinks option
 
 ## v0.2.0
 
 - Features
-
-  - Ignore option
+    - Ignore option
 
 ## v0.1.3
 
 - Fixes
-
-  - Fix timestamps not recording sometimes.
+    - Fix timestamps not recording sometimes.
 
 ## v0.1.2
 
 - Fixes
-
-  - Timestamps more resilient to errors.
+    - Timestamps more resilient to errors.
 
 ## v0.1.1
 
 - Fixes
-
-  - Fix treestamps type issue.
-  - Timestamps do not set on dry run.
+    - Fix treestamps type issue.
+    - Timestamps do not set on dry run.
 
 ## v0.1.0
 

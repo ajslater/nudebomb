@@ -57,7 +57,7 @@ class NudebombConfig:
 
     def __init__(self):
         """Initialize printer."""
-        self._printer = Printer(2)
+        self._printer: Printer = Printer(2)
 
     @staticmethod
     def _set_after(config) -> None:
@@ -96,10 +96,8 @@ class NudebombConfig:
     def _set_languages(self, config):
         self._set_unique_lang_list(config, "languages")
         if not config[PROGRAM_NAME]["languages"].get():
-            self._printer.error(
-                "Nudebomb will not run unless you set languages to keep on the "
-                "command line, environment variables or config files.",
-            )
+            error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."
+            self._printer.error(error)
             sys.exit(1)
 
     @staticmethod

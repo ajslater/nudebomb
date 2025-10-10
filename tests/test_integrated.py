@@ -22,9 +22,9 @@ class TestIntegrated(DiffTracksTest):
         shutil.rmtree(TEST_DIR, ignore_errors=True)
         TEST_DIR.mkdir()
         src_path = SRC_DIR / TEST_FN
-        self.dest_path = TEST_DIR / TEST_FN
+        self.dest_path: Path = TEST_DIR / TEST_FN  #  pyright: ignore[reportUninitializedInstanceVariable]
         shutil.copy(src_path, self.dest_path)
-        self.src_tracks = mkv_tracks(self.dest_path)
+        self.src_tracks: list = mkv_tracks(self.dest_path)  #  pyright: ignore[reportUninitializedInstanceVariable]
 
     def teardown_method(self):
         """Tear down tests."""
