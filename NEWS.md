@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+# v0.4.6
+
+- The confuse library dependency doesn't support Python 3.14. So neither does
+  nudebomb :(
+
 # v0.4.5
 
 - fix cli verbosity counting
