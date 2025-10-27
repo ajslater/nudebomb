@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+# v0.4.7
+
+- Support for Python 3.14
+
 # v0.4.6
 
 - The confuse library dependency doesn't support Python 3.14. So neither does
