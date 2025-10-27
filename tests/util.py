@@ -30,7 +30,7 @@ def read(filename) -> bytes:
 
 class DiffTracksTest:
     def _diff_tracks(self, out_tracks):
-        diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue]
+        diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
         if diff:
             print(diff)
         assert not diff

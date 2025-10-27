@@ -10,7 +10,7 @@ classifiers = [
   "Topic :: Multimedia :: Video :: Conversion",
 ]
 dependencies = [
-  "confuse~=2.0",
+  "confuse~=2.1",
   "pycountry~=24.6",
   "python-dateutil~=2.8",
   "ruamel-yaml~=0.18",
@@ -22,8 +22,8 @@ keywords = ["mkv", "movie", "video", "srt", "audio", "subtitles"]
 license = "GPL-3.0-only"
 name = "nudebomb"
 readme = "README.md"
-requires-python = "<3.14,>=3.10"
-version = "0.4.6"
+requires-python = ">=3.10"
+version = "0.4.7"
 
 [project.urls]
 Documentation = "https://nudebomb.readthedocs.io/news/"
@@ -45,7 +45,7 @@ dev = [
   "mkdocs-minify-plugin~=0.8",
   "neovim~=0.3",
   "pyclean~=3.1",
-  "pytest-cov~=6.0",
+  "pytest-cov~=7.0",
   "pytest-gitignore~=1.3",
   "radon[toml]~=6.0",
   "ruff~=0.12",
