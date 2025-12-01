@@ -1,6 +1,8 @@
 """Command line interface for nudebomb."""
 
 from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from collections.abc import Sequence
+from typing import Any
 
 from termcolor import colored
 from typing_extensions import override
@@ -16,10 +18,17 @@ class CommaListAction(Action):
     DELINEATOR: str = ","
 
     @override
-    def __call__(self, _, namespace, values, _option_string=None):
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: Namespace,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
+    ) -> None:
         """Split by delineator and assign to dest variable."""
-        items = values.strip().split(self.DELINEATOR)
-        setattr(namespace, self.dest, items)
+        if isinstance(values, str):
+            values = values.strip().split(self.DELINEATOR)
+        setattr(namespace, self.dest, values)
 
 
 COLOR_KEY = (
@@ -68,7 +77,7 @@ def get_arguments(params=None):
         action=CommaListAction,
         help=(
             "Comma-separated list of audio and subtitle languages to retain. "
-            "e.g. eng,fre."
+            "e.g. eng,fra."
         ),
     )
     parser.add_argument(
