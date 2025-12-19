@@ -39,6 +39,26 @@ class LangFiles:
         self._languages: frozenset[str] = frozenset(langs)
         self._printer: Printer = Printer(self._config.verbose)
 
+    def _read_lang_file(self, path, fn):
+        langpath = path / fn
+        if (
+            not langpath.exists()
+            or not langpath.is_file()
+            or (not self._config.symlinks and langpath.is_symlink())
+        ):
+            # ignore is already handled before we get here in walk.py
+            return
+        newlangs = set()
+        with langpath.open("r") as langfile:
+            for line in langfile:
+                for lang in line.strip().split(","):
+                    newlang = lang_to_alpha3(lang.strip())
+                    newlangs.add(newlang)
+        if self._config.verbose > 1:
+            newlangs_str = " ,".join(sorted(newlangs))
+            self._printer.config(f"Also keeping {newlangs_str} for {path}")
+        self._lang_roots[path] |= newlangs
+
     def read_lang_files(self, path):
         """
         Read the lang files and parse languages.
@@ -49,24 +69,7 @@ class LangFiles:
         if path not in self._lang_roots:
             self._lang_roots[path] = set()
             for fn in LANGS_FNS:
-                langpath = path / fn
-                if (
-                    not langpath.exists()
-                    or not langpath.is_file()
-                    or (not self._config.symlinks and langpath.is_symlink())
-                ):
-                    # ignore is already handled before we get here in walk.py
-                    continue
-                newlangs = set()
-                with langpath.open("r") as langfile:
-                    for line in langfile:
-                        for lang in line.strip().split(","):
-                            newlang = lang_to_alpha3(lang.strip())
-                            newlangs.add(newlang)
-                if self._config.verbose > 1:
-                    newlangs_str = " ,".join(sorted(newlangs))
-                    self._printer.config(f"Also keeping {newlangs_str} for {path}")
-                self._lang_roots[path] |= newlangs
+                self._read_lang_file(path, fn)
 
         return self._lang_roots[path]
 

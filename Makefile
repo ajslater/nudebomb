@@ -79,13 +79,13 @@ fix: fix-backend
 ## Static typecheck
 ## @category Lint
 typecheck:
-	uv run basedpyright .
+	uv run --group lint basedpyright .
 
 .PHONY: ty
 ## Static typecheck with ty
 ## @category Lint
 ty:
-	uv run ty check .
+	uv run --group lint ty check .
 
 .PHONY: lint
 ## Lint front and back end
@@ -123,13 +123,13 @@ news:
 ## Build doc site
 ## @category Docs
 docs:
-	uv run mkdocs build --strict --site-dir docs/site
+	uv run --only-group docs --no-dev mkdocs build --strict --site-dir docs/site
 
 .PHONY: docs-server
 ## Build doc site
 ## @category Docs
 docs-server:
-	uv run mkdocs serve --open --dirty
+	uv run --only-group docs --no-dev mkdocs serve --open --dirty
 
 .PHONY: all
 
