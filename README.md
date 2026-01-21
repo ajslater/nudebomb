@@ -30,8 +30,29 @@ pip install nudebomb
 
 ### Posix
 
+Strip languages that are not English and French from an entire directory tree:
+
 ```sh
 nudebomb -rl eng,fre /mnt/movies
+```
+
+Show possible stripping actions on a single movie without doing anything:
+
+```sh
+nudebomb -dvvl eng movie.mkv
+```
+
+```txt
+Stripping languages except eng, und.
+Searching for MKV files to process:
+Checking movie.mkv
+    audio: 1 eng
+    audio: 2 eng
+    audio: 3 eng
+    subtitles: 4 eng
+    subtitles: 5 eng
+    Already stripped movie.mkv
+done.
 ```
 
 ### Windows
@@ -68,7 +89,7 @@ directories.
 Valid lang file names are: 'lang', 'langs', '.lang', or '.langs' They include
 comma separated list of languages to keep like the `-l` option.
 
-e.g. You may have an entire collecttion of different TV shows with a root lang
+e.g. You may have an entire collection of different TV shows with a root lang
 file containing the `eng` language. Under that directory you may have a specific
 TV show directory with lang file containing `jpn`. All mkvs in season
 directories under that would then keep both the `eng` and `jpn` languages, while
@@ -80,10 +101,9 @@ keep.
 
 ### APIs
 
-Langfiles would be obsolete if nudebomb could deterimining native languages for
-mkv files by polling and caching results from major online media databases. It's
-the right thing to do, but I don't care to implement it. Patches or forks
-welcome.
+Langfiles would be obsolete if nudebomb could determine native languages for mkv
+files by polling and caching results from major online media databases. It's the
+right thing to do, but I don't care to implement it. Patches or forks welcome.
 
 ## 💡 Inspiration
 
