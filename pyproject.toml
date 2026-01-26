@@ -13,7 +13,7 @@ dependencies = [
   "confuse~=2.1",
   "pycountry~=24.6",
   "python-dateutil~=2.8",
-  "ruamel-yaml~=0.18",
+  "ruamel-yaml>=0.18,<1.0",
   "treestamps~=2.2",
   "typing-extensions~=4.13",
 ]
