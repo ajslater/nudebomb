@@ -42,9 +42,9 @@ class Walk:
     def _is_path_before_timestamp(self, top_path: Path, path: Path) -> bool:
         """Return if the file was last updated before the timestamp."""
         if self._config.after:
-            mtime = self._config.after
+            mtime: float | None = self._config.after
         elif self._timestamps:
-            mtime = self._timestamps.get(top_path, {}).get(path)
+            mtime: float | None = self._timestamps.get(top_path, {}).get(path)
         else:
             mtime = None
 
