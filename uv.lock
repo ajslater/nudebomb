@@ -1000,7 +1000,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "confuse", specifier = "==2.1.0" },
+    { name = "confuse", specifier = "~=2.1.0,<2.2.0" },
     { name = "pycountry", specifier = "~=24.6" },
     { name = "python-dateutil", specifier = "~=2.8" },
     { name = "ruamel-yaml", specifier = ">=0.18,<1.0" },
