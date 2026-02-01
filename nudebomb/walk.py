@@ -44,7 +44,7 @@ class Walk:
         if self._config.after:
             mtime: float | None = self._config.after
         elif self._timestamps:
-            mtime: float | None = self._timestamps.get(top_path, {}).get(path)
+            mtime = self._timestamps.get(top_path, {}).get(path)
         else:
             mtime = None
 
