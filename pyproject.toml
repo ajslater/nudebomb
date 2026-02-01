@@ -10,7 +10,7 @@ classifiers = [
   "Topic :: Multimedia :: Video :: Conversion",
 ]
 dependencies = [
-  "confuse~=2.1",
+  "confuse==2.1.0",
   "pycountry~=24.6",
   "python-dateutil~=2.8",
   "ruamel-yaml>=0.18,<1.0",
