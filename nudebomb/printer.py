@@ -23,7 +23,7 @@ class Printer:
             return
         if not self._after_newline:
             reason = "\n" + reason
-        attrs = attrs if attrs else []
+        attrs = attrs or []
         cprint(reason, color, attrs=attrs, end=end, flush=True)
         if end:
             self._after_newline = True
