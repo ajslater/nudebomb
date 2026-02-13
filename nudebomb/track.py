@@ -6,7 +6,7 @@ from typing_extensions import override
 class Track:
     """MKV track metadata."""
 
-    def __init__(self, track_data):
+    def __init__(self, track_data) -> None:
         """Initialize."""
         self.type: str = track_data["type"]
         self.id: str = track_data["id"]
@@ -14,6 +14,6 @@ class Track:
         self.codec: str = track_data["codec"]
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         """Represetnd as a string."""
         return f"Track #{self.id}: {self.lang} - {self.codec}"

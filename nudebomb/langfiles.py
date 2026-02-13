@@ -29,7 +29,7 @@ def lang_to_alpha3(lang):
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, config: AttrDict):
+    def __init__(self, config: AttrDict) -> None:
         """Initialize."""
         self._config: AttrDict = config
         self._lang_roots: dict = {}
@@ -39,7 +39,7 @@ class LangFiles:
         self._languages: frozenset[str] = frozenset(langs)
         self._printer: Printer = Printer(self._config.verbose)
 
-    def _read_lang_file(self, path, fn):
+    def _read_lang_file(self, path, fn) -> None:
         langpath = path / fn
         if (
             not langpath.exists()

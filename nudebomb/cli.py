@@ -42,7 +42,7 @@ COLOR_KEY = (
 )
 
 
-def get_dot_color_key():
+def get_dot_color_key() -> str:
     """Create dot color key."""
     epilogue = "Dot color key:\n"
     for text, color, attrs in COLOR_KEY:
@@ -50,7 +50,7 @@ def get_dot_color_key():
     return epilogue
 
 
-def get_arguments(params=None):
+def get_arguments(params=None) -> Namespace:
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
     epilog = get_dot_color_key()
@@ -207,7 +207,7 @@ def get_arguments(params=None):
     return Namespace(nudebomb=nns)
 
 
-def main(args: tuple[str, ...] | None = None):
+def main(args: tuple[str, ...] | None = None) -> None:
     """Process command line arguments, config and walk inputs."""
     arguments = get_arguments(args)
     config = NudebombConfig().get_config(arguments)
