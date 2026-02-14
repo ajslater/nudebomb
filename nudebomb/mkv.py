@@ -61,7 +61,7 @@ class MKVFile:
                 self._track_map[track_obj.type] = []
             self._track_map[track_obj.type].append(track_obj)
 
-    def _filtered_tracks(self, track_type):
+    def _filtered_tracks(self, track_type) -> tuple[list, list]:
         """Return a tuple consisting of tracks to keep and tracks to remove."""
         if track_type == self.SUBTITLE_TRACK_NAME and self._config.sub_languages:
             languages_to_keep = self._config.sub_languages
@@ -93,7 +93,7 @@ class MKVFile:
 
     def _extend_track_command(
         self, track_type, output: str, command: list[str], num_remove_ids: int
-    ):
+    ) -> tuple[str, list[str], int]:
         keep, remove = self._filtered_tracks(track_type)
 
         # Build the keep tracks options

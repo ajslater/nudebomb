@@ -10,7 +10,7 @@ from nudebomb.printer import Printer
 LANGS_FNS = ("lang", "langs", ".lang", ".langs")
 
 
-def lang_to_alpha3(lang):
+def lang_to_alpha3(lang) -> str:
     """Convert languages to ISO-639-1 (alpha2) format."""
     if not lang:
         lang = "und"
@@ -73,7 +73,7 @@ class LangFiles:
 
         return self._lang_roots[path]
 
-    def get_langs(self, top_path, path):
+    def get_langs(self, top_path, path) -> frozenset:
         """Get the languages from this dir and parent dirs."""
         langs = self._languages
         while True:
