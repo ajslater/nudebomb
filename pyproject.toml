@@ -23,7 +23,7 @@ license = "GPL-3.0-only"
 name = "nudebomb"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.4.7"
+version = "0.4.8"
 
 [project.urls]
 Documentation = "https://nudebomb.readthedocs.io/news/"
