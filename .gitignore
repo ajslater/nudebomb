@@ -4,6 +4,7 @@ __snapshots__
 .*cache
 .coverage
 .coverage.*
+.coverage*
 .dmypy.json
 .docker-token
 .DS_Store
