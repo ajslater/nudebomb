@@ -10,7 +10,7 @@ classifiers = [
 ]
 dependencies = [
   "confuse~=2.1.0,<2.2.0",
-  "pycountry~=24.6",
+  "pycountry~=26.2",
   "python-dateutil~=2.8",
   "ruamel-yaml>=0.18,<1.0",
   "treestamps~=2.2",
