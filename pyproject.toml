@@ -18,9 +18,9 @@ dependencies = [
 description = "Strip unused languages from mkv files en mass"
 keywords = ["audio", "mkv", "movie", "srt", "subtitles", "video"]
 readme = "README.md"
+requires-python = ">=3.10"
 license = "GPL-3.0-only"
 name = "nudebomb"
-requires-python = ">=3.10"
 version = "0.4.8"
 [[project.authors]]
 name = "AJ Slater"
