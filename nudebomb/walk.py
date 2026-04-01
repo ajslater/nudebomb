@@ -17,7 +17,7 @@ from nudebomb.version import PROGRAM_NAME
 class Walk:
     """Directory traversal class."""
 
-    def __init__(self, config: AttrDict):
+    def __init__(self, config: AttrDict) -> None:
         """Initialize."""
         self._config: AttrDict = config
         self._langfiles: LangFiles = LangFiles(config)
@@ -42,7 +42,7 @@ class Walk:
     def _is_path_before_timestamp(self, top_path: Path, path: Path) -> bool:
         """Return if the file was last updated before the timestamp."""
         if self._config.after:
-            mtime = self._config.after
+            mtime: float | None = self._config.after
         elif self._timestamps:
             mtime = self._timestamps.get(top_path, {}).get(path)
         else:
@@ -53,13 +53,13 @@ class Walk:
             return True
         return False
 
-    def _is_path_skippable_symlink(self, path: Path):
+    def _is_path_skippable_symlink(self, path: Path) -> bool:
         if not self._config.symlinks and path.is_symlink():
             self._printer.skip("symlink", path)
             return True
         return False
 
-    def strip_path(self, top_path, path):
+    def strip_path(self, top_path, path) -> None:
         """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
@@ -69,7 +69,7 @@ class Walk:
         if self._timestamps:
             self._timestamps[top_path].set(path)
 
-    def walk_dir(self, top_path, dir_path):
+    def walk_dir(self, top_path, dir_path) -> None:
         """Walk a directory."""
         if not self._config.recurse:
             return
@@ -89,7 +89,7 @@ class Walk:
             timestamps = self._timestamps[top_path]
             timestamps.set(dir_path, compact=True)
 
-    def walk_file(self, top_path, path):
+    def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
         if self._is_path_ignored(path):
             return
@@ -104,7 +104,7 @@ class Walk:
                 return
             self.strip_path(top_path, path)
 
-    def run(self):
+    def run(self) -> None:
         """Run the stripper against all configured paths."""
         self._printer.print_config(self._config.languages, self._config.sub_languages)
         self._printer.start_operation()

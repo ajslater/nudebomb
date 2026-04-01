@@ -1,35 +1,43 @@
 # 📰 Nudebomb News
 
-# v0.4.7
+## v0.4.9
+
+- Update pycountry
+
+## v0.4.8
+
+- Add type hints and py.typed sentinel file.
+
+## v0.4.7
 
 - Support for Python 3.14
 
-# v0.4.6
+## v0.4.6
 
 - The confuse library dependency doesn't support Python 3.14. So neither does
   nudebomb :(
 
-# v0.4.5
+## v0.4.5
 
 - fix cli verbosity counting
 
-# v0.4.4
+## v0.4.4
 
 - new treestamps printer flushes more and has more consistent colors
 
-# v0.4.3
+## v0.4.3
 
 - fix minor printing errors
 
-# v0.4.2
+## v0.4.2
 
 - fix colors
 
-# v0.4.1
+## v0.4.1
 
 - updated colors
 
-# v0.4.0
+## v0.4.0
 
 - updated treestamps - all timestamps will miss on first run
 - verbose option can be called multiple times

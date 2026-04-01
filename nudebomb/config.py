@@ -55,7 +55,7 @@ if system() == "Windows":
 class NudebombConfig:
     """Nudebomb config."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize printer."""
         self._printer: Printer = Printer(2)
 
@@ -74,7 +74,7 @@ class NudebombConfig:
         config[PROGRAM_NAME]["after"].set(timestamp)
 
     @staticmethod
-    def _set_default_mkvmerge_bin(config):
+    def _set_default_mkvmerge_bin(config) -> None:
         if config[PROGRAM_NAME]["mkvmerge_bin"].get():
             return
 
@@ -86,14 +86,14 @@ class NudebombConfig:
             config[PROGRAM_NAME]["mkvmerge_bin"].set("mkvmerge")
 
     @staticmethod
-    def _set_unique_lang_list(config, key):
+    def _set_unique_lang_list(config, key) -> None:
         if config[PROGRAM_NAME][key].get() is not None:
             items = set(config[PROGRAM_NAME][key].get())
             if not config[PROGRAM_NAME]["strip_und_language"].get():
                 items.add("und")
             config[PROGRAM_NAME][key].set(sorted(frozenset(items)))
 
-    def _set_languages(self, config):
+    def _set_languages(self, config) -> None:
         self._set_unique_lang_list(config, "languages")
         if not config[PROGRAM_NAME]["languages"].get():
             error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."

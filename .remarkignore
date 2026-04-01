@@ -3,8 +3,6 @@ __pypackages__/
 __snapshots__
 .*cache
 .claude
-.coverage
-.coverage.*
 .coverage*
 .dmypy.json
 .docker-token

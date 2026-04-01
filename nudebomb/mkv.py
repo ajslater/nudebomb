@@ -20,14 +20,14 @@ class MKVFile:
     SUBTITLE_TRACK_NAME: str = "subtitles"
     REMOVABLE_TRACK_NAMES: tuple[str, str] = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
 
-    def __init__(self, config: AttrDict, path: Path):
+    def __init__(self, config: AttrDict, path: Path) -> None:
         """Initialize."""
         self._config: AttrDict = config
         self.path: Path = Path(path)
         self._printer: Printer = Printer(self._config.verbose)
         self._init_track_map()
 
-    def _init_track_map(self):
+    def _init_track_map(self) -> None:
         self._track_map: dict = {}
 
         # Ask mkvmerge for the json info
@@ -61,7 +61,7 @@ class MKVFile:
                 self._track_map[track_obj.type] = []
             self._track_map[track_obj.type].append(track_obj)
 
-    def _filtered_tracks(self, track_type):
+    def _filtered_tracks(self, track_type) -> tuple[list, list]:
         """Return a tuple consisting of tracks to keep and tracks to remove."""
         if track_type == self.SUBTITLE_TRACK_NAME and self._config.sub_languages:
             languages_to_keep = self._config.sub_languages
@@ -91,7 +91,9 @@ class MKVFile:
 
         return keep, remove
 
-    def _extend_track_command(self, track_type, output, command, num_remove_ids):
+    def _extend_track_command(
+        self, track_type, output: str, command: list[str], num_remove_ids: int
+    ) -> tuple[str, list[str], int]:
         keep, remove = self._filtered_tracks(track_type)
 
         # Build the keep tracks options
@@ -138,7 +140,7 @@ class MKVFile:
         return output, command, num_remove_ids
 
     @staticmethod
-    def _remux_file(command):
+    def _remux_file(command) -> None:
         """Remux a mkv file with the given parameters."""
         sys.stdout.write("Progress 0%")
         sys.stdout.flush()
@@ -165,7 +167,7 @@ class MKVFile:
                     kwargs["output"] = process.stdout
                 raise subprocess.CalledProcessError(retcode, command, **kwargs)
 
-    def remove_tracks(self):
+    def remove_tracks(self) -> None:
         """Remove the unwanted tracks."""
         if not self._track_map:
             self._printer.error(
