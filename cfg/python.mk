@@ -61,7 +61,7 @@ fix:: fix-python
 ## Static typecheck
 ## @category Lint
 typecheck:
-	uv run --group lint --group build basedpyright .
+	uv run --group lint --group test --group build basedpyright .
 
 .PHONY: ty
 ## Static typecheck with ty
