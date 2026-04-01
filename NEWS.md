@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.4.9
+
+- Update pycountry
+
 ## v0.4.8
 
 - Add type hints and py.typed sentinel file.
