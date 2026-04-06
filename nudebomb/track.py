@@ -8,10 +8,10 @@ class Track:
 
     def __init__(self, track_data: dict[str, dict[str, str] | str]) -> None:
         """Initialize."""
-        self.type: str = track_data["type"]  #  pyright: ignore[reportAttributeAccessIssue]
-        self.id: str = track_data["id"]  #  pyright: ignore[reportAttributeAccessIssue]
-        self.lang: str = track_data["properties"].get("language", "und")  #  pyright: ignore[reportAttributeAccessIssue]
-        self.codec: str = track_data["codec"]  #  pyright: ignore[reportAttributeAccessIssue]
+        self.type: str = track_data["type"]  #  pyright: ignore[reportAttributeAccessIssue], # ty: ignore[invalid-assignment]
+        self.id: str = track_data["id"]  #  pyright: ignore[reportAttributeAccessIssue], # ty: ignore[invalid-assignment]
+        self.lang: str = track_data["properties"].get("language", "und")  #  pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+        self.codec: str = track_data["codec"]  #  pyright: ignore[reportAttributeAccessIssue], # ty: ignore[invalid-assignment]
 
     @override
     def __str__(self) -> str:

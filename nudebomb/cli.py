@@ -37,6 +37,11 @@ COLOR_KEY = (
     ("MKV already stripped", "green", []),
     ("MKV stripped tracks", "white", []),
     ("MKV not remuxed on dry run", "dark_grey", ["bold"]),
+    ("O TMDB lookup succeeded", "cyan", []),
+    ("o TMDB lookup succeeded (cached)", "green", []),
+    ("x TMDB lookup no result", "light_yellow", []),
+    ("X TMDB rate limited", "light_yellow", []),
+    ("X TMDB error", "light_red", []),
     ("WARNING", "light_yellow", []),
     ("ERROR", "light_red", []),
 )

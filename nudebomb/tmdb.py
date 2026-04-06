@@ -6,6 +6,7 @@ from pathlib import Path
 
 import tmdbsimple as tmdb
 from confuse import AttrDict
+from requests.exceptions import HTTPError
 
 from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
@@ -32,6 +33,8 @@ _TITLE_STOP_PATTERNS = re.compile(
 _SPACE_CHARS = re.compile(r"[._]")
 _PARENS = re.compile(r"\(.*?\)|\[.*?\]")
 _MULTI_SPACE = re.compile(r"\s{2,}")
+
+_RATE_LIMIT_STATUS = 429
 
 
 def _parse_title(stem: str) -> str:
@@ -93,20 +96,74 @@ class TMDBLookup:
             self._printer.warn(f"Could not write TMDB cache: {exc}")
 
     def _search_tmdb(self, title: str) -> dict | None:
-        """Search TMDB for a title and return the first result."""
-        try:
-            search = tmdb.Search()
-            search.multi(query=title)
-            results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
-            if not results:
-                return None
-            # Filter to movie and tv results only
-            for result in results:
-                if result.get("media_type") in ("movie", "tv"):
-                    return result
-        except Exception as exc:
-            self._printer.warn(f"TMDB lookup failed for '{title}': {exc}")
+        """
+        Search TMDB for a title and return the first movie/tv result.
+
+        Raises HTTPError on rate limiting or server errors.
+        Raises Exception on network or other failures.
+        """
+        search = tmdb.Search()
+        search.multi(query=title)
+        results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+        if not results:
+            return None
+        for result in results:
+            if result.get("media_type") in ("movie", "tv"):
+                return result
         return None
+
+    @staticmethod
+    def _resolve_language(result: dict) -> str | None:
+        """Extract and convert language from a TMDB result."""
+        lang_2 = result.get("original_language")
+        if not lang_2:
+            return None
+        return lang_to_alpha3(lang_2)
+
+    def _lookup_language_check_mem_cache(self, title: str) -> str | None:
+        """Check in-memory cache first."""
+        lang: str | None = None
+        if title in self._mem_cache:
+            if lang := self._mem_cache.get(title, ""):
+                self._printer.tmdb_cache_hit(
+                    f"TMDB cache: '{title}' original language: {lang}"
+                )
+            else:
+                self._printer.tmdb_no_result(f"TMDB cache: '{title}' no language found")
+        return lang
+
+    def _lookup_language_check_file_cache(self, title: str) -> str | None:
+        """Check file cache."""
+        lang = None
+        cached = self._load_cached(title)
+        if cached is not None:
+            lang = self._resolve_language(cached)
+            self._mem_cache[title] = lang
+            if lang:
+                self._printer.tmdb_cache_hit(
+                    f"TMDB cache: '{title}' original language: {lang}"
+                )
+            else:
+                self._printer.tmdb_no_result(f"TMDB cache: '{title}' no language found")
+            return lang
+        return lang
+
+    def _lookup_language_tmdb_api(self, title: str) -> None | dict:
+        """Query TMDB API."""
+        result = None
+        try:
+            result = self._search_tmdb(title)
+        except HTTPError as exc:
+            response = exc.response
+            if response is not None and response.status_code == _RATE_LIMIT_STATUS:
+                self._printer.tmdb_rate_limited(f"TMDB rate limited for '{title}'")
+            else:
+                self._printer.tmdb_error(f"TMDB HTTP error for '{title}': {exc}")
+            result = {}
+        except Exception as exc:
+            self._printer.tmdb_error(f"TMDB lookup failed for '{title}': {exc}")
+            result = {}
+        return result
 
     def lookup_language(self, path: Path) -> str | None:
         """
@@ -116,30 +173,29 @@ class TMDBLookup:
         """
         title = _parse_title(path.stem)
         if not title:
+            return ""
+
+        if lang := self._lookup_language_check_mem_cache(title):
+            return lang
+
+        if lang := self._lookup_language_check_file_cache(title):
+            return lang
+
+        result = self._lookup_language_tmdb_api(title)
+        if result == {}:
             return None
 
-        # Check in-memory cache first
-        if title in self._mem_cache:
-            return self._mem_cache[title]
+        if result is not None:
+            self._save_cache(title, result)
+            lang = self._resolve_language(result)
+        else:
+            # Cache the miss so we don't re-query
+            self._save_cache(title, {})
+            lang = None
 
-        # Check file cache
-        result = self._load_cached(title)
-        if result is None:
-            # Query TMDB
-            self._printer.extra_info(f"\tTMDB lookup: '{title}'")
-            result = self._search_tmdb(title)
-            if result is not None:
-                self._save_cache(title, result)
-            else:
-                # Cache the miss as an empty dict so we don't re-query
-                self._save_cache(title, {})
-
-        lang_2 = result.get("original_language") if result else None
-        if lang_2:
-            lang_3 = lang_to_alpha3(lang_2)
-            self._printer.config(f"TMDB: '{title}' original language: {lang_3}")
-            self._mem_cache[title] = lang_3
-            return lang_3
-
-        self._mem_cache[title] = None
-        return None
+        self._mem_cache[title] = lang
+        if lang:
+            self._printer.tmdb_hit(f"TMDB: '{title}' original language: {lang}")
+        else:
+            self._printer.tmdb_no_result(f"TMDB: '{title}' no result found")
+        return lang

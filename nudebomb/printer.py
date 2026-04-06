@@ -19,12 +19,13 @@ class Printer:
         *,
         force_verbose: bool = False,
         end: str = "\n",
+        char: str = ".",
     ) -> None:
         """Print a dot or skip message."""
         if self._verbose < 1:
             return
         if (self._verbose == 1 and not force_verbose) or not reason:
-            cprint(".", color, attrs=attrs, end="", flush=True)
+            cprint(char, color, attrs=attrs, end="", flush=True)
             self._after_newline = False
             return
         if not self._after_newline:
@@ -56,6 +57,26 @@ class Printer:
     def config(self, message: str) -> None:
         """Keep languages config message."""
         self._message(message, "cyan", force_verbose=True)
+
+    def tmdb_hit(self, message: str) -> None:
+        """TMDB API lookup succeeded."""
+        self._message(message, "cyan", force_verbose=True, char="O")
+
+    def tmdb_cache_hit(self, message: str) -> None:
+        """TMDB lookup succeeded from cache."""
+        self._message(message, "green", force_verbose=True, char="o")
+
+    def tmdb_no_result(self, message: str) -> None:
+        """TMDB lookup returned no result or no language."""
+        self._message(message, "light_yellow", force_verbose=True, char="x")
+
+    def tmdb_rate_limited(self, message: str) -> None:
+        """TMDB lookup failed due to API rate limiting."""
+        self._message(message, "light_yellow", force_verbose=True, char="X")
+
+    def tmdb_error(self, message: str) -> None:
+        """TMDB lookup failed due to a network or server error."""
+        self._message(message, "light_red", force_verbose=True, char="X")
 
     def print_config(
         self,
