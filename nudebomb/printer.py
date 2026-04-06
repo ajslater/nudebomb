@@ -60,11 +60,11 @@ class Printer:
 
     def tmdb_hit(self, message: str) -> None:
         """TMDB API lookup succeeded."""
-        self._message(message, "cyan", force_verbose=True, char="O")
+        self._message(message, "cyan", char="O")
 
     def tmdb_cache_hit(self, message: str) -> None:
         """TMDB lookup succeeded from cache."""
-        self._message(message, "green", force_verbose=True, char="o")
+        self._message(message, "green", char="o")
 
     def tmdb_no_result(self, message: str) -> None:
         """TMDB lookup returned no result or no language."""
