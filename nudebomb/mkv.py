@@ -171,6 +171,31 @@ class MKVFile:
                     kwargs["output"] = process.stdout
                 raise subprocess.CalledProcessError(retcode, command, **kwargs)
 
+    def _extend_und_language_command(
+        self,
+        output: str,
+        command: list[str],
+    ) -> tuple[str, list[str], bool]:
+        """Add --language flags to relabel und tracks."""
+        und_language = self._config.und_language
+        if not und_language:
+            return output, command, False
+
+        relabeled = False
+        relabel_output = ""
+        for tracks in self._track_map.values():
+            for track in tracks:
+                if track.lang == "und":
+                    command += ["--language", f"{track.id}:{und_language}"]
+                    relabel_output += f"   {track} -> {und_language}\n"
+                    relabeled = True
+        if relabel_output:
+            output += f"Relabeling 'und' track(s) to '{und_language}':\n"
+            output += relabel_output
+            output += "----------------------------\n"
+
+        return output, command, relabeled
+
     def remove_tracks(self) -> None:
         """Remove the unwanted tracks."""
         if not self._track_map:
@@ -203,9 +228,15 @@ class MKVFile:
             output, command, num_remove_ids = self._extend_track_command(
                 track_type, output, command, num_remove_ids
             )
+
+        # Relabel und tracks if configured
+        output, command, und_relabeled = self._extend_und_language_command(
+            output, command
+        )
+
         command += [(str(self.path))]
 
-        if not num_remove_ids:
+        if not num_remove_ids and not und_relabeled:
             self._printer.skip_timestamp(f"\tAlready stripped {self.path}")
             return
 

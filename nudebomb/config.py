@@ -11,6 +11,7 @@ from confuse import Configuration
 from confuse.templates import AttrDict, Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import parse
 
+from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
@@ -26,6 +27,7 @@ TEMPLATE = MappingTemplate(
                 "paths": Sequence(str),
                 "recurse": bool,
                 "strip_und_language": bool,
+                "und_language": Optional(str),
                 "sub_languages": Optional(Sequence(str)),
                 "subtitles": bool,
                 "symlinks": bool,
@@ -42,6 +44,7 @@ TIMESTAMPS_CONFIG_KEYS = {
     "mkvmerge_bin",
     "recurse",
     "strip_und_language",
+    "und_language",
     "sub_languages",
     "subtitles",
     "symlinks",
@@ -89,9 +92,18 @@ class NudebombConfig:
     def _set_unique_lang_list(config: Configuration, key: str) -> None:
         if config[PROGRAM_NAME][key].get() is not None:
             items = set(config[PROGRAM_NAME][key].get())
-            if not config[PROGRAM_NAME]["strip_und_language"].get():
+            und_language = config[PROGRAM_NAME]["und_language"].get()
+            strip_und = config[PROGRAM_NAME]["strip_und_language"].get()
+            if und_language or not strip_und:
                 items.add("und")
             config[PROGRAM_NAME][key].set(sorted(frozenset(items)))
+
+    @staticmethod
+    def _set_und_language(config: Configuration) -> None:
+        """Normalize und_language to ISO 639-3 (alpha3) format."""
+        und_language = config[PROGRAM_NAME]["und_language"].get()
+        if und_language:
+            config[PROGRAM_NAME]["und_language"].set(lang_to_alpha3(und_language))
 
     def _set_languages(self, config: Configuration) -> None:
         self._set_unique_lang_list(config, "languages")
@@ -130,6 +142,7 @@ class NudebombConfig:
         config.set_env()
         if args:
             config.set_args(args)
+        self._set_und_language(config)
         self._set_languages(config)
         self._set_after(config)
         self._set_default_mkvmerge_bin(config)

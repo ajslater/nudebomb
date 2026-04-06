@@ -83,6 +83,15 @@ def get_arguments(
         ),
     )
     parser.add_argument(
+        "-u",
+        "--und-language",
+        action="store",
+        help=(
+            "Relabel 'und' undetermined or untagged language tracks to the "
+            "specified ISO 639 language code during remux. e.g. 'eng' or 'en'."
+        ),
+    )
+    parser.add_argument(
         "-U",
         "--strip-und-language",
         action="store_true",

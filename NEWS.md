@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v0.5.0
+
+- Relabel und tracks with a preferred language option.
+
 ## v0.4.9
 
 - Update pycountry
