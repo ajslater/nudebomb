@@ -97,7 +97,7 @@ class TMDBLookup:
         try:
             search = tmdb.Search()
             search.multi(query=title)
-            results = search.results
+            results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
             if not results:
                 return None
             # Filter to movie and tv results only
