@@ -25,12 +25,8 @@ class Walk:
         self._printer: Printer = Printer(self._config.verbose)
         self._timestamps: Grovestamps | None = None
         self._tmdb: TMDBLookup | None = None
-        if config.tmdb_lookup and config.tmdb_api_key:
+        if config.tmdb_api_key:
             self._tmdb = TMDBLookup(config)
-        elif config.tmdb_lookup and not config.tmdb_api_key:
-            self._printer.warn(
-                "--tmdb-lookup requires --tmdb-api-key. TMDB lookup disabled."
-            )
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""

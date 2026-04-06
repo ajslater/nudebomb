@@ -185,14 +185,9 @@ def get_arguments(
     parser.add_argument(
         "--tmdb-api-key",
         action="store",
-        help="TMDB API key for online language lookup.",
-    )
-    parser.add_argument(
-        "--tmdb-lookup",
-        action="store_true",
         help=(
-            "Look up the original language of media files on TMDB "
-            "when no lang file is found. Requires --tmdb-api-key."
+            "TMDB API key for online language lookup. Look up the original "
+            "language of media files on TMDB when no lang file is found."
         ),
     )
     parser.add_argument(

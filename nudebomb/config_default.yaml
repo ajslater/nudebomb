@@ -8,7 +8,6 @@ nudebomb:
   recurse: False
   strip_und_language: False
   tmdb_api_key: null
-  tmdb_lookup: False
   und_language: null
   subtitles: True
   sub_languages: null
