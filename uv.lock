@@ -1074,6 +1074,7 @@ dependencies = [
     { name = "pycountry" },
     { name = "python-dateutil" },
     { name = "ruamel-yaml" },
+    { name = "tmdbsimple" },
     { name = "treestamps" },
     { name = "typing-extensions" },
 ]
@@ -1124,6 +1125,7 @@ requires-dist = [
     { name = "pycountry", specifier = "~=26.2" },
     { name = "python-dateutil", specifier = "~=2.8" },
     { name = "ruamel-yaml", specifier = ">=0.18,<1.0" },
+    { name = "tmdbsimple", specifier = "~=2.9" },
     { name = "treestamps", specifier = "~=2.3" },
     { name = "typing-extensions", specifier = "~=4.13" },
 ]
@@ -1651,6 +1653,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/46/79/cf31d7a93a8fdc6aa0fbb665be84426a8c5a557d9240b6239e9e11e35fc5/termcolor-3.3.0.tar.gz", hash = "sha256:348871ca648ec6a9a983a13ab626c0acce02f515b9e1983332b17af7979521c5", size = 14434, upload-time = "2025-12-29T12:55:21.882Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/d1/8bb87d21e9aeb323cc03034f5eaf2c8f69841e40e4853c2627edf8111ed3/termcolor-3.3.0-py3-none-any.whl", hash = "sha256:cf642efadaf0a8ebbbf4bc7a31cec2f9b5f21a9f726f4ccbb08192c9c26f43a5", size = 7734, upload-time = "2025-12-29T12:55:20.718Z" },
+]
+
+[[package]]
+name = "tmdbsimple"
+version = "2.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/87/3309cb03df1c9f9895fccd87e9875050f19e2cfec5a50b9d72e50d420fc8/tmdbsimple-2.9.1.tar.gz", hash = "sha256:636eaaaec82027929e8a91c2166e01f552ec63f869bf1fcd65aa561b705c7464", size = 33772, upload-time = "2022-01-25T21:48:36.477Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6c/dd/ade05d202db728b23e54aa0959622d090776023917e7308c1b2469a07b76/tmdbsimple-2.9.1-py3-none-any.whl", hash = "sha256:b52387c667bad1dccf5f776a576a971622a111fc08b7f731e360fabcc9860616", size = 38954, upload-time = "2022-01-25T21:48:34.653Z" },
 ]
 
 [[package]]

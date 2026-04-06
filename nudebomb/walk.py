@@ -11,6 +11,7 @@ from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
 from nudebomb.mkv import MKVFile
 from nudebomb.printer import Printer
+from nudebomb.tmdb import TMDBLookup
 from nudebomb.version import PROGRAM_NAME
 
 
@@ -23,6 +24,13 @@ class Walk:
         self._langfiles: LangFiles = LangFiles(config)
         self._printer: Printer = Printer(self._config.verbose)
         self._timestamps: Grovestamps | None = None
+        self._tmdb: TMDBLookup | None = None
+        if config.tmdb_lookup and config.tmdb_api_key:
+            self._tmdb = TMDBLookup(config)
+        elif config.tmdb_lookup and not config.tmdb_api_key:
+            self._printer.warn(
+                "--tmdb-lookup requires --tmdb-api-key. TMDB lookup disabled."
+            )
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""
@@ -68,6 +76,13 @@ class Walk:
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
         config.languages = self._langfiles.get_langs(top_path, dir_path)
+
+        # TMDB fallback when no lang files contributed languages
+        if self._tmdb and not self._langfiles.found_lang_files(top_path, dir_path):
+            tmdb_lang = self._tmdb.lookup_language(path)
+            if tmdb_lang:
+                config.languages = frozenset(config.languages | {tmdb_lang})
+
         mkv_obj = MKVFile(config, path)
         mkv_obj.remove_tracks()
         if self._timestamps:

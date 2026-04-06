@@ -183,6 +183,19 @@ def get_arguments(
         "-c", "--config", action="store", help="Alternate config file path"
     )
     parser.add_argument(
+        "--tmdb-api-key",
+        action="store",
+        help="TMDB API key for online language lookup.",
+    )
+    parser.add_argument(
+        "--tmdb-lookup",
+        action="store_true",
+        help=(
+            "Look up the original language of media files on TMDB "
+            "when no lang file is found. Requires --tmdb-api-key."
+        ),
+    )
+    parser.add_argument(
         "-A",
         "--after",
         action="store",

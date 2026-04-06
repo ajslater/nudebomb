@@ -12,6 +12,7 @@ dependencies = [
   "pycountry~=26.2",
   "python-dateutil~=2.8",
   "ruamel-yaml>=0.18,<1.0",
+  "tmdbsimple~=2.9",
   "treestamps~=2.3",
   "typing-extensions~=4.13",
 ]

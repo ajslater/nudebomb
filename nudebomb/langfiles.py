@@ -75,6 +75,20 @@ class LangFiles:
 
         return self._lang_roots[path]
 
+    def found_lang_files(
+        self,
+        top_path: Path,
+        path: Path,
+    ) -> bool:
+        """Return True if any lang files contributed languages for this path."""
+        while True:
+            if self._lang_roots.get(path):
+                return True
+            path = path.parent
+            if path in (top_path, path.parent):
+                break
+        return False
+
     def get_langs(
         self,
         top_path: Path,
