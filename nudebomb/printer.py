@@ -68,7 +68,7 @@ class Printer:
 
     def tmdb_no_result(self, message: str) -> None:
         """TMDB lookup returned no result or no language."""
-        self._message(message, "light_yellow", char="x")
+        self._message(message, "light_yellow", force_verbose=True, char="x")
 
     def tmdb_rate_limited(self, message: str) -> None:
         """TMDB lookup failed due to API rate limiting."""
