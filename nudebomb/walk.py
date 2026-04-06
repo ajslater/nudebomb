@@ -59,7 +59,11 @@ class Walk:
             return True
         return False
 
-    def strip_path(self, top_path, path) -> None:
+    def strip_path(
+        self,
+        top_path: Path,
+        path: Path,
+    ) -> None:
         """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
@@ -69,7 +73,11 @@ class Walk:
         if self._timestamps:
             self._timestamps[top_path].set(path)
 
-    def walk_dir(self, top_path, dir_path) -> None:
+    def walk_dir(
+        self,
+        top_path: Path,
+        dir_path: Path,
+    ) -> None:
         """Walk a directory."""
         if not self._config.recurse:
             return

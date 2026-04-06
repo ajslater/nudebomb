@@ -13,7 +13,7 @@ SRC_PATH = SRC_DIR / TEST_FN
 __all__ = ()
 
 
-def mkv_tracks(path) -> list:
+def mkv_tracks(path: Path) -> list:
     """Get tracks from mkv."""
     cmd = ("mkvmerge", "-J", str(path))
     proc = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa: S603
@@ -21,15 +21,17 @@ def mkv_tracks(path) -> list:
     return data.get("tracks")
 
 
-def read(filename) -> bytes:
+def read(filename: str) -> bytes:
     """Open data file and return contents."""
     path = Path(__file__).parent / "mockdata" / filename
-    with path.open("r") as stream:
-        return stream.read()
+    return path.read_bytes()
 
 
 class DiffTracksTest:
-    def _diff_tracks(self, out_tracks):
+    def _diff_tracks(
+        self,
+        out_tracks: list[dict[str, dict[str, bool] | int]],
+    ) -> None:
         diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
         if diff:
             print(diff)

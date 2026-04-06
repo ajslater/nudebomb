@@ -1,6 +1,8 @@
 """Module for reading lang files."""
 
 from contextlib import suppress
+from pathlib import Path
+from typing import Any
 
 import pycountry
 from confuse import AttrDict
@@ -10,7 +12,7 @@ from nudebomb.printer import Printer
 LANGS_FNS = ("lang", "langs", ".lang", ".langs")
 
 
-def lang_to_alpha3(lang) -> str:
+def lang_to_alpha3(lang: str) -> str:
     """Convert languages to ISO-639-1 (alpha2) format."""
     if not lang:
         lang = "und"
@@ -39,7 +41,7 @@ class LangFiles:
         self._languages: frozenset[str] = frozenset(langs)
         self._printer: Printer = Printer(self._config.verbose)
 
-    def _read_lang_file(self, path, fn) -> None:
+    def _read_lang_file(self, path: Path, fn: str) -> None:
         langpath = path / fn
         if (
             not langpath.exists()
@@ -59,7 +61,7 @@ class LangFiles:
             self._printer.config(f"Also keeping {newlangs_str} for {path}")
         self._lang_roots[path] |= newlangs
 
-    def read_lang_files(self, path):
+    def read_lang_files(self, path: Path) -> set[Any]:
         """
         Read the lang files and parse languages.
 
@@ -73,7 +75,11 @@ class LangFiles:
 
         return self._lang_roots[path]
 
-    def get_langs(self, top_path, path) -> frozenset:
+    def get_langs(
+        self,
+        top_path: Path,
+        path: Path,
+    ) -> frozenset:
         """Get the languages from this dir and parent dirs."""
         langs = self._languages
         while True:

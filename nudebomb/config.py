@@ -60,7 +60,7 @@ class NudebombConfig:
         self._printer: Printer = Printer(2)
 
     @staticmethod
-    def _set_after(config) -> None:
+    def _set_after(config: Configuration) -> None:
         after = config[PROGRAM_NAME]["after"].get()
         if after is None:
             return
@@ -74,7 +74,7 @@ class NudebombConfig:
         config[PROGRAM_NAME]["after"].set(timestamp)
 
     @staticmethod
-    def _set_default_mkvmerge_bin(config) -> None:
+    def _set_default_mkvmerge_bin(config: Configuration) -> None:
         if config[PROGRAM_NAME]["mkvmerge_bin"].get():
             return
 
@@ -86,14 +86,14 @@ class NudebombConfig:
             config[PROGRAM_NAME]["mkvmerge_bin"].set("mkvmerge")
 
     @staticmethod
-    def _set_unique_lang_list(config, key) -> None:
+    def _set_unique_lang_list(config: Configuration, key: str) -> None:
         if config[PROGRAM_NAME][key].get() is not None:
             items = set(config[PROGRAM_NAME][key].get())
             if not config[PROGRAM_NAME]["strip_und_language"].get():
                 items.add("und")
             config[PROGRAM_NAME][key].set(sorted(frozenset(items)))
 
-    def _set_languages(self, config) -> None:
+    def _set_languages(self, config: Configuration) -> None:
         self._set_unique_lang_list(config, "languages")
         if not config[PROGRAM_NAME]["languages"].get():
             error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."
@@ -101,13 +101,13 @@ class NudebombConfig:
             sys.exit(1)
 
     @staticmethod
-    def _set_ignore(config) -> None:
+    def _set_ignore(config: Configuration) -> None:
         """Remove duplicates from the ignore list."""
         ignore: list[str] = config[PROGRAM_NAME]["ignore"].get(list)
         config[PROGRAM_NAME]["ignore"].set(tuple(sorted(set(ignore))))
 
     @staticmethod
-    def _set_timestamps(config) -> None:
+    def _set_timestamps(config: Configuration) -> None:
         """Set the timestamp attribute."""
         timestamps = config[PROGRAM_NAME]["timestamps"].get(bool) and not config[
             PROGRAM_NAME
@@ -115,7 +115,9 @@ class NudebombConfig:
         config[PROGRAM_NAME]["timestamps"].set(timestamps)
 
     def get_config(
-        self, args: Namespace | None = None, modname=PROGRAM_NAME
+        self,
+        args: Namespace | None = None,
+        modname: str = PROGRAM_NAME,
     ) -> AttrDict:
         """Get the config dict, layering env and args over defaults."""
         config = Configuration(PROGRAM_NAME, modname=modname, read=False)

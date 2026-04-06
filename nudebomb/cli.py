@@ -50,7 +50,9 @@ def get_dot_color_key() -> str:
     return epilogue
 
 
-def get_arguments(params=None) -> Namespace:
+def get_arguments(
+    params: tuple[str, ...] | None = None,
+) -> Namespace:
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
     epilog = get_dot_color_key()

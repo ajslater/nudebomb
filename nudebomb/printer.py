@@ -15,7 +15,7 @@ class Printer:
         self,
         reason: str,
         color: str = "white",
-        attrs=None,
+        attrs: list[str] | None = None,
         *,
         force_verbose: bool = False,
         end: str = "\n",
@@ -40,7 +40,7 @@ class Printer:
         message = ": ".join(parts)
         self._message(message, color="dark_grey")
 
-    def skip_timestamp(self, message) -> None:
+    def skip_timestamp(self, message: str) -> None:
         """Skip by timestamp."""
         self._message(message, color="light_green", attrs=["dark", "bold"])
 
@@ -48,17 +48,19 @@ class Printer:
         """Skip already optimized."""
         self._message(message, "green")
 
-    def extra_info(self, message) -> None:
+    def extra_info(self, message: str) -> None:
         """High verbosity messages."""
         if self._verbose > 2:  # noqa: PLR2004
             self._message(message, color="dark_grey", attrs=["bold"])
 
-    def config(self, message) -> None:
+    def config(self, message: str) -> None:
         """Keep languages config message."""
         self._message(message, "cyan", force_verbose=True)
 
     def print_config(
-        self, languages: tuple | list, sub_languages: tuple | list
+        self,
+        languages: tuple | list,
+        sub_languages: tuple | list,
     ) -> None:
         """Print mkv info."""
         langs = ", ".join(sorted(languages))
@@ -68,7 +70,7 @@ class Printer:
             sub_langs = ", ".join(sorted(sub_languages))
             self.config(f"Stripping subtitle languages except {sub_langs}.")
 
-    def work_manifest(self, message) -> None:
+    def work_manifest(self, message: str) -> None:
         """Work manifest for what we plan to do to the mkv."""
         self._message(message, force_verbose=True)
 
@@ -81,7 +83,7 @@ class Printer:
         else:
             self._after_newline = False
 
-    def dry_run(self, message) -> None:
+    def dry_run(self, message: str) -> None:
         """Dry run message."""
         self._message(message, "dark_grey", attrs=["bold"], force_verbose=True)
 
