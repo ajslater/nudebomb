@@ -32,18 +32,18 @@ class CommaListAction(Action):
 
 
 COLOR_KEY = (
-    ("MKV ignored/skipped", "dark_grey", []),
-    ("MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
-    ("MKV already stripped", "green", []),
-    ("MKV stripped tracks", "white", []),
-    ("MKV not remuxed on dry run", "dark_grey", ["bold"]),
+    (". MKV ignored/skipped", "dark_grey", []),
+    (". MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
+    (". MKV already stripped", "green", []),
+    (". MKV stripped tracks", "white", []),
+    (". MKV not remuxed on dry run", "dark_grey", ["bold"]),
+    (". WARNING", "light_yellow", []),
+    (". ERROR", "light_red", []),
+    (". TMDB lookup succeeded (cached)", "cyan", []),
     ("O TMDB lookup succeeded", "cyan", []),
-    ("o TMDB lookup succeeded (cached)", "green", []),
     ("x TMDB lookup no result", "light_yellow", []),
     ("X TMDB rate limited", "light_yellow", []),
     ("X TMDB error", "light_red", []),
-    ("WARNING", "light_yellow", []),
-    ("ERROR", "light_red", []),
 )
 
 
