@@ -88,40 +88,42 @@ class Walk:
         self,
         top_path: Path,
         dir_path: Path,
-    ) -> None:
+    ) -> bool:
         """Walk a directory."""
         if not self._config.recurse:
-            return
+            return False
 
         filenames = []
 
+        wrote = False
         for filename in sorted(dir_path.iterdir()):
             if filename.is_dir():
-                self.walk_file(top_path, filename)
+                wrote |= self.walk_file(top_path, filename)
             else:
                 filenames.append(filename)
 
         for path in filenames:
-            self.walk_file(top_path, path)
+            wrote |= self.walk_file(top_path, path)
 
         if self._timestamps:
             timestamps = self._timestamps[top_path]
             timestamps.set(dir_path, compact=True)
+        return wrote
 
-    def walk_file(self, top_path: Path, path: Path) -> None:
+    def walk_file(self, top_path: Path, path: Path) -> bool:
         """Walk a file."""
         if self._is_path_ignored(path):
-            return
+            return False
         if self._is_path_skippable_symlink(path):
-            return
+            return False
         if path.is_dir():
-            self.walk_dir(top_path, path)
-        else:
-            if self._is_path_suffix_not_mkv(path):
-                return
-            if self._is_path_before_timestamp(top_path, path):
-                return
-            self.strip_path(top_path, path)
+            return self.walk_dir(top_path, path)
+        if self._is_path_suffix_not_mkv(path):
+            return False
+        if self._is_path_before_timestamp(top_path, path):
+            return False
+        self.strip_path(top_path, path)
+        return True
 
     def run(self) -> None:
         """Run the stripper against all configured paths."""
@@ -141,11 +143,13 @@ class Walk:
             )
             self._timestamps = Grovestamps(grove_config)
 
+        noop_top_paths: set[Path] = set()
         for path_str in self._config.paths:
             path = Path(path_str)
             top_path = Treestamps.get_dir(path)
-            self.walk_file(top_path, path)
+            if not self.walk_file(top_path, path):
+                noop_top_paths.add(top_path)
         self._printer.done()
 
         if self._timestamps:
-            self._timestamps.dump()
+            self._timestamps.dumpf(noop_top_paths=noop_top_paths)

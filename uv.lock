@@ -1132,7 +1132,7 @@ requires-dist = [
     { name = "python-dateutil", specifier = "~=2.8" },
     { name = "ruamel-yaml", specifier = ">=0.18,<1.0" },
     { name = "tmdbsimple", specifier = "~=2.9" },
-    { name = "treestamps", specifier = "~=2.3" },
+    { name = "treestamps", specifier = "~=2.4.3" },
     { name = "typing-extensions", specifier = "~=4.13" },
 ]
 

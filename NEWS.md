@@ -2,7 +2,9 @@
 
 ## v0.5.0
 
+- Fetch languages from tmdb
 - Relabel und tracks with a preferred language option.
+- Don't write timestamps if nothing stripped.
 
 ## v0.4.9
 
