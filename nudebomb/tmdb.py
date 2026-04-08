@@ -12,42 +12,48 @@ from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
-_TITLE_STOP_PATTERNS = re.compile(
-    r"""
-    (?:                     # non-capturing group for alternation
-        [Ss]\d{1,2}[Ee]\d{1,2}  # S01E02
-        | \d{3,4}[pPiI]    # 720p, 1080p, 1080i
-        | (?<!\w)           # not preceded by a word char
-          (?:19|20)\d{2}    # 4-digit year 1900-2099
-          (?!\w)            # not followed by a word char
-        | \b(?:REPACK|PROPER|RERIP|BluRay|BRRip|BDRip|WEBRip
-              |WEB-DL|WEBDL|WEB|HDTV|DVDRip|HDRip|AMZN|NF|DSNP
-              |HMAX|ATVP|PCOK|x264|x265|h264|h265|HEVC|AVC
-              |AAC|AC3|DTS|FLAC|MULTI|REMUX|DDP|DD|Atmos
-              |10bit|HDR|SDR|DoVi)\b
-    )
+# Looks for a 4-digit year (1900-2099)
+_YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
+
+# General noise markers to truncate the title if no year is found
+_NOISE_CUTOFF = re.compile(
+    r"""(?ix)
+    \b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]
     """,
-    re.VERBOSE | re.IGNORECASE,
+    re.IGNORECASE,
 )
 
-_SPACE_CHARS = re.compile(r"[._]")
-_PARENS = re.compile(r"\(.*?\)|\[.*?\]")
-_MULTI_SPACE = re.compile(r"\s{2,}")
-
+_DELIMITERS = re.compile(r"[._\s]+")
+_CLEAN_TRIM = re.compile(r"^\s*[-–—\s]+|\s*[-–—\s]+$")  # noqa: RUF001
 _RATE_LIMIT_STATUS = 429
 
 
-def _parse_title(stem: str) -> str:
-    """Extract a searchable title from an MKV filename stem."""
-    # Remove bracketed/parenthesized groups (release groups, years, etc.)
-    title = _PARENS.sub(" ", stem)
-    # Replace dots and underscores with spaces
-    title = _SPACE_CHARS.sub(" ", title)
-    # Truncate at the first stop-pattern match
-    if match := _TITLE_STOP_PATTERNS.search(title):
-        title = title[: match.start()]
-    # Collapse whitespace and strip
-    return _MULTI_SPACE.sub(" ", title).strip(" -")
+def parse_title(filename: str) -> tuple[str, str]:
+    """Parse title and year from filename."""
+    # 1. Strip extension and normalize delimiters to spaces
+    stem = filename.rsplit(".", 1)[0]
+    normalized = _DELIMITERS.sub(" ", stem)
+
+    title = normalized
+    year = ""
+
+    # 2. Try to find the year
+    year_match = _YEAR_PATTERN.search(normalized)
+
+    # 3. Logic: If year exists, it's our primary anchor.
+    # Otherwise, look for the first piece of "scene noise".
+    if year_match:
+        year = year_match.group(1)
+        # Title is everything before the year
+        title = normalized[: year_match.start()]
+    else:
+        noise_match = _NOISE_CUTOFF.search(normalized)
+        if noise_match:
+            title = normalized[: noise_match.start()]
+
+    # 4. Final Polish
+    clean_title = _CLEAN_TRIM.sub("", title).strip()
+    return (clean_title, year)
 
 
 def _sanitize_cache_key(title: str) -> str:
@@ -65,19 +71,21 @@ class TMDBLookup:
         self._printer: Printer = Printer(config.verbose)
         tmdb.API_KEY = config.tmdb_api_key
         # In-memory cache: parsed_title -> alpha3 language or None
-        self._mem_cache: dict[str, str | None] = {}
+        self._mem_cache: dict[tuple[str, str], str | None] = {}
         # File cache directory
         config_dir = Path.home() / f".config/{PROGRAM_NAME}"
         self._cache_dir: Path = config_dir / "tmdb_cache"
         self._cache_dir.mkdir(parents=True, exist_ok=True)
+        self._media_type: str = config.media_type
 
-    def _cache_path(self, title: str) -> Path:
+    def _cache_path(self, title: str, year: str) -> Path:
         """Return the cache file path for a title."""
-        return self._cache_dir / f"{_sanitize_cache_key(title)}.json"
+        year_str = f" ({year})" if year else ""
+        return self._cache_dir / f"{_sanitize_cache_key(title)}{year_str}.json"
 
-    def _load_cached(self, title: str) -> dict | None:
+    def _load_cached(self, title: str, year: str) -> dict | None:
         """Load cached TMDB response for a title."""
-        path = self._cache_path(title)
+        path = self._cache_path(title, year)
         if path.is_file():
             try:
                 with path.open("r") as f:
@@ -86,30 +94,43 @@ class TMDBLookup:
                 pass
         return None
 
-    def _save_cache(self, title: str, data: dict) -> None:
+    def _save_cache(self, title: str, year: str, data: dict) -> None:
         """Save a TMDB response to the file cache."""
-        path = self._cache_path(title)
+        path = self._cache_path(title, year)
         try:
             with path.open("w") as f:
                 json.dump(data, f, indent=2)
         except OSError as exc:
             self._printer.warn(f"Could not write TMDB cache: {exc}")
 
-    def _search_tmdb(self, title: str) -> dict | None:
-        """
-        Search TMDB for a title and return the first movie/tv result.
-
-        Raises HTTPError on rate limiting or server errors.
-        Raises Exception on network or other failures.
-        """
+    def _search_tmdb(self, title: str, year: str = "") -> dict | None:
+        """Search TMDB with specific parameters for better accuracy."""
         search = tmdb.Search()
-        search.multi(query=title)
+
+        if self._media_type == "movie":
+            search.movie(query=title, year=year)
+        elif self._media_type == "tv":
+            search.tv(query=title, first_air_date_year=year)
+        else:
+            # If media_type is unknown, we fold the year into the query string
+            query_str = f"{title} {year}" if year else title
+            search.multi(query=query_str)
+
         results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+
+        if self._media_type:
+            # TV & Movie results don't include 'media_type', so we inject it for consistency
+            for r in results:
+                r["media_type"] = self._media_type
+
         if not results:
             return None
+
+        # Return the first valid movie or tv result
         for result in results:
             if result.get("media_type") in ("movie", "tv"):
                 return result
+
         return None
 
     @staticmethod
@@ -120,48 +141,55 @@ class TMDBLookup:
             return None
         return lang_to_alpha3(lang_2)
 
-    def _lookup_language_check_mem_cache(self, title: str) -> str | None:
+    def _lookup_language_check_mem_cache(self, title: str, year: str) -> str | None:
         """Check in-memory cache first."""
         lang: str | None = None
-        if title in self._mem_cache:
-            if lang := self._mem_cache.get(title, ""):
+        key = (title, year)
+        if key in self._mem_cache:
+            title_str = title + f" ({year})" if year else ""
+            if lang := self._mem_cache.get(key, ""):
                 self._printer.tmdb_cache_hit(
-                    f"TMDB cache: '{title}' original language: {lang}"
+                    f"TMDB cache: '{title_str}' original language: {lang}"
                 )
             else:
-                self._printer.tmdb_no_result(f"TMDB cache: '{title}' no language found")
+                self._printer.tmdb_no_result(
+                    f"TMDB cache: '{title_str}' no language found"
+                )
         return lang
 
-    def _lookup_language_check_file_cache(self, title: str) -> str | None:
+    def _lookup_language_check_file_cache(self, title: str, year: str) -> str | None:
         """Check file cache."""
         lang = None
-        cached = self._load_cached(title)
+        cached = self._load_cached(title, year)
         if cached is not None:
             lang = self._resolve_language(cached)
-            self._mem_cache[title] = lang
+            self._mem_cache[(title, year)] = lang
+            title_str = title + f" ({year})" if year else ""
             if lang:
                 self._printer.tmdb_cache_hit(
-                    f"TMDB cache: '{title}' original language: {lang}"
+                    f"TMDB cache: '{title_str}' original language: {lang}"
                 )
             else:
-                self._printer.tmdb_no_result(f"TMDB cache: '{title}' no language found")
+                self._printer.tmdb_no_result(
+                    f"TMDB cache: '{title_str}' no language found"
+                )
             return lang
         return lang
 
-    def _lookup_language_tmdb_api(self, title: str) -> None | dict:
+    def _lookup_language_tmdb_api(self, title: str, year: str) -> dict | None:
         """Query TMDB API."""
-        result = None
+        title_str = title + f" ({year})" if year else ""
         try:
-            result = self._search_tmdb(title)
+            result = self._search_tmdb(title, year)
         except HTTPError as exc:
             response = exc.response
             if response is not None and response.status_code == _RATE_LIMIT_STATUS:
-                self._printer.tmdb_rate_limited(f"TMDB rate limited for '{title}'")
+                self._printer.tmdb_rate_limited(f"TMDB rate limited for '{title_str}'")
             else:
-                self._printer.tmdb_error(f"TMDB HTTP error for '{title}': {exc}")
+                self._printer.tmdb_error(f"TMDB HTTP error for '{title_str}': {exc}")
             result = {}
         except Exception as exc:
-            self._printer.tmdb_error(f"TMDB lookup failed for '{title}': {exc}")
+            self._printer.tmdb_error(f"TMDB lookup failed for '{title_str}': {exc}")
             result = {}
         return result
 
@@ -171,29 +199,29 @@ class TMDBLookup:
 
         Returns an ISO 639-3 language code or None.
         """
-        title = _parse_title(path.stem)
+        title, year = parse_title(path.stem)
         if not title:
             return ""
 
-        if lang := self._lookup_language_check_mem_cache(title):
+        if lang := self._lookup_language_check_mem_cache(title, year):
             return lang
 
-        if lang := self._lookup_language_check_file_cache(title):
+        if lang := self._lookup_language_check_file_cache(title, year):
             return lang
 
-        result = self._lookup_language_tmdb_api(title)
+        result = self._lookup_language_tmdb_api(title, year)
         if result == {}:
             return None
 
         if result is not None:
-            self._save_cache(title, result)
+            self._save_cache(title, year, result)
             lang = self._resolve_language(result)
         else:
             # Cache the miss so we don't re-query
-            self._save_cache(title, {})
+            self._save_cache(title, year, {})
             lang = None
 
-        self._mem_cache[title] = lang
+        self._mem_cache[(title, year)] = lang
         if lang:
             self._printer.tmdb_hit(f"TMDB: '{title}' original language: {lang}")
         else:

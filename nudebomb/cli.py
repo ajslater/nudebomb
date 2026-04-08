@@ -88,6 +88,13 @@ def get_arguments(
         ),
     )
     parser.add_argument(
+        "-m",
+        "--media-type",
+        action="store",
+        default="",
+        help="Specify 'movie' or 'tv' type for all tmdb lookups.",
+    )
+    parser.add_argument(
         "-u",
         "--und-language",
         action="store",
