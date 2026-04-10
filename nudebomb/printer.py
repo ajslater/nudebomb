@@ -1,5 +1,8 @@
 """Print Messages."""
 
+from collections.abc import Collection
+from pathlib import Path
+
 from termcolor import cprint
 
 
@@ -35,7 +38,7 @@ class Printer:
         if end:
             self._after_newline = True
 
-    def skip(self, message: str, path) -> None:
+    def skip(self, message: str, path: Path) -> None:
         """Skip Message."""
         parts = ["Skip", message, str(path)]
         message = ": ".join(parts)
@@ -45,7 +48,7 @@ class Printer:
         """Skip by timestamp."""
         self._message(message, color="light_green", attrs=["dark", "bold"])
 
-    def skip_already_optimized(self, message) -> None:
+    def skip_already_optimized(self, message: str) -> None:
         """Skip already optimized."""
         self._message(message, "green")
 
@@ -80,8 +83,8 @@ class Printer:
 
     def print_config(
         self,
-        languages: tuple | list,
-        sub_languages: tuple | list,
+        languages: Collection[str],
+        sub_languages: Collection[str],
     ) -> None:
         """Print mkv info."""
         langs = ", ".join(sorted(languages))
