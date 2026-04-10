@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Final
 
 import tmdbsimple as tmdb
 from confuse import AttrDict
@@ -13,19 +14,19 @@ from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
 # Looks for a 4-digit year (1900-2099)
-_YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
+_YEAR_PATTERN: Final = re.compile(r"\b((?:19|20)\d{2})\b")
 
 # General noise markers to truncate the title if no year is found
-_NOISE_CUTOFF = re.compile(
+_NOISE_CUTOFF: Final = re.compile(
     r"""(?ix)
     \b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]
     """,
     re.IGNORECASE,
 )
 
-_DELIMITERS = re.compile(r"[._\s]+")
-_CLEAN_TRIM = re.compile(r"^\s*[-–—\s]+|\s*[-–—\s]+$")  # noqa: RUF001
-_RATE_LIMIT_STATUS = 429
+_DELIMITERS: Final = re.compile(r"[._\s]+")
+_CLEAN_TRIM: Final = re.compile(r"^\s*[-–—\s]+|\s*[-–—\s]+$")  # noqa: RUF001
+_RATE_LIMIT_STATUS: Final = 429
 
 
 def parse_title(filename: str) -> tuple[str, str]:
@@ -107,14 +108,15 @@ class TMDBLookup:
         """Search TMDB with specific parameters for better accuracy."""
         search = tmdb.Search()
 
-        if self._media_type == "movie":
-            search.movie(query=title, year=year)
-        elif self._media_type == "tv":
-            search.tv(query=title, first_air_date_year=year)
-        else:
-            # If media_type is unknown, we fold the year into the query string
-            query_str = f"{title} {year}" if year else title
-            search.multi(query=query_str)
+        match self._media_type:
+            case "movie":
+                search.movie(query=title, year=year)
+            case "tv":
+                search.tv(query=title, first_air_date_year=year)
+            case _:
+                # If media_type is unknown, we fold the year into the query string
+                query_str = f"{title} {year}" if year else title
+                search.multi(query=query_str)
 
         results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
 
@@ -146,7 +148,7 @@ class TMDBLookup:
         lang: str | None = None
         key = (title, year)
         if key in self._mem_cache:
-            title_str = title + f" ({year})" if year else ""
+            title_str = f"{title} ({year})" if year else title
             if lang := self._mem_cache.get(key, ""):
                 self._printer.tmdb_cache_hit(
                     f"TMDB cache: '{title_str}' original language: {lang}"
@@ -164,7 +166,7 @@ class TMDBLookup:
         if cached is not None:
             lang = self._resolve_language(cached)
             self._mem_cache[(title, year)] = lang
-            title_str = title + f" ({year})" if year else ""
+            title_str = f"{title} ({year})" if year else title
             if lang:
                 self._printer.tmdb_cache_hit(
                     f"TMDB cache: '{title_str}' original language: {lang}"
@@ -178,7 +180,7 @@ class TMDBLookup:
 
     def _lookup_language_tmdb_api(self, title: str, year: str) -> dict | None:
         """Query TMDB API."""
-        title_str = title + f" ({year})" if year else ""
+        title_str = f"{title} ({year})" if year else title
         try:
             result = self._search_tmdb(title, year)
         except HTTPError as exc:

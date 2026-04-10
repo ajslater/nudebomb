@@ -2,14 +2,14 @@
 
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Final
 
 import pycountry
 from confuse import AttrDict
 
 from nudebomb.printer import Printer
 
-LANGS_FNS = ("lang", "langs", ".lang", ".langs")
+LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
 
 
 def lang_to_alpha3(lang: str) -> str:
@@ -34,11 +34,10 @@ class LangFiles:
     def __init__(self, config: AttrDict) -> None:
         """Initialize."""
         self._config: AttrDict = config
-        self._lang_roots: dict = {}
-        langs = set()
-        for lang in self._config.languages:
-            langs.add(lang_to_alpha3(lang))
-        self._languages: frozenset[str] = frozenset(langs)
+        self._lang_roots: dict[Path, set[str]] = {}
+        self._languages: frozenset[str] = frozenset(
+            lang_to_alpha3(lang) for lang in self._config.languages
+        )
         self._printer: Printer = Printer(self._config.verbose)
 
     def _read_lang_file(self, path: Path, fn: str) -> None:
@@ -61,7 +60,7 @@ class LangFiles:
             self._printer.config(f"Also keeping {newlangs_str} for {path}")
         self._lang_roots[path] |= newlangs
 
-    def read_lang_files(self, path: Path) -> set[Any]:
+    def read_lang_files(self, path: Path) -> set[str]:
         """
         Read the lang files and parse languages.
 
@@ -93,7 +92,7 @@ class LangFiles:
         self,
         top_path: Path,
         path: Path,
-    ) -> frozenset:
+    ) -> frozenset[str]:
         """Get the languages from this dir and parent dirs."""
         langs = self._languages
         while True:

@@ -2,7 +2,7 @@
 
 from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final
 
 from termcolor import colored
 from typing_extensions import override
@@ -31,7 +31,7 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, values)
 
 
-COLOR_KEY = (
+COLOR_KEY: Final = (
     (". MKV ignored/skipped", "dark_grey", []),
     (". MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
     (". MKV already stripped", "green", []),
