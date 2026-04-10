@@ -196,13 +196,13 @@ class MKVFile:
 
         return output, command, relabeled
 
-    def remove_tracks(self) -> None:
+    def remove_tracks(self) -> bool:
         """Remove the unwanted tracks."""
         if not self._track_map:
             self._printer.error(
                 f"not removing tracks from mkv with no tracks: {self.path}",
             )
-            return
+            return False
         self._printer.extra_info(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
@@ -238,8 +238,9 @@ class MKVFile:
 
         if not num_remove_ids and not und_relabeled:
             self._printer.skip_timestamp(f"\tAlready stripped {self.path}")
-            return
+            return False
 
+        changed = False
         try:
             self._printer.work_manifest(output)
             if self._config.dry_run:
@@ -247,6 +248,8 @@ class MKVFile:
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
+                changed = True
         except Exception as exc:
             self._printer.error("", exc)
             tmp_path.unlink(missing_ok=True)
+        return changed

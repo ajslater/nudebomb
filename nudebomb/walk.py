@@ -67,7 +67,7 @@ class Walk:
         self,
         top_path: Path,
         path: Path,
-    ) -> None:
+    ) -> bool:
         """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
@@ -80,50 +80,47 @@ class Walk:
                 config.languages = frozenset(config.languages | {tmdb_lang})
 
         mkv_obj = MKVFile(config, path)
-        mkv_obj.remove_tracks()
-        if self._timestamps:
-            self._timestamps[top_path].set(path)
+        wrote = mkv_obj.remove_tracks()
+        if self._timestamps and wrote:
+            self._timestamps.set(top_path, path)
+        return wrote
 
     def walk_dir(
         self,
         top_path: Path,
         dir_path: Path,
-    ) -> bool:
+    ) -> None:
         """Walk a directory."""
         if not self._config.recurse:
-            return False
+            return
 
         filenames = []
 
-        wrote = False
         for filename in sorted(dir_path.iterdir()):
             if filename.is_dir():
-                wrote |= self.walk_file(top_path, filename)
+                self.walk_file(top_path, filename)
             else:
                 filenames.append(filename)
 
         for path in filenames:
-            wrote |= self.walk_file(top_path, path)
+            self.walk_file(top_path, path)
 
         if self._timestamps:
-            timestamps = self._timestamps[top_path]
-            timestamps.set(dir_path, compact=True)
-        return wrote
+            self._timestamps.compact(top_path, dir_path)
 
-    def walk_file(self, top_path: Path, path: Path) -> bool:
+    def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
         if self._is_path_ignored(path):
-            return False
+            return
         if self._is_path_skippable_symlink(path):
-            return False
+            return
         if path.is_dir():
-            return self.walk_dir(top_path, path)
+            self.walk_dir(top_path, path)
         if self._is_path_suffix_not_mkv(path):
-            return False
+            return
         if self._is_path_before_timestamp(top_path, path):
-            return False
+            return
         self.strip_path(top_path, path)
-        return True
 
     def run(self) -> None:
         """Run the stripper against all configured paths."""
@@ -143,13 +140,11 @@ class Walk:
             )
             self._timestamps = Grovestamps(grove_config)
 
-        noop_top_paths: set[Path] = set()
         for path_str in self._config.paths:
             path = Path(path_str)
             top_path = Treestamps.get_dir(path)
-            if not self.walk_file(top_path, path):
-                noop_top_paths.add(top_path)
+            self.walk_file(top_path, path)
         self._printer.done()
 
         if self._timestamps:
-            self._timestamps.dumpf(noop_top_paths=noop_top_paths)
+            self._timestamps.dumpf()
