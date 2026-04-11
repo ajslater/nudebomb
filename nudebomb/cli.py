@@ -92,7 +92,7 @@ def get_arguments(
         "--media-type",
         action="store",
         default="",
-        help="Specify 'movie' or 'tv' type for all tmdb lookups.",
+        help="TMBD media type. Specify 'movie' or 'tv' type to target tmbd lookups.",
     )
     parser.add_argument(
         "-u",

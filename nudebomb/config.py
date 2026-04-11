@@ -24,6 +24,7 @@ TEMPLATE: Final = MappingTemplate(
                 "dry_run": bool,
                 "ignore": Sequence(str),
                 "languages": Sequence(str),
+                "media_type": Optional(str),
                 "mkvmerge_bin": Optional(str),
                 "paths": Sequence(str),
                 "recurse": bool,

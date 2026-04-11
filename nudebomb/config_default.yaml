@@ -3,6 +3,7 @@ nudebomb:
   dry_run: False
   ignore: []
   languages: null
+  media_tupe: null
   mkvmerge_bin: null
   paths: []
   recurse: False
