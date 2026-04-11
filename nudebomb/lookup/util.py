@@ -11,6 +11,6 @@ def resolve_language(result: dict) -> str | None:
     return lang_to_alpha3(lang_2)
 
 
-def title_str(title: str, year: str) -> str:
+def format_title_year(title: str, year: str) -> str:
     """Format title string for log messages."""
     return f"{title} ({year})" if year else title

@@ -1,5 +1,6 @@
 nudebomb:
   after: null
+  cache_expiry_days: 30
   dry_run: False
   ignore: []
   languages: null

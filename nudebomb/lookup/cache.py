@@ -1,15 +1,17 @@
-"""Lookup caching with movie/tv separation."""
+"""Lookup caching with movie/tv separation and expiry for misses."""
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Final
 
-from nudebomb.lookup.util import resolve_language, title_str
+from nudebomb.lookup.util import format_title_year
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
+_SECONDS_PER_DAY: Final = 86400
 
 
 def _sanitize_cache_key(title: str) -> str:
@@ -19,12 +21,67 @@ def _sanitize_cache_key(title: str) -> str:
     return re.sub(r"\s+", "_", key)
 
 
+class CacheEntry:
+    """A slim cache entry storing only the fields nudebomb uses."""
+
+    __slots__ = ("cached_at", "db_id", "language", "title", "year")
+
+    def __init__(
+        self,
+        *,
+        db_id: str = "",
+        language: str = "",
+        title: str = "",
+        year: str = "",
+        cached_at: float | None = None,
+    ) -> None:
+        """Initialize."""
+        self.db_id = db_id
+        self.language = language
+        self.title = title
+        self.year = year
+        self.cached_at = cached_at if cached_at is not None else time.time()
+
+    def to_dict(self) -> dict:
+        """Serialize to a dict for JSON storage."""
+        return {
+            "db_id": self.db_id,
+            "language": self.language,
+            "title": self.title,
+            "year": self.year,
+            "cached_at": self.cached_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CacheEntry":
+        """Deserialize from a JSON dict."""
+        return cls(
+            db_id=data.get("db_id", ""),
+            language=data.get("language", ""),
+            title=data.get("title", ""),
+            year=data.get("year", ""),
+            cached_at=data.get("cached_at"),
+        )
+
+    def is_expired(self, expiry_days: int) -> bool:
+        """
+        Return True if this entry has expired.
+
+        Only entries with no language found can expire.
+        """
+        if self.language:
+            return False
+        age = time.time() - self.cached_at
+        return age > expiry_days * _SECONDS_PER_DAY
+
+
 class LookupCache:
     """File and memory cache for lookups, separated by media type."""
 
-    def __init__(self, printer: Printer) -> None:
+    def __init__(self, printer: Printer, cache_expiry_days: int = 30) -> None:
         """Initialize."""
         self._printer = printer
+        self._cache_expiry_days = cache_expiry_days
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # File cache root
@@ -48,23 +105,43 @@ class LookupCache:
             self._cache_dir(media_type) / f"{_sanitize_cache_key(title)}{year_str}.json"
         )
 
-    def load_file(self, media_type: str, title: str, year: str) -> dict | None:
-        """Load cached response for a title."""
+    def _load_entry(self, media_type: str, title: str, year: str) -> CacheEntry | None:
+        """Load a cache entry from disk, returning None if missing or expired."""
         path = self._cache_path(media_type, title, year)
-        if path.is_file():
-            try:
-                with path.open("r") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, OSError):
-                pass
-        return None
+        if not path.is_file():
+            return None
+        try:
+            with path.open("r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
 
-    def save_file(self, media_type: str, title: str, year: str, data: dict) -> None:
-        """Save a response to the file cache."""
+        entry = CacheEntry.from_dict(data)
+        if entry.is_expired(self._cache_expiry_days):
+            path.unlink(missing_ok=True)
+            return None
+        return entry
+
+    def save_file(
+        self,
+        media_type: str,
+        title: str,
+        year: str,
+        *,
+        db_id: str = "",
+        language: str = "",
+    ) -> None:
+        """Save a slim cache entry to the file cache."""
+        entry = CacheEntry(
+            db_id=db_id,
+            language=language,
+            title=title,
+            year=year,
+        )
         path = self._cache_path(media_type, title, year)
         try:
             with path.open("w") as f:
-                json.dump(data, f, indent=2)
+                json.dump(entry.to_dict(), f, indent=2)
         except OSError as exc:
             self._printer.warn(f"Could not write cache: {exc}")
 
@@ -88,14 +165,14 @@ class LookupCache:
         found, lang = self.get_mem(media_type, title, year)
         if not found:
             return False, None
-        title_string = title_str(title, year)
+        title_year = format_title_year(title, year)
         if lang:
             self._printer.lookup_cache_hit(
-                f"Mem cache: '{title_string}' original language: {lang}"
+                f"Mem cache: '{title_year}' original language: {lang}"
             )
         else:
             self._printer.lookup_no_result(
-                f"Mem cache: '{title_string}' no language found"
+                f"Mem cache: '{title_year}' no language found"
             )
         return True, lang
 
@@ -103,19 +180,19 @@ class LookupCache:
         self, media_type: str, title: str, year: str
     ) -> tuple[bool, str | None]:
         """Check file cache. Returns (found, lang)."""
-        cached = self.load_file(media_type, title, year)
-        if cached is None:
+        entry = self._load_entry(media_type, title, year)
+        if entry is None:
             return False, None
-        lang = resolve_language(cached)
+        lang = entry.language or None
         self.set_mem(media_type, title, year, lang)
-        title_string = title_str(title, year)
+        title_year = format_title_year(title, year)
         if lang:
             self._printer.lookup_cache_hit(
-                f"File cache: '{title_string}' original language: {lang}"
+                f"File cache: '{title_year}' original language: {lang}"
             )
         else:
             self._printer.lookup_no_result(
-                f"File cache: '{title_string}' no language found"
+                f"File cache: '{title_year}' no language found"
             )
         return True, lang
 

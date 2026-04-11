@@ -207,6 +207,15 @@ def get_arguments(
         ),
     )
     parser.add_argument(
+        "--cache-expiry-days",
+        action="store",
+        type=int,
+        help=(
+            "Number of days before cache entries with no language found expire "
+            "and are re-queried. Default: 30. Entries with a language never expire."
+        ),
+    )
+    parser.add_argument(
         "--tvdb-api-key",
         action="store",
         help=(

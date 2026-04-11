@@ -8,7 +8,6 @@ from confuse import AttrDict
 from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import ParseResult, parse_title
-from nudebomb.lookup.util import title_str
 from nudebomb.printer import Printer
 
 
@@ -19,7 +18,7 @@ class TVDBLookup:
         """Initialize."""
         self._printer: Printer = Printer(config.verbose)
         self._tvdb = tvdb_v4_official.TVDB(config.tvdb_api_key)
-        self._cache = LookupCache(self._printer)
+        self._cache = LookupCache(self._printer, config.cache_expiry_days)
 
     @staticmethod
     def _resolve_language(result: dict) -> str | None:
@@ -44,17 +43,19 @@ class TVDBLookup:
             return None
         return result
 
+    @staticmethod
+    def _extract_db_id(result: dict) -> str:
+        """Extract the database ID from a TVDB result."""
+        return str(result.get("id", ""))
+
     def _query_api(self, title: str, parsed: ParseResult) -> dict | None:
         """Query TVDB API, returning raw result or empty dict on error."""
-        title_string = title_str(title, "")
         try:
             if parsed.tvdb_id:
                 return self._lookup_by_id(parsed.tvdb_id)
             return self._search_tvdb(title)
         except Exception as exc:
-            self._printer.lookup_error(
-                f"TVDB lookup failed for '{title_string}': {exc}"
-            )
+            self._printer.lookup_error(f"TVDB lookup failed for '{title}': {exc}")
             return {}
 
     def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
@@ -63,10 +64,16 @@ class TVDBLookup:
         if not result:
             return None
 
-        lang = self._resolve_language(result)
+        lang = self._resolve_language(result) or ""
         if parsed.title:
-            self._cache.save_file("tv", parsed.title, "", result)
-            self._cache.set_mem("tv", parsed.title, "", lang)
+            self._cache.save_file(
+                "tv",
+                parsed.title,
+                "",
+                db_id=self._extract_db_id(result),
+                language=lang,
+            )
+            self._cache.set_mem("tv", parsed.title, "", lang or None)
 
         if lang:
             self._printer.lookup_hit(
@@ -74,7 +81,7 @@ class TVDBLookup:
             )
         else:
             self._printer.lookup_no_result(f"TVDB ID {parsed.tvdb_id}: no result found")
-        return lang
+        return lang or None
 
     def _lookup_by_title_language(self, title: str, parsed: ParseResult) -> str | None:
         """Look up language by title search with caching."""
@@ -87,18 +94,24 @@ class TVDBLookup:
             return None
 
         if result is not None:
-            self._cache.save_file("tv", title, "", result)
-            lang = self._resolve_language(result)
+            lang = self._resolve_language(result) or ""
+            self._cache.save_file(
+                "tv",
+                title,
+                "",
+                db_id=self._extract_db_id(result),
+                language=lang,
+            )
         else:
-            self._cache.save_file("tv", title, "", {})
-            lang = None
+            self._cache.save_file("tv", title, "")
+            lang = ""
 
-        self._cache.set_mem("tv", title, "", lang)
+        self._cache.set_mem("tv", title, "", lang or None)
         if lang:
             self._printer.lookup_hit(f"TVDB: '{title}' original language: {lang}")
         else:
             self._printer.lookup_no_result(f"TVDB: '{title}' no result found")
-        return lang
+        return lang or None
 
     def lookup_language(self, path: Path) -> str | None:
         """
