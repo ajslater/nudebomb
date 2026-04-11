@@ -88,7 +88,7 @@ class TMDBLookup:
 
     def _cache_path(self, title: str, year: str) -> Path:
         """Return the cache file path for a title."""
-        year_str = f" ({year})" if year else ""
+        year_str = f"({year})" if year else ""
         return self._cache_dir / f"{_sanitize_cache_key(title)}{year_str}.json"
 
     def _load_cached(self, title: str, year: str) -> dict | None:
