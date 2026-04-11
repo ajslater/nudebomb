@@ -28,9 +28,10 @@ _NOISE_CUTOFF: Final = re.compile(
 _DELIMITERS: Final = re.compile(r"[._\s]+")
 _CLEAN_TRIM: Final = re.compile(r"^\s*[-\u2013\u2014\s]+|\s*[-\u2013\u2014\s]+$")
 
-# ID tags in curly braces: {tmdb-272}, {imdb-tt0372784}
+# ID tags in curly braces: {tmdb-272}, {imdb-tt0372784}, {tvdb-12345}
 _TMDB_ID_PATTERN: Final = re.compile(r"\{tmdb-(\d+)\}")
 _IMDB_ID_PATTERN: Final = re.compile(r"\{imdb-(tt\d+)\}")
+_TVDB_ID_PATTERN: Final = re.compile(r"\{tvdb-(\d+)\}")
 # Any curly-brace tag (for stripping after ID extraction)
 _BRACE_TAG_PATTERN: Final = re.compile(r"\{[^}]*\}")
 
@@ -43,6 +44,7 @@ class ParseResult:
     year: str
     tmdb_id: str
     imdb_id: str
+    tvdb_id: str
 
 
 def _strip_extension(filename: str) -> str:
@@ -50,18 +52,21 @@ def _strip_extension(filename: str) -> str:
     return filename.rsplit(".", 1)[0]
 
 
-def _extract_ids(stem: str) -> tuple[str, str, str]:
-    """Extract TMDB/IMDB IDs and return (cleaned_stem, tmdb_id, imdb_id)."""
+def _extract_ids(stem: str) -> tuple[str, str, str, str]:
+    """Extract TMDB/IMDB/TVDB IDs and return (cleaned_stem, tmdb_id, imdb_id, tvdb_id)."""
     tmdb_id = ""
     imdb_id = ""
+    tvdb_id = ""
     if tmdb_match := _TMDB_ID_PATTERN.search(stem):
         tmdb_id = tmdb_match.group(1)
     if imdb_match := _IMDB_ID_PATTERN.search(stem):
         imdb_id = imdb_match.group(1)
+    if tvdb_match := _TVDB_ID_PATTERN.search(stem):
+        tvdb_id = tvdb_match.group(1)
 
     # Strip all curly-brace tags
     cleaned = _BRACE_TAG_PATTERN.sub("", stem)
-    return cleaned, tmdb_id, imdb_id
+    return cleaned, tmdb_id, imdb_id, tvdb_id
 
 
 def _parse_tv_title(normalized: str) -> str:
@@ -114,16 +119,18 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
     stem = _strip_extension(filename)
 
     # Extract IDs before normalizing
-    stem, tmdb_id, imdb_id = _extract_ids(stem)
+    stem, tmdb_id, imdb_id, tvdb_id = _extract_ids(stem)
 
     # If we have an ID, we can skip title parsing entirely
-    if tmdb_id or imdb_id:
-        return ParseResult(title="", year="", tmdb_id=tmdb_id, imdb_id=imdb_id)
+    if tmdb_id or imdb_id or tvdb_id:
+        return ParseResult(
+            title="", year="", tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id
+        )
 
     normalized = _DELIMITERS.sub(" ", stem).strip()
 
     if _IGNORE_PATTERN.search(normalized):
-        return ParseResult(title="", year="", tmdb_id="", imdb_id="")
+        return ParseResult(title="", year="", tmdb_id="", imdb_id="", tvdb_id="")
 
     match media_type:
         case "tv":
@@ -134,4 +141,4 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
         case _:
             title, year = _parse_generic_title(normalized)
 
-    return ParseResult(title=title, year=year, tmdb_id="", imdb_id="")
+    return ParseResult(title=title, year=year, tmdb_id="", imdb_id="", tvdb_id="")

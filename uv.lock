@@ -1082,6 +1082,7 @@ dependencies = [
     { name = "ruamel-yaml" },
     { name = "tmdbsimple" },
     { name = "treestamps" },
+    { name = "tvdb-v4-official" },
     { name = "typing-extensions" },
 ]
 
@@ -1133,6 +1134,7 @@ requires-dist = [
     { name = "ruamel-yaml", specifier = ">=0.18,<1.0" },
     { name = "tmdbsimple", specifier = "~=2.9" },
     { name = "treestamps", specifier = "~=2.5.1" },
+    { name = "tvdb-v4-official", specifier = "~=1.1" },
     { name = "typing-extensions", specifier = "~=4.13" },
 ]
 
@@ -1780,6 +1782,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/16/10/e6ceface39ec2a2b1814cb64e02b5734c74cecc41b3811bae8bb26c9b7ab/treestamps-2.5.2.tar.gz", hash = "sha256:41f7088b4a84f88acf70d1e97328825c9b7e4d581249270c5af7938f3e644a0d", size = 181038, upload-time = "2026-04-10T23:06:19.762Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/98/a73f55e9af2c8793985d865f8862a5c5e62ed7da9e45d4041f938c46e5b1/treestamps-2.5.2-py3-none-any.whl", hash = "sha256:a47d44267460285e5cf13ec5f9267c5da72f71e522ff26930ffcb530917068c1", size = 15375, upload-time = "2026-04-10T23:06:20.67Z" },
+]
+
+[[package]]
+name = "tvdb-v4-official"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/63/1ee5d021451205daa455d975ebb795af739f31ca637862c5ee6ae2e1b56f/tvdb_v4_official-1.1.0.tar.gz", hash = "sha256:c315979f71f4b5e76a92202822c31c3ad7e695237d0901afbeec4e09dbb2218d", size = 4325, upload-time = "2022-09-22T19:11:51.285Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/d2/3f3e03fe96c23701fa24890dcd393034f4d37fb1e4649f573b1a6f3cf994/tvdb_v4_official-1.1.0-py3-none-any.whl", hash = "sha256:1d66f87f7d3d36feb4923b37aefd5a048dd208096bc640d1898acb1956fc0ba1", size = 3801, upload-time = "2022-09-22T19:11:49.819Z" },
 ]
 
 [[package]]

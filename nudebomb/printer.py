@@ -61,23 +61,23 @@ class Printer:
         """Keep languages config message."""
         self._message(message, "cyan", force_verbose=True)
 
-    def tmdb_hit(self, message: str) -> None:
+    def lookup_hit(self, message: str) -> None:
         """TMDB API lookup succeeded."""
         self._message(message, "cyan", char="O")
 
-    def tmdb_cache_hit(self, message: str) -> None:
+    def lookup_cache_hit(self, message: str) -> None:
         """TMDB lookup succeeded from cache."""
         self._message(message, "cyan", char=".")
 
-    def tmdb_no_result(self, message: str) -> None:
+    def lookup_no_result(self, message: str) -> None:
         """TMDB lookup returned no result or no language."""
         self._message(message, "light_yellow", force_verbose=True, char="x")
 
-    def tmdb_rate_limited(self, message: str) -> None:
+    def lookup_rate_limited(self, message: str) -> None:
         """TMDB lookup failed due to API rate limiting."""
         self._message(message, "light_yellow", char="X")
 
-    def tmdb_error(self, message: str) -> None:
+    def lookup_error(self, message: str) -> None:
         """TMDB lookup failed due to a network or server error."""
         self._message(message, "light_red", char="X")
 

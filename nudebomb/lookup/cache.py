@@ -1,12 +1,12 @@
-"""TMDB caching with movie/tv separation."""
+"""Lookup caching with movie/tv separation."""
 
 import json
 import re
 from pathlib import Path
 from typing import Final
 
+from nudebomb.lookup.util import resolve_language, title_str
 from nudebomb.printer import Printer
-from nudebomb.tmdb.util import resolve_language, title_str
 from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
@@ -19,8 +19,8 @@ def _sanitize_cache_key(title: str) -> str:
     return re.sub(r"\s+", "_", key)
 
 
-class TMDBCache:
-    """File and memory cache for TMDB lookups, separated by media type."""
+class LookupCache:
+    """File and memory cache for lookups, separated by media type."""
 
     def __init__(self, printer: Printer) -> None:
         """Initialize."""
@@ -29,7 +29,7 @@ class TMDBCache:
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # File cache root
         config_dir = Path.home() / f".config/{PROGRAM_NAME}"
-        self._cache_root: Path = config_dir / "tmdb_cache"
+        self._cache_root: Path = config_dir / "cache"
         for media_type in _MEDIA_TYPES:
             (self._cache_root / media_type).mkdir(parents=True, exist_ok=True)
         # Keep the root for untyped lookups
@@ -49,7 +49,7 @@ class TMDBCache:
         )
 
     def load_file(self, media_type: str, title: str, year: str) -> dict | None:
-        """Load cached TMDB response for a title."""
+        """Load cached response for a title."""
         path = self._cache_path(media_type, title, year)
         if path.is_file():
             try:
@@ -60,13 +60,13 @@ class TMDBCache:
         return None
 
     def save_file(self, media_type: str, title: str, year: str, data: dict) -> None:
-        """Save a TMDB response to the file cache."""
+        """Save a response to the file cache."""
         path = self._cache_path(media_type, title, year)
         try:
             with path.open("w") as f:
                 json.dump(data, f, indent=2)
         except OSError as exc:
-            self._printer.warn(f"Could not write TMDB cache: {exc}")
+            self._printer.warn(f"Could not write cache: {exc}")
 
     def get_mem(
         self, media_type: str, title: str, year: str
@@ -90,12 +90,12 @@ class TMDBCache:
             return False, None
         title_string = title_str(title, year)
         if lang:
-            self._printer.tmdb_cache_hit(
-                f"TMDB mem cache: '{title_string}' original language: {lang}"
+            self._printer.lookup_cache_hit(
+                f"Mem cache: '{title_string}' original language: {lang}"
             )
         else:
-            self._printer.tmdb_no_result(
-                f"TMDB mem cache: '{title_string}' no language found"
+            self._printer.lookup_no_result(
+                f"Mem cache: '{title_string}' no language found"
             )
         return True, lang
 
@@ -110,12 +110,12 @@ class TMDBCache:
         self.set_mem(media_type, title, year, lang)
         title_string = title_str(title, year)
         if lang:
-            self._printer.tmdb_cache_hit(
-                f"TMDB file cache: '{title_string}' original language: {lang}"
+            self._printer.lookup_cache_hit(
+                f"File cache: '{title_string}' original language: {lang}"
             )
         else:
-            self._printer.tmdb_no_result(
-                f"TMDB file cache: '{title_string}' no language found"
+            self._printer.lookup_no_result(
+                f"File cache: '{title_string}' no language found"
             )
         return True, lang
 

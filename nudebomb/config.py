@@ -30,6 +30,7 @@ TEMPLATE: Final = MappingTemplate(
                 "recurse": bool,
                 "strip_und_language": bool,
                 "tmdb_api_key": Optional(str),
+                "tvdb_api_key": Optional(str),
                 "und_language": Optional(str),
                 "sub_languages": Optional(Sequence(str)),
                 "subtitles": bool,

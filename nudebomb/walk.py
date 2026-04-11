@@ -9,9 +9,9 @@ from treestamps.tree import Treestamps
 
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
+from nudebomb.lookup import TMDBLookup, TVDBLookup
 from nudebomb.mkv import MKVFile
 from nudebomb.printer import Printer
-from nudebomb.tmdb import TMDBLookup
 from nudebomb.version import PROGRAM_NAME
 
 
@@ -24,9 +24,12 @@ class Walk:
         self._langfiles: LangFiles = LangFiles(config)
         self._printer: Printer = Printer(self._config.verbose)
         self._timestamps: Grovestamps | None = None
-        self._tmdb: TMDBLookup | None = None
-        if config.tmdb_api_key:
-            self._tmdb = TMDBLookup(config)
+        self._tmdb: TMDBLookup | None = (
+            TMDBLookup(config) if config.tmdb_api_key else None
+        )
+        self._tvdb: TVDBLookup | None = (
+            TVDBLookup(config) if config.tvdb_api_key else None
+        )
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""
@@ -73,11 +76,16 @@ class Walk:
         config = deepcopy(self._config)
         config.languages = self._langfiles.get_langs(top_path, dir_path)
 
-        # TMDB fallback when no lang files contributed languages
-        if self._tmdb and not self._langfiles.found_lang_files(top_path, dir_path):
-            tmdb_lang = self._tmdb.lookup_language(path)
-            if tmdb_lang:
-                config.languages = frozenset(config.languages | {tmdb_lang})
+        # Online lookup fallback when no lang files contributed languages
+        if not self._langfiles.found_lang_files(top_path, dir_path):
+            lookup_lang = None
+            # Prefer TVDB for TV content, TMDB for everything else
+            if self._tvdb and self._config.media_type == "tv":
+                lookup_lang = self._tvdb.lookup_language(path)
+            if not lookup_lang and self._tmdb:
+                lookup_lang = self._tmdb.lookup_language(path)
+            if lookup_lang:
+                config.languages = frozenset(config.languages | {lookup_lang})
 
         mkv_obj = MKVFile(config, path)
         wrote = mkv_obj.remove_tracks()

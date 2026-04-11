@@ -44,6 +44,10 @@ COLOR_KEY: Final = (
     ("x TMDB lookup no result", "light_yellow", []),
     ("X TMDB rate limited", "light_yellow", []),
     ("X TMDB error", "light_red", []),
+    (". TVDB lookup succeeded (cached)", "cyan", []),
+    ("O TVDB lookup succeeded", "cyan", []),
+    ("x TVDB lookup no result", "light_yellow", []),
+    ("X TVDB error", "light_red", []),
 )
 
 
@@ -200,6 +204,15 @@ def get_arguments(
         help=(
             "TMDB API key for online language lookup. Look up the original "
             "language of media files on TMDB when no lang file is found."
+        ),
+    )
+    parser.add_argument(
+        "--tvdb-api-key",
+        action="store",
+        help=(
+            "TVDB API key for online TV series language lookup. "
+            "Look up the original language of TV series on TVDB "
+            "when no lang file is found."
         ),
     )
     parser.add_argument(
