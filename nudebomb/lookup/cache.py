@@ -3,6 +3,7 @@
 import json
 import re
 import time
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Final
 
@@ -21,47 +22,15 @@ def _sanitize_cache_key(title: str) -> str:
     return re.sub(r"\s+", "_", key)
 
 
+@dataclass(slots=True)
 class CacheEntry:
     """A slim cache entry storing only the fields nudebomb uses."""
 
-    __slots__ = ("cached_at", "db_id", "language", "title", "year")
-
-    def __init__(
-        self,
-        *,
-        db_id: str = "",
-        language: str = "",
-        title: str = "",
-        year: str = "",
-        cached_at: float | None = None,
-    ) -> None:
-        """Initialize."""
-        self.db_id = db_id
-        self.language = language
-        self.title = title
-        self.year = year
-        self.cached_at = cached_at if cached_at is not None else time.time()
-
-    def to_dict(self) -> dict:
-        """Serialize to a dict for JSON storage."""
-        return {
-            "db_id": self.db_id,
-            "language": self.language,
-            "title": self.title,
-            "year": self.year,
-            "cached_at": self.cached_at,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "CacheEntry":
-        """Deserialize from a JSON dict."""
-        return cls(
-            db_id=data.get("db_id", ""),
-            language=data.get("language", ""),
-            title=data.get("title", ""),
-            year=data.get("year", ""),
-            cached_at=data.get("cached_at"),
-        )
+    cached_at: float = field(default_factory=time.time)
+    db_id: str = ""
+    language: str = ""
+    title: str = ""
+    year: str = ""
 
     def is_expired(self, expiry_days: int) -> bool:
         """
@@ -116,7 +85,7 @@ class LookupCache:
         except (json.JSONDecodeError, OSError):
             return None
 
-        entry = CacheEntry.from_dict(data)
+        entry = CacheEntry(**data)
         if entry.is_expired(self._cache_expiry_days):
             path.unlink(missing_ok=True)
             return None
@@ -141,7 +110,7 @@ class LookupCache:
         path = self._cache_path(media_type, title, year)
         try:
             with path.open("w") as f:
-                json.dump(entry.to_dict(), f, indent=2)
+                json.dump(asdict(entry), f, indent=2)
         except OSError as exc:
             self._printer.warn(f"Could not write cache: {exc}")
 
