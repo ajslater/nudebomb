@@ -7,7 +7,7 @@ import tmdbsimple as tmdb
 from confuse import AttrDict
 from requests.exceptions import HTTPError
 
-from nudebomb.lookup.cache import TMDBCache
+from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import ParseResult, parse_title
 from nudebomb.lookup.util import resolve_language, title_str
 from nudebomb.printer import Printer
@@ -22,7 +22,7 @@ class TMDBLookup:
         """Initialize."""
         self._printer: Printer = Printer(config.verbose)
         tmdb.API_KEY = config.tmdb_api_key
-        self._cache = TMDBCache(self._printer)
+        self._cache = LookupCache(self._printer)
         self._media_type: str = config.media_type
 
     def _search_tmdb(
