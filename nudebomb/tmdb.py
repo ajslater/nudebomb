@@ -16,6 +16,10 @@ from nudebomb.version import PROGRAM_NAME
 # Looks for a 4-digit year (1900-2099)
 _YEAR_PATTERN: Final = re.compile(r"\b((?:19|20)\d{2})\b")
 
+_IGNORE_PATTERN: Final = re.compile(
+    r"-(?:behindthescenes|deleted|featurette|interview|scene|short|trailer|other)$",
+    re.IGNORECASE,
+)
 # General noise markers to truncate the title if no year is found
 _NOISE_CUTOFF: Final = re.compile(
     r"""(?ix)
@@ -33,7 +37,10 @@ def parse_title(filename: str) -> tuple[str, str]:
     """Parse title and year from filename."""
     # 1. Strip extension and normalize delimiters to spaces
     stem = filename.rsplit(".", 1)[0]
-    normalized = _DELIMITERS.sub(" ", stem)
+    normalized = _DELIMITERS.sub(" ", stem).strip()
+
+    if _IGNORE_PATTERN.search(normalized):
+        return ("", "")
 
     title = normalized
     year = ""
@@ -151,11 +158,11 @@ class TMDBLookup:
             title_str = f"{title} ({year})" if year else title
             if lang := self._mem_cache.get(key, ""):
                 self._printer.tmdb_cache_hit(
-                    f"TMDB cache: '{title_str}' original language: {lang}"
+                    f"TMDB mem cache: '{title_str}' original language: {lang}"
                 )
             else:
                 self._printer.tmdb_no_result(
-                    f"TMDB cache: '{title_str}' no language found"
+                    f"TMDB mem cache: '{title_str}' no language found"
                 )
         return lang
 
@@ -169,11 +176,11 @@ class TMDBLookup:
             title_str = f"{title} ({year})" if year else title
             if lang:
                 self._printer.tmdb_cache_hit(
-                    f"TMDB cache: '{title_str}' original language: {lang}"
+                    f"TMDB file cache: '{title_str}' original language: {lang}"
                 )
             else:
                 self._printer.tmdb_no_result(
-                    f"TMDB cache: '{title_str}' no language found"
+                    f"TMDB file cache: '{title_str}' no language found"
                 )
             return lang
         return lang
