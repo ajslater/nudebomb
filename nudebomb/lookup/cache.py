@@ -80,8 +80,7 @@ class LookupCache:
         if not path.is_file():
             return None
         try:
-            with path.open("r") as f:
-                data = json.load(f)
+            data = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
             return None
 
@@ -109,8 +108,7 @@ class LookupCache:
         )
         path = self._cache_path(media_type, title, year)
         try:
-            with path.open("w") as f:
-                json.dump(asdict(entry), f, indent=2)
+            path.write_text(json.dumps(asdict(entry), indent=2))
         except OSError as exc:
             self._printer.warn(f"Could not write cache: {exc}")
 

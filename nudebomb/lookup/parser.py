@@ -1,4 +1,4 @@
-"""Filename parsing for TMDB lookups."""
+"""Filename parsing for media language lookups."""
 
 import re
 from dataclasses import dataclass
@@ -22,7 +22,6 @@ _NOISE_CUTOFF: Final = re.compile(
     r"""(?ix)
     \b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]
     """,
-    re.IGNORECASE,
 )
 
 _DELIMITERS: Final = re.compile(r"[._\s]+")

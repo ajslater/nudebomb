@@ -39,15 +39,10 @@ COLOR_KEY: Final = (
     (". MKV not remuxed on dry run", "dark_grey", ["bold"]),
     (". WARNING", "light_yellow", []),
     (". ERROR", "light_red", []),
-    (". TMDB lookup succeeded (cached)", "cyan", []),
-    ("O TMDB lookup succeeded", "cyan", []),
-    ("x TMDB lookup no result", "light_yellow", []),
-    ("X TMDB rate limited", "light_yellow", []),
-    ("X TMDB error", "light_red", []),
-    (". TVDB lookup succeeded (cached)", "cyan", []),
-    ("O TVDB lookup succeeded", "cyan", []),
-    ("x TVDB lookup no result", "light_yellow", []),
-    ("X TVDB error", "light_red", []),
+    (". Remote DB lookup succeeded (cached)", "cyan", []),
+    ("O Remote DB lookup succeeded", "cyan", []),
+    ("x Remote DB lookup no result", "light_yellow", []),
+    ("X Remote error", "light_red", []),
 )
 
 

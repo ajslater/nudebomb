@@ -1,6 +1,6 @@
 """Print Messages."""
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
 from pathlib import Path
 
 from termcolor import cprint
@@ -18,7 +18,7 @@ class Printer:
         self,
         reason: str,
         color: str = "white",
-        attrs: list[str] | None = None,
+        attrs: Iterable[str] | None = None,
         *,
         force_verbose: bool = False,
         end: str = "\n",
@@ -62,23 +62,23 @@ class Printer:
         self._message(message, "cyan", force_verbose=True)
 
     def lookup_hit(self, message: str) -> None:
-        """TMDB API lookup succeeded."""
+        """Print API lookup success."""
         self._message(message, "cyan", char="O")
 
     def lookup_cache_hit(self, message: str) -> None:
-        """TMDB lookup succeeded from cache."""
+        """Print lookup cache hit."""
         self._message(message, "cyan", char=".")
 
     def lookup_no_result(self, message: str) -> None:
-        """TMDB lookup returned no result or no language."""
+        """Print lookup with no result or no language."""
         self._message(message, "light_yellow", force_verbose=True, char="x")
 
     def lookup_rate_limited(self, message: str) -> None:
-        """TMDB lookup failed due to API rate limiting."""
+        """Print lookup rate limit warning."""
         self._message(message, "light_yellow", char="X")
 
     def lookup_error(self, message: str) -> None:
-        """TMDB lookup failed due to a network or server error."""
+        """Print lookup error."""
         self._message(message, "light_red", char="X")
 
     def print_config(

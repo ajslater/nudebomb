@@ -124,6 +124,7 @@ class Walk:
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
+            return
         if self._is_path_suffix_not_mkv(path):
             return
         if self._is_path_before_timestamp(top_path, path):
