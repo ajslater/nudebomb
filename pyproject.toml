@@ -9,6 +9,7 @@ classifiers = [
 ]
 dependencies = [
   "confuse~=2.1.0,<2.2.0",
+  "platformdirs>=4.9.6",
   "pycountry~=26.2",
   "python-dateutil~=2.8",
   "ruamel-yaml>=0.18,<1.0",
