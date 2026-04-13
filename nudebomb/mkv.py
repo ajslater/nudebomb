@@ -3,7 +3,9 @@
 import json
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
+from typing import Final
 
 from confuse import AttrDict
 
@@ -15,10 +17,10 @@ from nudebomb.track import Track
 class MKVFile:
     """Strips matroska files of unwanted audio and subtitles."""
 
-    VIDEO_TRACK_NAME: str = "video"
-    AUDIO_TRACK_NAME: str = "audio"
-    SUBTITLE_TRACK_NAME: str = "subtitles"
-    REMOVABLE_TRACK_NAMES: tuple[str, str] = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
+    VIDEO_TRACK_NAME: Final = "video"
+    AUDIO_TRACK_NAME: Final = "audio"
+    SUBTITLE_TRACK_NAME: Final = "subtitles"
+    REMOVABLE_TRACK_NAMES: Final = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
 
     def __init__(self, config: AttrDict, path: Path) -> None:
         """Initialize."""
@@ -28,7 +30,7 @@ class MKVFile:
         self._init_track_map()
 
     def _init_track_map(self) -> None:
-        self._track_map: dict = {}
+        self._track_map: dict[str, list[Track]] = {}
 
         # Ask mkvmerge for the json info
         command = (self._config.mkvmerge_bin, "-J", str(self.path))
@@ -55,13 +57,13 @@ class MKVFile:
             return
 
         # load into our map.
+        track_map: dict[str, list[Track]] = defaultdict(list)
         for track_data in tracks:
             track_obj = Track(track_data)
-            if track_obj.type not in self._track_map:
-                self._track_map[track_obj.type] = []
-            self._track_map[track_obj.type].append(track_obj)
+            track_map[track_obj.type].append(track_obj)
+        self._track_map = track_map
 
-    def _filtered_tracks(self, track_type: str) -> tuple[list, list]:
+    def _filtered_tracks(self, track_type: str) -> tuple[list[Track], list[Track]]:
         """Return a tuple consisting of tracks to keep and tracks to remove."""
         if track_type == self.SUBTITLE_TRACK_NAME and self._config.sub_languages:
             languages_to_keep = self._config.sub_languages
@@ -196,13 +198,13 @@ class MKVFile:
 
         return output, command, relabeled
 
-    def remove_tracks(self) -> None:
+    def remove_tracks(self) -> bool:
         """Remove the unwanted tracks."""
         if not self._track_map:
             self._printer.error(
                 f"not removing tracks from mkv with no tracks: {self.path}",
             )
-            return
+            return False
         self._printer.extra_info(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
@@ -238,15 +240,18 @@ class MKVFile:
 
         if not num_remove_ids and not und_relabeled:
             self._printer.skip_timestamp(f"\tAlready stripped {self.path}")
-            return
+            return False
 
+        changed = False
         try:
             self._printer.work_manifest(output)
             if self._config.dry_run:
-                self._printer.dry_run("\tNot remuxing on dry run {self.path}")
+                self._printer.dry_run(f"\tNot remuxing on dry run {self.path}")
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
+                changed = True
         except Exception as exc:
             self._printer.error("", exc)
             tmp_path.unlink(missing_ok=True)
+        return changed

@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 from platform import system
 from time import mktime
+from typing import Final
 
 from confuse import Configuration
 from confuse.templates import AttrDict, Integer, MappingTemplate, Optional, Sequence
@@ -15,18 +16,22 @@ from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
-TEMPLATE = MappingTemplate(
+TEMPLATE: Final = MappingTemplate(
     {
         PROGRAM_NAME: MappingTemplate(
             {
                 "after": Optional(str),
+                "cache_expiry_days": Integer(),
                 "dry_run": bool,
                 "ignore": Sequence(str),
                 "languages": Sequence(str),
+                "media_type": Optional(str),
                 "mkvmerge_bin": Optional(str),
                 "paths": Sequence(str),
                 "recurse": bool,
                 "strip_und_language": bool,
+                "tmdb_api_key": Optional(str),
+                "tvdb_api_key": Optional(str),
                 "und_language": Optional(str),
                 "sub_languages": Optional(Sequence(str)),
                 "subtitles": bool,
@@ -39,17 +44,19 @@ TEMPLATE = MappingTemplate(
         )
     }
 )
-TIMESTAMPS_CONFIG_KEYS = {
-    "languages",
-    "mkvmerge_bin",
-    "recurse",
-    "strip_und_language",
-    "und_language",
-    "sub_languages",
-    "subtitles",
-    "symlinks",
-    "title",
-}
+TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
+    {
+        "languages",
+        "mkvmerge_bin",
+        "recurse",
+        "strip_und_language",
+        "und_language",
+        "sub_languages",
+        "subtitles",
+        "symlinks",
+        "title",
+    }
+)
 
 if system() == "Windows":
     os.system("color")  # noqa: S605, S607

@@ -25,7 +25,7 @@ class TestTrack:
         assert str(track) == "Track #2: eng - AC-3"
 
     def test_subtitle_track(self: "TestTrack") -> None:
-        """Test subtitile track."""
+        """Test subtitle track."""
         data = json.loads(read("clean-tracks.json"))["tracks"][2]
         track = Track(data)
         assert str(track) == "Track #5: eng - SubRip/SRT"

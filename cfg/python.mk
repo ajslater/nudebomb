@@ -67,7 +67,7 @@ typecheck:
 ## Static typecheck with ty
 ## @category Lint
 ty:
-	uv run --group lint --group build ty check .
+	uv run --group lint --group test --group build ty check .
 
 .PHONY: complexity
 ## Lint backend complexity

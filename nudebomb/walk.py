@@ -9,6 +9,7 @@ from treestamps.tree import Treestamps
 
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
+from nudebomb.lookup import TMDBLookup, TVDBLookup
 from nudebomb.mkv import MKVFile
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
@@ -23,6 +24,12 @@ class Walk:
         self._langfiles: LangFiles = LangFiles(config)
         self._printer: Printer = Printer(self._config.verbose)
         self._timestamps: Grovestamps | None = None
+        self._tmdb: TMDBLookup | None = (
+            TMDBLookup(config) if config.tmdb_api_key else None
+        )
+        self._tvdb: TVDBLookup | None = (
+            TVDBLookup(config) if config.tvdb_api_key else None
+        )
 
     def _is_path_suffix_not_mkv(self, path: Path) -> bool:
         """Return if the suffix should skipped."""
@@ -44,7 +51,7 @@ class Walk:
         if self._config.after:
             mtime: float | None = self._config.after
         elif self._timestamps:
-            mtime = self._timestamps.get(top_path, {}).get(path)
+            mtime = self._timestamps.get_timestamp(top_path, path)
         else:
             mtime = None
 
@@ -63,15 +70,28 @@ class Walk:
         self,
         top_path: Path,
         path: Path,
-    ) -> None:
+    ) -> bool:
         """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
         config = deepcopy(self._config)
         config.languages = self._langfiles.get_langs(top_path, dir_path)
+
+        # Online lookup fallback when no lang files contributed languages
+        if not self._langfiles.found_lang_files(top_path, dir_path):
+            lookup_lang = None
+            # Prefer TVDB for TV content, TMDB for everything else
+            if self._tvdb and self._config.media_type == "tv":
+                lookup_lang = self._tvdb.lookup_language(path)
+            if not lookup_lang and self._tmdb:
+                lookup_lang = self._tmdb.lookup_language(path)
+            if lookup_lang:
+                config.languages = frozenset(config.languages | {lookup_lang})
+
         mkv_obj = MKVFile(config, path)
-        mkv_obj.remove_tracks()
-        if self._timestamps:
-            self._timestamps[top_path].set(path)
+        wrote = mkv_obj.remove_tracks()
+        if self._timestamps and wrote:
+            self._timestamps.set(top_path, path)
+        return wrote
 
     def walk_dir(
         self,
@@ -94,8 +114,7 @@ class Walk:
             self.walk_file(top_path, path)
 
         if self._timestamps:
-            timestamps = self._timestamps[top_path]
-            timestamps.set(dir_path, compact=True)
+            self._timestamps.set(top_path, dir_path, compact=True)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
@@ -105,12 +124,12 @@ class Walk:
             return
         if path.is_dir():
             self.walk_dir(top_path, path)
-        else:
-            if self._is_path_suffix_not_mkv(path):
-                return
-            if self._is_path_before_timestamp(top_path, path):
-                return
-            self.strip_path(top_path, path)
+            return
+        if self._is_path_suffix_not_mkv(path):
+            return
+        if self._is_path_before_timestamp(top_path, path):
+            return
+        self.strip_path(top_path, path)
 
     def run(self) -> None:
         """Run the stripper against all configured paths."""
@@ -137,4 +156,4 @@ class Walk:
         self._printer.done()
 
         if self._timestamps:
-            self._timestamps.dump()
+            self._timestamps.dumpf()
