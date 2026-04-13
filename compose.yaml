@@ -1,0 +1,13 @@
+services:
+  ci:
+    build:
+      context: .
+      target: nudebomb-ci
+    image: nudebomb-ci:ci
+    container_name: nudebomb-ci
+    volumes:
+      - ./test-results:/app/test-results
+      - ./dist:/app/dist
+    environment:
+      - PYTHONUNBUFFERED=1
+    entrypoint: [sleep, infinity]

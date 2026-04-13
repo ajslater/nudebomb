@@ -1,5 +1,8 @@
 """Print Messages."""
 
+from collections.abc import Collection, Iterable
+from pathlib import Path
+
 from termcolor import cprint
 
 
@@ -15,16 +18,17 @@ class Printer:
         self,
         reason: str,
         color: str = "white",
-        attrs=None,
+        attrs: Iterable[str] | None = None,
         *,
         force_verbose: bool = False,
         end: str = "\n",
+        char: str = ".",
     ) -> None:
         """Print a dot or skip message."""
         if self._verbose < 1:
             return
         if (self._verbose == 1 and not force_verbose) or not reason:
-            cprint(".", color, attrs=attrs, end="", flush=True)
+            cprint(char, color, attrs=attrs, end="", flush=True)
             self._after_newline = False
             return
         if not self._after_newline:
@@ -34,31 +38,53 @@ class Printer:
         if end:
             self._after_newline = True
 
-    def skip(self, message: str, path) -> None:
+    def skip(self, message: str, path: Path) -> None:
         """Skip Message."""
         parts = ["Skip", message, str(path)]
         message = ": ".join(parts)
         self._message(message, color="dark_grey")
 
-    def skip_timestamp(self, message) -> None:
+    def skip_timestamp(self, message: str) -> None:
         """Skip by timestamp."""
         self._message(message, color="light_green", attrs=["dark", "bold"])
 
-    def skip_already_optimized(self, message) -> None:
+    def skip_already_optimized(self, message: str) -> None:
         """Skip already optimized."""
         self._message(message, "green")
 
-    def extra_info(self, message) -> None:
+    def extra_info(self, message: str) -> None:
         """High verbosity messages."""
         if self._verbose > 2:  # noqa: PLR2004
             self._message(message, color="dark_grey", attrs=["bold"])
 
-    def config(self, message) -> None:
+    def config(self, message: str) -> None:
         """Keep languages config message."""
         self._message(message, "cyan", force_verbose=True)
 
+    def lookup_hit(self, message: str) -> None:
+        """Print API lookup success."""
+        self._message(message, "cyan", char="O")
+
+    def lookup_cache_hit(self, message: str) -> None:
+        """Print lookup cache hit."""
+        self._message(message, "cyan", char=".")
+
+    def lookup_no_result(self, message: str) -> None:
+        """Print lookup with no result or no language."""
+        self._message(message, "light_yellow", force_verbose=True, char="x")
+
+    def lookup_rate_limited(self, message: str) -> None:
+        """Print lookup rate limit warning."""
+        self._message(message, "light_yellow", char="X")
+
+    def lookup_error(self, message: str) -> None:
+        """Print lookup error."""
+        self._message(message, "light_red", char="X")
+
     def print_config(
-        self, languages: tuple | list, sub_languages: tuple | list
+        self,
+        languages: Collection[str],
+        sub_languages: Collection[str],
     ) -> None:
         """Print mkv info."""
         langs = ", ".join(sorted(languages))
@@ -68,7 +94,7 @@ class Printer:
             sub_langs = ", ".join(sorted(sub_languages))
             self.config(f"Stripping subtitle languages except {sub_langs}.")
 
-    def work_manifest(self, message) -> None:
+    def work_manifest(self, message: str) -> None:
         """Work manifest for what we plan to do to the mkv."""
         self._message(message, force_verbose=True)
 
@@ -81,7 +107,7 @@ class Printer:
         else:
             self._after_newline = False
 
-    def dry_run(self, message) -> None:
+    def dry_run(self, message: str) -> None:
         """Dry run message."""
         self._message(message, "dark_grey", attrs=["bold"], force_verbose=True)
 

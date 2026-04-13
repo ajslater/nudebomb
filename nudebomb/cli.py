@@ -2,7 +2,7 @@
 
 from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final
 
 from termcolor import colored
 from typing_extensions import override
@@ -31,14 +31,18 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, values)
 
 
-COLOR_KEY = (
-    ("MKV ignored/skipped", "dark_grey", []),
-    ("MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
-    ("MKV already stripped", "green", []),
-    ("MKV stripped tracks", "white", []),
-    ("MKV not remuxed on dry run", "dark_grey", ["bold"]),
-    ("WARNING", "light_yellow", []),
-    ("ERROR", "light_red", []),
+COLOR_KEY: Final = (
+    (". MKV ignored/skipped", "dark_grey", []),
+    (". MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
+    (". MKV already stripped", "green", []),
+    (". MKV stripped tracks", "white", []),
+    (". MKV not remuxed on dry run", "dark_grey", ["bold"]),
+    (". WARNING", "light_yellow", []),
+    (". ERROR", "light_red", []),
+    (". Remote DB lookup succeeded (cached)", "cyan", []),
+    ("O Remote DB lookup succeeded", "cyan", []),
+    ("x Remote DB lookup no result", "light_yellow", []),
+    ("X Remote error", "light_red", []),
 )
 
 
@@ -50,7 +54,9 @@ def get_dot_color_key() -> str:
     return epilogue
 
 
-def get_arguments(params=None) -> Namespace:
+def get_arguments(
+    params: tuple[str, ...] | None = None,
+) -> Namespace:
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
     epilog = get_dot_color_key()
@@ -78,6 +84,22 @@ def get_arguments(params=None) -> Namespace:
         help=(
             "Comma-separated list of audio and subtitle languages to retain. "
             "e.g. eng,fra."
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--media-type",
+        action="store",
+        default="",
+        help="TMBD media type. Specify 'movie' or 'tv' type to target tmbd lookups.",
+    )
+    parser.add_argument(
+        "-u",
+        "--und-language",
+        action="store",
+        help=(
+            "Relabel 'und' undetermined or untagged language tracks to the "
+            "specified ISO 639 language code during remux. e.g. 'eng' or 'en'."
         ),
     )
     parser.add_argument(
@@ -170,6 +192,32 @@ def get_arguments(params=None) -> Namespace:
     )
     parser.add_argument(
         "-c", "--config", action="store", help="Alternate config file path"
+    )
+    parser.add_argument(
+        "--tmdb-api-key",
+        action="store",
+        help=(
+            "TMDB API key for online language lookup. Look up the original "
+            "language of media files on TMDB when no lang file is found."
+        ),
+    )
+    parser.add_argument(
+        "--cache-expiry-days",
+        action="store",
+        type=int,
+        help=(
+            "Number of days before cache entries with no language found expire "
+            "and are re-queried. Default: 30. Entries with a language never expire."
+        ),
+    )
+    parser.add_argument(
+        "--tvdb-api-key",
+        action="store",
+        help=(
+            "TVDB API key for online TV series language lookup. "
+            "Look up the original language of TV series on TVDB "
+            "when no lang file is found."
+        ),
     )
     parser.add_argument(
         "-A",

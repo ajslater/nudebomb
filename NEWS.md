@@ -1,5 +1,12 @@
 # 📰 Nudebomb News
 
+## v1.0.0
+
+- Fetch media file language from tmdb and tvdb. You don't have to use lang files
+  if your media is in an online database.
+- Relabel und tracks with a preferred language option.
+- Don't write timestamps if nothing stripped.
+
 ## v0.4.9
 
 - Update pycountry

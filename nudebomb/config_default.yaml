@@ -1,12 +1,17 @@
 nudebomb:
   after: null
+  cache_expiry_days: 30
   dry_run: False
   ignore: []
   languages: null
+  media_type: null
   mkvmerge_bin: null
   paths: []
   recurse: False
   strip_und_language: False
+  tmdb_api_key: null
+  tvdb_api_key: null
+  und_language: null
   subtitles: True
   sub_languages: null
   symlinks: True

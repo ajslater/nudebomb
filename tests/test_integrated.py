@@ -17,7 +17,7 @@ __all__ = ()
 class TestIntegrated(DiffTracksTest):
     """Integrated tests."""
 
-    def setup_method(self):
+    def setup_method(self: "TestIntegrated") -> None:
         """Set up tests."""
         shutil.rmtree(TEST_DIR, ignore_errors=True)
         TEST_DIR.mkdir()
@@ -26,30 +26,30 @@ class TestIntegrated(DiffTracksTest):
         shutil.copy(src_path, self.dest_path)
         self.src_tracks: list = mkv_tracks(self.dest_path)  #  pyright: ignore[reportUninitializedInstanceVariable]
 
-    def teardown_method(self):
+    def teardown_method(self: "TestIntegrated") -> None:
         """Tear down tests."""
         if TEST_DIR.exists():
             shutil.rmtree(TEST_DIR, ignore_errors=True)
 
-    def test_dry_run(self):
+    def test_dry_run(self: "TestIntegrated") -> None:
         """Test dry run."""
         main(("nudebomb", "-l", "eng,und", "-d", str(self.dest_path)))
         out_tracks = mkv_tracks(self.dest_path)
         assert out_tracks == self.src_tracks
 
-    def test_run(self):
+    def test_run(self: "TestIntegrated") -> None:
         """Test run."""
         main(("nudebomb", "-l", "eng,und", "-r", str(TEST_DIR)))
         out_tracks = mkv_tracks(self.dest_path)
         assert_eng_und_only(out_tracks)
 
-    def test_fail(self):
+    def test_fail(self: "TestIntegrated") -> None:
         """Test fail."""
         main(("nudebomb", "-l", "eng", str(TEST_DIR)))
         out_tracks = mkv_tracks(self.dest_path)
         self._diff_tracks(out_tracks)
 
-    def test_strip_all_subs(self):
+    def test_strip_all_subs(self: "TestIntegrated") -> None:
         """Test strib all subs."""
         main(("nudebomb", "-l", "eng,und", "-s", "''", "-S", "-U", "-r", str(TEST_DIR)))
         out_tracks = mkv_tracks(self.dest_path)

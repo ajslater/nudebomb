@@ -6,7 +6,7 @@ PROGRAM_NAME = PACKAGE_NAME = "nudebomb"
 
 
 def get_version() -> str:
-    """Get the current installed comicbox version."""
+    """Get the current installed nudebomb version."""
     try:
         v = version(PACKAGE_NAME)
     except PackageNotFoundError:
