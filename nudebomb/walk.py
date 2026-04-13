@@ -51,7 +51,7 @@ class Walk:
         if self._config.after:
             mtime: float | None = self._config.after
         elif self._timestamps:
-            mtime = self._timestamps.get(top_path, {}).get(path)
+            mtime = self._timestamps.get_timestamp(top_path, path)
         else:
             mtime = None
 
@@ -114,7 +114,7 @@ class Walk:
             self.walk_file(top_path, path)
 
         if self._timestamps:
-            self._timestamps.compact(top_path, dir_path)
+            self._timestamps.set(top_path, dir_path, compact=True)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
