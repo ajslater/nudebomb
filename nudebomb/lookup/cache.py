@@ -84,6 +84,7 @@ class LookupCache:
         except (json.JSONDecodeError, OSError):
             return None
 
+        ic(data)
         entry = CacheEntry(**data)
         if entry.is_expired(self._cache_expiry_days):
             path.unlink(missing_ok=True)

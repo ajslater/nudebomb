@@ -25,7 +25,6 @@ _NOISE_CUTOFF: Final = re.compile(
 )
 
 _DELIMITERS: Final = re.compile(r"[._\s]+")
-_CLEAN_TRIM: Final = re.compile(r"^\s*[-\u2013\u2014\s]+|\s*[-\u2013\u2014\s]+$")
 
 # ID tags in curly braces: {tmdb-272}, {imdb-tt0372784}, {tvdb-12345}
 _TMDB_ID_PATTERN: Final = re.compile(r"\{tmdb-(\d+)\}")
@@ -68,22 +67,16 @@ def _extract_ids(stem: str) -> tuple[str, str, str, str]:
     return cleaned, tmdb_id, imdb_id, tvdb_id
 
 
-def _parse_tv_title(normalized: str) -> str:
-    """Extract TV series name by truncating before the episode marker."""
-    episode_match = _EPISODE_PATTERN.search(normalized)
-    if episode_match:
-        # Series name is everything before the " - S01E02" segment.
-        # Walk backwards from the episode match to find the separator.
-        title = normalized[: episode_match.start()]
+def _strip_noise_from_title(normalized: str) -> str:
+    # No episode marker found; fall back to noise cutoff
+    if noise_match := _NOISE_CUTOFF.search(normalized):
+        title = normalized[: noise_match.start()]
     else:
-        # No episode marker found; fall back to noise cutoff
-        noise_match = _NOISE_CUTOFF.search(normalized)
-        title = normalized[: noise_match.start()] if noise_match else normalized
-    return _CLEAN_TRIM.sub("", title).strip()
+        title = normalized
+    return title
 
 
-def _parse_movie_title(normalized: str) -> tuple[str, str]:
-    """Extract movie title and year."""
+def _parse_title_without_noise(normalized: str) -> tuple[str, str]:
     title = normalized
     year = ""
 
@@ -91,23 +84,39 @@ def _parse_movie_title(normalized: str) -> tuple[str, str]:
     if year_match:
         year = year_match.group(1)
         title = normalized[: year_match.start()]
-    else:
-        noise_match = _NOISE_CUTOFF.search(normalized)
-        if noise_match:
-            title = normalized[: noise_match.start()]
 
     # Strip trailing punctuation like "(" left over from "(2024)"
-    clean_title = _CLEAN_TRIM.sub("", title).strip().rstrip("(").strip()
+    clean_title = title.strip().rstrip("(").strip()
     return clean_title, year
+
+
+def _parse_tv_episode_matched_title(normalized: str) -> str:
+    episode_match = _EPISODE_PATTERN.search(normalized)
+    if episode_match:
+        # Series name is everything before the " - S01E02" segment.
+        # Walk backwards from the episode match to find the separator.
+        return normalized[: episode_match.start()].strip()
+    return ""
+
+
+def _parse_tv_title(normalized: str) -> tuple[str, str]:
+    """Extract TV series name by truncating before the episode marker."""
+    title = _parse_tv_episode_matched_title(normalized)
+    if not title:
+        title = _strip_noise_from_title(normalized)
+    return _parse_title_without_noise(title)
+
+
+def _parse_movie_title(normalized: str) -> tuple[str, str]:
+    """Extract movie title and year."""
+    title = _strip_noise_from_title(normalized)
+    return _parse_title_without_noise(title)
 
 
 def _parse_generic_title(normalized: str) -> tuple[str, str]:
     """Parse title when media type is unknown. Detect TV patterns first."""
-    episode_match = _EPISODE_PATTERN.search(normalized)
-    if episode_match:
-        # Looks like a TV episode
-        title = normalized[: episode_match.start()]
-        return _CLEAN_TRIM.sub("", title).strip(), ""
+    if title := _parse_tv_episode_matched_title(normalized):
+        return _parse_title_without_noise(title)
 
     # Fall back to movie-style parsing
     return _parse_movie_title(normalized)
@@ -133,8 +142,7 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
 
     match media_type:
         case "tv":
-            title = _parse_tv_title(normalized)
-            year = ""
+            title, year = _parse_tv_title(normalized)
         case "movie":
             title, year = _parse_movie_title(normalized)
         case _:
