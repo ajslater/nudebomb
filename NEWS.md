@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.0.1
+
+- Fix possible treestamps bug
+
 ## v1.0.0
 
 - Fetch media file language from tmdb. You don't have to use lang files if your
