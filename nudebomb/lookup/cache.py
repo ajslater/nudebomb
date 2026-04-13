@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Final
 
+from platformdirs import user_cache_dir
+
 from nudebomb.lookup.util import format_title_year
 from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
@@ -54,12 +56,9 @@ class LookupCache:
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # File cache root
-        config_dir = Path.home() / f".config/{PROGRAM_NAME}"
-        self._cache_root: Path = config_dir / "cache"
+        self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME), ensure_exists=True)
         for media_type in _MEDIA_TYPES:
             (self._cache_root / media_type).mkdir(parents=True, exist_ok=True)
-        # Keep the root for untyped lookups
-        self._cache_root.mkdir(parents=True, exist_ok=True)
 
     def _cache_dir(self, media_type: str) -> Path:
         """Return the cache directory for a given media type."""
