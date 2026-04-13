@@ -65,33 +65,6 @@ nudebomb [options] path [path ...]
 Paths can be individual MKV files or directories. Use `-r` to recurse into
 directories.
 
-### Options
-
-| Flag | Long                           | Description                                                                                                    |
-| ---- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `-l` | `--languages`                  | Comma-separated audio & subtitle languages to keep (ISO 639 codes). Required.                                  |
-| `-s` | `--sub-languages`              | Comma-separated subtitle-specific languages. Overrides `--languages` for subtitles.                            |
-| `-r` | `--recurse`                    | Recurse into directories.                                                                                      |
-| `-d` | `--dry-run`                    | Preview changes without modifying files.                                                                       |
-| `-v` | `--verbose`                    | Increase verbosity. Use `-vv` for maximum detail.                                                              |
-| `-q` | `--quiet`                      | Suppress all output.                                                                                           |
-| `-u` | `--und-language`               | Relabel `und` (undetermined) tracks to the given language code during remux.                                   |
-| `-U` | `--strip-und-language`         | Strip `und` tracks instead of keeping them. By default, `und` tracks are kept.                                 |
-| `-S` | `--no-subtitles`               | Strip all subtitles when none match the specified languages. By default, all subtitles are kept if none match. |
-| `-T` | `--no-title`                   | Do not rewrite the MKV metadata title with the filename stem.                                                  |
-| `-L` | `--no-symlinks`                | Do not follow symlinks.                                                                                        |
-| `-i` | `--ignore`                     | Comma-separated list of glob patterns to ignore.                                                               |
-| `-t` | `--timestamps`                 | Track file modification times to skip unchanged files on subsequent runs.                                      |
-| `-C` | `--timestamps-no-check-config` | Skip config comparison when loading timestamps.                                                                |
-| `-A` | `--after`                      | Only process files modified after this timestamp (epoch or datetime string).                                   |
-| `-b` | `--mkvmerge-bin`               | Path to the `mkvmerge` binary.                                                                                 |
-| `-c` | `--config`                     | Path to an alternate YAML config file.                                                                         |
-| `-m` | `--media-type`                 | Media type hint: `movie` or `tv`. Improves online lookup accuracy.                                             |
-|      | `--tmdb-api-key`               | TMDB API key for online language lookup.                                                                       |
-|      | `--tvdb-api-key`               | TVDB API key for TV series language lookup.                                                                    |
-|      | `--cache-expiry-days`          | Days before no-result cache entries expire and are re-queried. Default: 30.                                    |
-| `-V` | `--version`                    | Show version and exit.                                                                                         |
-
 ## Configuration
 
 Nudebomb is configured through three layers, each overriding the previous:
@@ -153,7 +126,7 @@ top-level path, and any online lookup results.
 ```text
 /mnt/tv/
   .lang          # contains: eng
-  Breaking Bad/
+  GI Robot/
     Season 1/
       episode.mkv    # keeps: eng, und
   Anime Show/
@@ -197,18 +170,17 @@ best results, use standard naming conventions:
 
 You can embed database IDs in curly braces for exact matching:
 
-- `{tmdb-550}` — TMDB ID
-- `{imdb-tt0137523}` — IMDB ID (looked up via TMDB)
-- `{tvdb-81189}` — TVDB ID
+- `{tmdb-696}` — TMDB ID
+- `{imdb-tt022345}` — IMDB ID (looked up via TMDB)
+- `{tvdb-5780}` — TVDB ID
 
-Example: `Breaking Bad {tvdb-81189} S01E01.mkv`
+Example: `{tvdb-1234} S01E01.mkv`
 
 ### Caching
 
-Lookup results are cached in `~/.config/nudebomb/cache/` to avoid redundant API
-calls. Cache entries with a found language never expire. Entries where no
-language was found expire after `--cache-expiry-days` (default: 30) and are
-re-queried.
+Lookup results are cached in `~/.cache/nudebomb/` to avoid redundant API calls.
+Cache entries with a found language never expire. Entries where no language was
+found expire after `--cache-expiry-days` (default: 30) and are re-queried.
 
 ## Dot Color Key
 
