@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Final
 
 # Looks for a 4-digit year (1900-2099)
-_YEAR_PATTERN: Final = re.compile(r"\b((?:19|20)\d{2})\b")
+_YEAR_PATTERN: Final = re.compile(r"\b\(((?:1[89]|20)\d{2})\)\b")
 
 # TV episode markers: S01E02, 1x02, etc.
 _EPISODE_PATTERN: Final = re.compile(
