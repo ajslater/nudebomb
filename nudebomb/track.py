@@ -1,5 +1,6 @@
 """MKV Track metadata."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from typing_extensions import override
@@ -8,7 +9,7 @@ from typing_extensions import override
 class Track:
     """MKV track metadata."""
 
-    def __init__(self, track_data: dict[str, Any]) -> None:
+    def __init__(self, track_data: Mapping[str, Any]) -> None:
         """Initialize."""
         self.type: str = track_data["type"]
         self.id: int = track_data["id"]

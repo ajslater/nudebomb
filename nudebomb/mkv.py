@@ -246,7 +246,7 @@ class MKVFile:
         try:
             self._printer.work_manifest(output)
             if self._config.dry_run:
-                self._printer.dry_run("\tNot remuxing on dry run {self.path}")
+                self._printer.dry_run(f"\tNot remuxing on dry run {self.path}")
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)

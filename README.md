@@ -1,24 +1,14 @@
 # Nudebomb
 
-The Nudebomb recursively strips matroska media files of unwanted audio and
-subtitle tracks.
+Nudebomb recursively strips MKV (Matroska) files of unwanted audio and subtitle
+tracks, keeping only the languages you specify.
 
-## 📰 News
-
-You may find user focused nudebomb changes in the
-[NEWS file](https://github.com/ajslater/nudebomb/tree/NEWS.md).
-
-## 🕸️ HTML Docs
-
-[HTML formatted docs are available here](https://nudebomb.readthedocs.io)
-
-## 📦 Installation
+## Installation
 
 ### Requirements
 
-- [MKVToolNix](https://mkvtoolnix.download/)
-
-Widely available via homebrew, apt or your favorite package manager..
+- [MKVToolNix](https://mkvtoolnix.download/) — provides the `mkvmerge` binary.
+  Available via Homebrew, apt, or your favorite package manager.
 
 ### Install
 
@@ -26,23 +16,34 @@ Widely available via homebrew, apt or your favorite package manager..
 pip install nudebomb
 ```
 
-## ⌨️ Use
-
-### Posix
-
-Strip languages that are not English and French from an entire directory tree:
+Or with [uv](https://docs.astral.sh/uv/):
 
 ```sh
-nudebomb -rl eng,fre /mnt/movies
+uv tool install nudebomb
 ```
 
-Show possible stripping actions on a single movie without doing anything:
+## Quick Start
+
+Strip all non-English tracks from a directory tree:
+
+```sh
+nudebomb -rl eng /mnt/movies
+```
+
+Keep English and French, recurse, and use timestamps to skip already-processed
+files:
+
+```sh
+nudebomb -rtl eng,fra /mnt/movies
+```
+
+Dry run on a single file to preview what would be stripped:
 
 ```sh
 nudebomb -dvvl eng movie.mkv
 ```
 
-```txt
+```text
 Stripping languages except eng, und.
 Searching for MKV files to process:
 Checking movie.mkv
@@ -55,62 +56,181 @@ Checking movie.mkv
 done.
 ```
 
-### Windows
+## Usage
 
-```powershell
-nudebomb -b C:\\Program/ Files\MKVToolNix\mkvmerge.exe -rl eng,jap \\nas\movies
+```text
+nudebomb [options] path [path ...]
 ```
 
-## 🎛️ Configuration
-
-You may configure Nudebomb options via the command, a yaml config file and
-environment variables.
-
-### Environment variable format
-
-Prefix environment variables with `NUDEBOMB_NUDEBOMB__` and enumerate lists
-elements:
-
-```sh
-NUDEBOMB_NUDEBOMB__RECURSE=True
-NUDEBOMB_NUDEBOMB__LANGUAGES__0=und
-NUDEBOMB_NUDEBOMB__LANGUAGES__1=eng
-```
-
-## ⌨️ Lang Files
-
-While you may have a primary language, you probably want videos from other
-countries to keep their native language as well. Lang files let you do this.
-
-Lang files are persistent files on disk that nudebomb parses to keep to all
-languages in them in the mkvs in the current directory and all mkvs in sub
+Paths can be individual MKV files or directories. Use `-r` to recurse into
 directories.
 
-Valid lang file names are: 'lang', 'langs', '.lang', or '.langs' They include
-comma separated list of languages to keep like the `-l` option.
+### Options
 
-e.g. You may have an entire collection of different TV shows with a root lang
-file containing the `eng` language. Under that directory you may have a specific
-TV show directory with lang file containing `jpn`. All mkvs in season
-directories under that would then keep both the `eng` and `jpn` languages, while
-other TV shows would keep only `eng` languages.
+| Flag | Long                           | Description                                                                                                    |
+| ---- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `-l` | `--languages`                  | Comma-separated audio & subtitle languages to keep (ISO 639 codes). Required.                                  |
+| `-s` | `--sub-languages`              | Comma-separated subtitle-specific languages. Overrides `--languages` for subtitles.                            |
+| `-r` | `--recurse`                    | Recurse into directories.                                                                                      |
+| `-d` | `--dry-run`                    | Preview changes without modifying files.                                                                       |
+| `-v` | `--verbose`                    | Increase verbosity. Use `-vv` for maximum detail.                                                              |
+| `-q` | `--quiet`                      | Suppress all output.                                                                                           |
+| `-u` | `--und-language`               | Relabel `und` (undetermined) tracks to the given language code during remux.                                   |
+| `-U` | `--strip-und-language`         | Strip `und` tracks instead of keeping them. By default, `und` tracks are kept.                                 |
+| `-S` | `--no-subtitles`               | Strip all subtitles when none match the specified languages. By default, all subtitles are kept if none match. |
+| `-T` | `--no-title`                   | Do not rewrite the MKV metadata title with the filename stem.                                                  |
+| `-L` | `--no-symlinks`                | Do not follow symlinks.                                                                                        |
+| `-i` | `--ignore`                     | Comma-separated list of glob patterns to ignore.                                                               |
+| `-t` | `--timestamps`                 | Track file modification times to skip unchanged files on subsequent runs.                                      |
+| `-C` | `--timestamps-no-check-config` | Skip config comparison when loading timestamps.                                                                |
+| `-A` | `--after`                      | Only process files modified after this timestamp (epoch or datetime string).                                   |
+| `-b` | `--mkvmerge-bin`               | Path to the `mkvmerge` binary.                                                                                 |
+| `-c` | `--config`                     | Path to an alternate YAML config file.                                                                         |
+| `-m` | `--media-type`                 | Media type hint: `movie` or `tv`. Improves online lookup accuracy.                                             |
+|      | `--tmdb-api-key`               | TMDB API key for online language lookup.                                                                       |
+|      | `--tvdb-api-key`               | TVDB API key for TV series language lookup.                                                                    |
+|      | `--cache-expiry-days`          | Days before no-result cache entries expire and are re-queried. Default: 30.                                    |
+| `-V` | `--version`                    | Show version and exit.                                                                                         |
 
-For each mkv file, nudebomb looks up the directory tree for each parent lang
-file and uses the union of all languages found to determine what languages to
-keep.
+## Configuration
 
-### APIs
+Nudebomb is configured through three layers, each overriding the previous:
 
-Langfiles would be obsolete if nudebomb could determine native languages for mkv
-files by polling and caching results from major online media databases. It's the
-right thing to do, but I don't care to implement it. Patches or forks welcome.
+1. **YAML config file** — `~/.config/nudebomb/config.yaml`
+2. **Environment variables**
+3. **Command-line arguments**
 
-## 💡 Inspiration
+### Config File
+
+```yaml
+nudebomb:
+    languages:
+        - eng
+        - und
+    recurse: true
+    timestamps: true
+    media_type: movie
+    tmdb_api_key: your-api-key-here
+    tvdb_api_key: your-api-key-here
+```
+
+All command-line options have config file equivalents. Use `-c` to specify an
+alternate config file path.
+
+### Environment Variables
+
+Prefix with `NUDEBOMB_NUDEBOMB__`. List items are enumerated:
+
+```sh
+export NUDEBOMB_NUDEBOMB__RECURSE=True
+export NUDEBOMB_NUDEBOMB__LANGUAGES__0=eng
+export NUDEBOMB_NUDEBOMB__LANGUAGES__1=fra
+export NUDEBOMB_NUDEBOMB__TMDB_API_KEY=your-api-key-here
+```
+
+## Lang Files
+
+Lang files let you specify additional languages to keep on a per-directory
+basis. This is useful when your collection spans multiple languages — you want
+most content to keep English, but a specific show to also keep Japanese.
+
+### How They Work
+
+Place a file named `lang`, `langs`, `.lang`, or `.langs` in any directory. The
+file contains a comma-separated list of ISO 639 language codes:
+
+```text
+jpn
+```
+
+Nudebomb walks up the directory tree from each MKV file, collecting languages
+from every lang file it finds. The final set of languages to keep is the union
+of `--languages`, all lang file languages from the current directory up to the
+top-level path, and any online lookup results.
+
+### Example
+
+```text
+/mnt/tv/
+  .lang          # contains: eng
+  Breaking Bad/
+    Season 1/
+      episode.mkv    # keeps: eng, und
+  Anime Show/
+    .lang            # contains: jpn
+    Season 1/
+      episode.mkv    # keeps: eng, jpn, und
+```
+
+## Online Language Lookup
+
+When no lang files contribute additional languages for a file, nudebomb can look
+up the original language of the media from online databases and add it to the
+languages to keep. This requires an API key.
+
+### TMDB (The Movie Database)
+
+Works for both movies and TV series. Get an API key at
+[themoviedb.org](https://www.themoviedb.org/settings/api).
+
+```sh
+nudebomb -rl eng --tmdb-api-key YOUR_KEY --media-type movie /mnt/movies
+```
+
+### TVDB (TheTVDB)
+
+Specialized for TV series. Get an API key at
+[thetvdb.com](https://thetvdb.com/dashboard/account/apikeys). When both keys are
+configured and `--media-type tv` is set, TVDB is tried first for TV content.
+
+```sh
+nudebomb -rl eng --tvdb-api-key YOUR_KEY --media-type tv /mnt/tv
+```
+
+### Filename Parsing
+
+Nudebomb parses media filenames to extract titles, years, and database IDs. For
+best results, use standard naming conventions:
+
+- **Movies**: `Movie Title (2024).mkv` or `Movie.Title.2024.BluRay.mkv`
+- **TV**: `Show Name S01E02.mkv` or `Show.Name.1x02.mkv`
+
+You can embed database IDs in curly braces for exact matching:
+
+- `{tmdb-550}` — TMDB ID
+- `{imdb-tt0137523}` — IMDB ID (looked up via TMDB)
+- `{tvdb-81189}` — TVDB ID
+
+Example: `Breaking Bad {tvdb-81189} S01E01.mkv`
+
+### Caching
+
+Lookup results are cached in `~/.config/nudebomb/cache/` to avoid redundant API
+calls. Cache entries with a found language never expire. Entries where no
+language was found expire after `--cache-expiry-days` (default: 30) and are
+re-queried.
+
+## Dot Color Key
+
+When running at default verbosity, nudebomb prints single characters to indicate
+progress:
+
+| Char        | Meaning                                               |
+| ----------- | ----------------------------------------------------- |
+| `.`         | MKV skipped (ignored, already stripped, or cache hit) |
+| `.` (green) | Skipped because timestamp unchanged                   |
+| `O`         | Online lookup succeeded                               |
+| `x`         | Online lookup returned no result                      |
+| `X`         | Online lookup error or rate limited                   |
+
+Use `-vv` for full text descriptions instead of dots.
+
+## Development
+
+Source code is hosted at [GitHub](https://github.com/ajslater/nudebomb).
+
+## Inspiration
 
 Nudebomb is a radical fork of [mkvstrip](https://github.com/willforde/mkvstrip).
-It adds recursion, lang files, timestamps and more configuration to mkvstrip and
-fixes some minor bugs.
-
-## 🛠️ Development
-
-Nudebomb code is hosted at [Github](https://github.com/ajslater/nudebomb)
+It adds recursion, lang files, timestamps, online language lookup, and more
+configuration options.

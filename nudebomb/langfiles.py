@@ -13,18 +13,20 @@ LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
 
 
 def lang_to_alpha3(lang: str) -> str:
-    """Convert languages to ISO-639-1 (alpha2) format."""
+    """Convert a language code to ISO 639-3 (alpha3) format."""
     if not lang:
-        lang = "und"
-    elif len(lang) == 3:  # noqa: PLR2004
-        pass
-    elif len(lang) == 2:  # noqa: PLR2004
-        with suppress(Exception):
-            if lo := pycountry.languages.get(alpha_2=lang):
-                lang = lo.alpha_3
-    else:
-        Printer(2).warn(f"Languages should be in two or three letter format: {lang}")
-
+        return "und"
+    match len(lang):
+        case 3:
+            return lang
+        case 2:
+            with suppress(Exception):
+                if lo := pycountry.languages.get(alpha_2=lang):
+                    return lo.alpha_3
+        case _:
+            Printer(2).warn(
+                f"Languages should be in two or three letter format: {lang}"
+            )
     return lang
 
 
@@ -49,12 +51,12 @@ class LangFiles:
         ):
             # ignore is already handled before we get here in walk.py
             return
-        newlangs = set()
-        with langpath.open("r") as langfile:
-            for line in langfile:
-                for lang in line.strip().split(","):
-                    newlang = lang_to_alpha3(lang.strip())
-                    newlangs.add(newlang)
+        newlangs = {
+            lang_to_alpha3(lang.strip())
+            for line in langpath.read_text().splitlines()
+            for lang in line.strip().split(",")
+            if lang.strip()
+        }
         if self._config.verbose > 1:
             newlangs_str = " ,".join(sorted(newlangs))
             self._printer.config(f"Also keeping {newlangs_str} for {path}")

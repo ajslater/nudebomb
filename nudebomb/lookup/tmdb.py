@@ -9,7 +9,7 @@ from requests.exceptions import HTTPError
 
 from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import ParseResult, parse_title
-from nudebomb.lookup.util import resolve_language, title_str
+from nudebomb.lookup.util import format_title_year, resolve_language
 from nudebomb.printer import Printer
 
 _RATE_LIMIT_STATUS: Final = 429
@@ -22,7 +22,7 @@ class TMDBLookup:
         """Initialize."""
         self._printer: Printer = Printer(config.verbose)
         tmdb.API_KEY = config.tmdb_api_key
-        self._cache = LookupCache(self._printer)
+        self._cache = LookupCache(self._printer, config.cache_expiry_days)
         self._media_type: str = config.media_type
 
     def _search_tmdb(
@@ -85,6 +85,11 @@ class TMDBLookup:
                 return results[0]
         return None
 
+    @staticmethod
+    def _extract_db_id(result: dict) -> str:
+        """Extract the database ID from a TMDB result."""
+        return str(result.get("id", ""))
+
     def _query_api(self, title: str, year: str, parsed: ParseResult) -> dict | None:
         """Query TMDB API, returning raw result or empty dict on error."""
         try:
@@ -93,21 +98,17 @@ class TMDBLookup:
             return self._search_tmdb(title, year)
         except HTTPError as exc:
             response = exc.response
-            title_string = title_str(title, year)
+            title_year = format_title_year(title, year)
             if response is not None and response.status_code == _RATE_LIMIT_STATUS:
                 self._printer.lookup_rate_limited(
-                    f"TMDB rate limited for '{title_string}'"
+                    f"TMDB rate limited for '{title_year}'"
                 )
             else:
-                self._printer.lookup_error(
-                    f"TMDB HTTP error for '{title_string}': {exc}"
-                )
+                self._printer.lookup_error(f"TMDB HTTP error for '{title_year}': {exc}")
             return {}
         except Exception as exc:
-            title_string = title_str(title, year)
-            self._printer.lookup_error(
-                f"TMDB lookup failed for '{title_string}': {exc}"
-            )
+            title_year = format_title_year(title, year)
+            self._printer.lookup_error(f"TMDB lookup failed for '{title_year}': {exc}")
             return {}
 
     def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
@@ -116,18 +117,24 @@ class TMDBLookup:
         if not result:
             return None
 
-        lang = resolve_language(result)
+        lang = resolve_language(result) or ""
         media_type = result.get("media_type", "")
         if parsed.title:
-            self._cache.save_file(media_type, parsed.title, parsed.year, result)
-            self._cache.set_mem(media_type, parsed.title, parsed.year, lang)
+            self._cache.save_file(
+                media_type,
+                parsed.title,
+                parsed.year,
+                db_id=self._extract_db_id(result),
+                language=lang,
+            )
+            self._cache.set_mem(media_type, parsed.title, parsed.year, lang or None)
 
         id_str = parsed.tmdb_id or parsed.imdb_id
         if lang:
             self._printer.lookup_hit(f"TMDB ID {id_str}: original language: {lang}")
         else:
             self._printer.lookup_no_result(f"TMDB ID {id_str}: no result found")
-        return lang
+        return lang or None
 
     def _lookup_by_title_language(
         self, title: str, year: str, parsed: ParseResult
@@ -145,19 +152,25 @@ class TMDBLookup:
             return None
 
         if result is not None:
+            lang = resolve_language(result) or ""
             result_media_type = result.get("media_type", "")
-            self._cache.save_file(result_media_type or cache_type, title, year, result)
-            lang = resolve_language(result)
+            self._cache.save_file(
+                result_media_type or cache_type,
+                title,
+                year,
+                db_id=self._extract_db_id(result),
+                language=lang,
+            )
         else:
-            self._cache.save_file(cache_type, title, year, {})
-            lang = None
+            self._cache.save_file(cache_type, title, year)
+            lang = ""
 
-        self._cache.set_mem(cache_type, title, year, lang)
+        self._cache.set_mem(cache_type, title, year, lang or None)
         if lang:
             self._printer.lookup_hit(f"TMDB: '{title}' original language: {lang}")
         else:
             self._printer.lookup_no_result(f"TMDB: '{title}' no result found")
-        return lang
+        return lang or None
 
     def lookup_language(self, path: Path) -> str | None:
         """

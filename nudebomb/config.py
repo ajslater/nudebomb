@@ -21,6 +21,7 @@ TEMPLATE: Final = MappingTemplate(
         PROGRAM_NAME: MappingTemplate(
             {
                 "after": Optional(str),
+                "cache_expiry_days": Integer(),
                 "dry_run": bool,
                 "ignore": Sequence(str),
                 "languages": Sequence(str),
