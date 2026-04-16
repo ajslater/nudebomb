@@ -3,11 +3,13 @@ services:
     build:
       context: .
       target: nudebomb-ci
-    image: nudebomb-ci:ci
     container_name: nudebomb-ci
+    entrypoint:
+      - sleep
+      - infinity
+    environment:
+      - PYTHONUNBUFFERED=1
+    image: nudebomb-ci:ci
     volumes:
       - ./test-results:/app/test-results
       - ./dist:/app/dist
-    environment:
-      - PYTHONUNBUFFERED=1
-    entrypoint: [sleep, infinity]
