@@ -1,4 +1,5 @@
 # hadolint ignore=DL3007
+FROM oven/bun:latest AS bun-source
 FROM nikolaik/python-nodejs:python3.14-nodejs24
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -11,9 +12,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+COPY --from=bun-source /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=bun-source /usr/local/bin/bunx /usr/local/bin/bunx
+
 WORKDIR /app
-COPY pyproject.toml uv.lock package.json package-lock.json ./
-RUN npm install
+COPY bun.lock package.json pyproject.toml uv.lock ./
+RUN bun install
 
 COPY . .
 RUN mkdir -p test-results dist
