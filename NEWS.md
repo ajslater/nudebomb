@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.0.3
+
+- More fixes for title parsing.
+
 ## v1.0.2
 
 - Fix title parsing for online lookup.
