@@ -6,7 +6,7 @@ services:
       - infinity
     environment:
       - PYTHONUNBUFFERED=1
-    image: ghcr.io/nudebomb-ci:ci
+    image: ghcr.io/nudebomb-ci
     volumes:
       - ./test-results:/app/test-results
       - ./dist:/app/dist
