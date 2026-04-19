@@ -1,15 +1,12 @@
 services:
   ci:
-    build:
-      context: .
-      target: nudebomb-ci
     container_name: nudebomb-ci
     entrypoint:
       - sleep
       - infinity
     environment:
       - PYTHONUNBUFFERED=1
-    image: nudebomb-ci:ci
+    image: ghcr.io/nudebomb-ci:ci
     volumes:
       - ./test-results:/app/test-results
       - ./dist:/app/dist
