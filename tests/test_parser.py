@@ -7,7 +7,7 @@ from nudebomb.lookup.parser import parse_title
 __all__ = ()
 
 _TV_NO_YEAR = "GI Robot Adventures - S01E02 - the killing.mkv"
-_TV_WITH_YEAR = "GI Robot (2025) - SE02E01 - massacre.mkv"
+_TV_WITH_YEAR = "GI Robot (2025) - S02E01-E02 - massacre.mkv"
 _MOVIE = "Hedgehog Acrobats (1999) Director's Cut 1080p.mkv"
 
 
@@ -22,8 +22,10 @@ class TestParseTV:
         assert result.year == ""
 
     @pytest.mark.parametrize("media_type", ["", "tv"])
-    def test_tv_with_year_and_se_marker(self: "TestParseTV", media_type: str) -> None:
-        """Parse a TV episode filename with a year and SE02E01 marker."""
+    def test_tv_with_year_and_multi_episode_marker(
+        self: "TestParseTV", media_type: str
+    ) -> None:
+        """Parse a TV episode filename with a year and an S01E02-E03 range."""
         result = parse_title(_TV_WITH_YEAR, media_type)
         assert result.title == "GI Robot"
         assert result.year == "2025"

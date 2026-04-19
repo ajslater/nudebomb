@@ -7,9 +7,9 @@ from typing import Final
 # Looks for a 4-digit year (1900-2099) in parentheses
 _YEAR_PATTERN: Final = re.compile(r"\(((?:1[89]|20)\d{2})\)")
 
-# TV episode markers: S01E02, SE02E01, 1x02, etc.
+# TV episode markers: S01E02, S01E02-E03 (multi-episode), 1x02, etc.
 _EPISODE_PATTERN: Final = re.compile(
-    r"\bSE?\d+E\d+\b|\b\d+X\d+\b",
+    r"\bS\d+E\d+(?:-E\d+)*\b|\b\d+X\d+\b",
     re.IGNORECASE,
 )
 
@@ -20,7 +20,7 @@ _IGNORE_PATTERN: Final = re.compile(
 
 # General noise markers to truncate the title if no year is found
 _NOISE_CUTOFF: Final = re.compile(
-    r"\b(se?\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\{]",
+    r"\b(s\d+e\d+(?:-e\d+)*|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\{]",
     re.IGNORECASE,
 )
 
