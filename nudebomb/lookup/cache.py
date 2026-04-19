@@ -56,7 +56,7 @@ class LookupCache:
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # File cache root
-        self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME), ensure_exists=True)
+        self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME))
         for media_type in _MEDIA_TYPES:
             (self._cache_root / media_type).mkdir(parents=True, exist_ok=True)
 
