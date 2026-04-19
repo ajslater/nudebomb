@@ -19,9 +19,8 @@ _IGNORE_PATTERN: Final = re.compile(
 
 # General noise markers to truncate the title if no year is found
 _NOISE_CUTOFF: Final = re.compile(
-    r"""(?ix)
-    \b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]
-    """,
+    r"\b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]",
+    re.IGNORECASE,
 )
 
 _DELIMITERS: Final = re.compile(r"[._\s]+")
