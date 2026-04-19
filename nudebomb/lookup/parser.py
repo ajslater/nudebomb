@@ -4,12 +4,12 @@ import re
 from dataclasses import dataclass
 from typing import Final
 
-# Looks for a 4-digit year (1900-2099)
-_YEAR_PATTERN: Final = re.compile(r"\b\(((?:1[89]|20)\d{2})\)\b")
+# Looks for a 4-digit year (1900-2099) in parentheses
+_YEAR_PATTERN: Final = re.compile(r"\(((?:1[89]|20)\d{2})\)")
 
-# TV episode markers: S01E02, 1x02, etc.
+# TV episode markers: S01E02, S01E02-E03 (multi-episode), 1x02, etc.
 _EPISODE_PATTERN: Final = re.compile(
-    r"\bS\d+E\d+\b|\b\d+X\d+\b",
+    r"\bS\d+E\d+(?:-E\d+)*\b|\b\d+X\d+\b",
     re.IGNORECASE,
 )
 
@@ -20,11 +20,14 @@ _IGNORE_PATTERN: Final = re.compile(
 
 # General noise markers to truncate the title if no year is found
 _NOISE_CUTOFF: Final = re.compile(
-    r"\b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\{]",
+    r"\b(s\d+e\d+(?:-e\d+)*|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\{]",
     re.IGNORECASE,
 )
 
 _DELIMITERS: Final = re.compile(r"[\._\s]+")
+
+# Trailing separator characters left behind after cutting the title
+_TRAILING_JUNK: Final = re.compile(r"[\s\-_(]+$")
 
 # ID tags in curly braces: {tmdb-272}, {imdb-tt0372784}, {tvdb-12345}
 _TMDB_ID_PATTERN: Final = re.compile(r"\{tmdb-(\d+)\}")
@@ -80,13 +83,11 @@ def _parse_title_without_noise(normalized: str) -> tuple[str, str]:
     title = normalized
     year = ""
 
-    year_match = _YEAR_PATTERN.search(normalized)
-    if year_match:
+    if year_match := _YEAR_PATTERN.search(normalized):
         year = year_match.group(1)
         title = normalized[: year_match.start()]
 
-    # Strip trailing punctuation like "(" left over from "(2024)"
-    clean_title = title.strip().rstrip("(").strip()
+    clean_title = _TRAILING_JUNK.sub("", title.strip())
     return clean_title, year
 
 
@@ -100,7 +101,8 @@ def _parse_tv_episode_matched_title(normalized: str) -> str:
 
 def _parse_tv_title(normalized: str) -> tuple[str, str]:
     """Extract TV series name by truncating before the episode marker."""
-    if title := _parse_tv_episode_matched_title(normalized):
+    title = _parse_tv_episode_matched_title(normalized)
+    if not title:
         title = _strip_noise_from_title(normalized)
     return _parse_title_without_noise(title)
 
