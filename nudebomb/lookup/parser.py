@@ -9,7 +9,8 @@ _YEAR_PATTERN: Final = re.compile(r"\b\(((?:1[89]|20)\d{2})\)\b")
 
 # TV episode markers: S01E02, 1x02, etc.
 _EPISODE_PATTERN: Final = re.compile(
-    r"\b[Ss]\d+[Ee]\d+\b|\b\d+[Xx]\d+\b",
+    r"\bS\d+E\d+\b|\b\d+X\d+\b",
+    re.IGNORECASE,
 )
 
 _IGNORE_PATTERN: Final = re.compile(
@@ -19,11 +20,11 @@ _IGNORE_PATTERN: Final = re.compile(
 
 # General noise markers to truncate the title if no year is found
 _NOISE_CUTOFF: Final = re.compile(
-    r"\b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\(\{]",
+    r"\b(s\d+e\d+|\d+x\d+|480p|720p|1080p|2160p|4k|uhd|hdtv|bluray|web-?dl|remux|x264|h264|x265|hevc)\b|[\[\{]",
     re.IGNORECASE,
 )
 
-_DELIMITERS: Final = re.compile(r"[._\s]+")
+_DELIMITERS: Final = re.compile(r"[\._\s]+")
 
 # ID tags in curly braces: {tmdb-272}, {imdb-tt0372784}, {tvdb-12345}
 _TMDB_ID_PATTERN: Final = re.compile(r"\{tmdb-(\d+)\}")
@@ -90,8 +91,7 @@ def _parse_title_without_noise(normalized: str) -> tuple[str, str]:
 
 
 def _parse_tv_episode_matched_title(normalized: str) -> str:
-    episode_match = _EPISODE_PATTERN.search(normalized)
-    if episode_match:
+    if episode_match := _EPISODE_PATTERN.search(normalized):
         # Series name is everything before the " - S01E02" segment.
         # Walk backwards from the episode match to find the separator.
         return normalized[: episode_match.start()].strip()
@@ -100,8 +100,7 @@ def _parse_tv_episode_matched_title(normalized: str) -> str:
 
 def _parse_tv_title(normalized: str) -> tuple[str, str]:
     """Extract TV series name by truncating before the episode marker."""
-    title = _parse_tv_episode_matched_title(normalized)
-    if not title:
+    if title := _parse_tv_episode_matched_title(normalized):
         title = _strip_noise_from_title(normalized)
     return _parse_title_without_noise(title)
 
@@ -148,3 +147,10 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
             title, year = _parse_generic_title(normalized)
 
     return ParseResult(title=title, year=year, tmdb_id="", imdb_id="", tvdb_id="")
+
+
+if __name__ == "__main__":
+    import sys
+
+    title = _parse_tv_title(sys.argv[1])
+    print(title)  # noqa: T201
