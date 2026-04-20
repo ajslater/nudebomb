@@ -60,20 +60,26 @@ class TVDBLookup:
 
     def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
         """Look up language by TVDB ID, bypassing title-based caching."""
+        if parsed.tvdb_id:
+            found, cached_lang = self._cache.check_id_cache(
+                "tv", "tvdb", parsed.tvdb_id
+            )
+            if found:
+                return cached_lang
+
         result = self._query_api("", parsed)
         if not result:
             return None
 
         lang = self._resolve_language(result) or ""
-        if parsed.title:
-            self._cache.save_file(
+        if parsed.tvdb_id:
+            self._cache.save_id(
                 "tv",
-                parsed.title,
-                "",
+                "tvdb",
+                parsed.tvdb_id,
                 db_id=self._extract_db_id(result),
                 language=lang,
             )
-            self._cache.set_mem("tv", parsed.title, "", lang or None)
 
         if lang:
             self._printer.lookup_hit(

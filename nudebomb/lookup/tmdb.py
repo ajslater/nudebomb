@@ -111,23 +111,42 @@ class TMDBLookup:
             self._printer.lookup_error(f"TMDB lookup failed for '{title_year}': {exc}")
             return {}
 
+    def _id_lookup_keys(self, parsed: ParseResult) -> list[tuple[str, str]]:
+        """Return (id_type, id_value) pairs present on the parse result."""
+        keys: list[tuple[str, str]] = []
+        if parsed.tmdb_id:
+            keys.append(("tmdb", parsed.tmdb_id))
+        if parsed.imdb_id:
+            keys.append(("imdb", parsed.imdb_id))
+        return keys
+
+    def _check_id_caches(self, parsed: ParseResult) -> tuple[bool, str | None]:
+        """Check caches for any known ID across both media types."""
+        for id_type, id_value in self._id_lookup_keys(parsed):
+            for media_type in ("movie", "tv"):
+                found, lang = self._cache.check_id_cache(media_type, id_type, id_value)
+                if found:
+                    return True, lang
+        return False, None
+
     def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
         """Look up language by TMDB/IMDB ID, bypassing title-based caching."""
+        found, cached_lang = self._check_id_caches(parsed)
+        if found:
+            return cached_lang
+
         result = self._query_api("", "", parsed)
         if not result:
             return None
 
         lang = resolve_language(result) or ""
         media_type = result.get("media_type", "")
-        if parsed.title:
-            self._cache.save_file(
-                media_type,
-                parsed.title,
-                parsed.year,
-                db_id=self._extract_db_id(result),
-                language=lang,
-            )
-            self._cache.set_mem(media_type, parsed.title, parsed.year, lang or None)
+        db_id = self._extract_db_id(result)
+        if media_type:
+            for id_type, id_value in self._id_lookup_keys(parsed):
+                self._cache.save_id(
+                    media_type, id_type, id_value, db_id=db_id, language=lang
+                )
 
         id_str = parsed.tmdb_id or parsed.imdb_id
         if lang:

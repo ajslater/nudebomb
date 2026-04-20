@@ -15,6 +15,7 @@ from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
 _SECONDS_PER_DAY: Final = 86400
+_IDS_SUBDIR: Final = "ids"
 
 
 def _sanitize_cache_key(title: str) -> str:
@@ -55,10 +56,14 @@ class LookupCache:
         self._cache_expiry_days = cache_expiry_days
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
+        # In-memory cache: (media_type, id_type, id_value) -> alpha3 language or None
+        self._id_mem_cache: dict[tuple[str, str, str], str | None] = {}
         # File cache root
         self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME))
         for media_type in _MEDIA_TYPES:
-            (self._cache_root / media_type).mkdir(parents=True, exist_ok=True)
+            (self._cache_root / media_type / _IDS_SUBDIR).mkdir(
+                parents=True, exist_ok=True
+            )
 
     def _cache_dir(self, media_type: str) -> Path:
         """Return the cache directory for a given media type."""
@@ -173,3 +178,97 @@ class LookupCache:
         if found:
             return found, lang
         return False, lang
+
+    def _id_cache_path(self, media_type: str, id_type: str, id_value: str) -> Path:
+        """Return the cache file path for an ID entry."""
+        return self._cache_dir(media_type) / _IDS_SUBDIR / f"{id_type}-{id_value}.json"
+
+    def _load_id_entry(
+        self, media_type: str, id_type: str, id_value: str
+    ) -> CacheEntry | None:
+        """Load an ID cache entry from disk, returning None if missing or expired."""
+        path = self._id_cache_path(media_type, id_type, id_value)
+        if not path.is_file():
+            return None
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
+
+        entry = CacheEntry(**data)
+        if entry.is_expired(self._cache_expiry_days):
+            path.unlink(missing_ok=True)
+            return None
+        return entry
+
+    def save_id(
+        self,
+        media_type: str,
+        id_type: str,
+        id_value: str,
+        *,
+        db_id: str = "",
+        language: str = "",
+        title: str = "",
+        year: str = "",
+    ) -> None:
+        """Save an ID-based entry to both memory and file caches."""
+        self._id_mem_cache[(media_type, id_type, id_value)] = language or None
+        entry = CacheEntry(
+            db_id=db_id,
+            language=language,
+            title=title,
+            year=year,
+        )
+        path = self._id_cache_path(media_type, id_type, id_value)
+        try:
+            path.write_text(json.dumps(asdict(entry), indent=2))
+        except OSError as exc:
+            self._printer.warn(f"Could not write cache: {exc}")
+
+    def _check_id_mem_cache(
+        self, media_type: str, id_type: str, id_value: str
+    ) -> tuple[bool, str | None]:
+        """Check in-memory ID cache. Returns (found, lang)."""
+        key = (media_type, id_type, id_value)
+        if key not in self._id_mem_cache:
+            return False, None
+        lang = self._id_mem_cache[key]
+        id_str = f"{id_type}-{id_value}"
+        if lang:
+            self._printer.lookup_cache_hit(
+                f"Mem cache: '{id_str}' original language: {lang}"
+            )
+        else:
+            self._printer.lookup_no_result(f"Mem cache: '{id_str}' no language found")
+        return True, lang
+
+    def _check_id_file_cache(
+        self, media_type: str, id_type: str, id_value: str
+    ) -> tuple[bool, str | None]:
+        """Check file ID cache. Returns (found, lang)."""
+        entry = self._load_id_entry(media_type, id_type, id_value)
+        if entry is None:
+            return False, None
+        lang = entry.language or None
+        self._id_mem_cache[(media_type, id_type, id_value)] = lang
+        id_str = f"{id_type}-{id_value}"
+        if lang:
+            self._printer.lookup_cache_hit(
+                f"File cache: '{id_str}' original language: {lang}"
+            )
+        else:
+            self._printer.lookup_no_result(f"File cache: '{id_str}' no language found")
+        return True, lang
+
+    def check_id_cache(
+        self, media_type: str, id_type: str, id_value: str
+    ) -> tuple[bool, str | None]:
+        """Check ID caches for a given media type."""
+        found, lang = self._check_id_mem_cache(media_type, id_type, id_value)
+        if found:
+            return found, lang
+        found, lang = self._check_id_file_cache(media_type, id_type, id_value)
+        if found:
+            return found, lang
+        return False, None
