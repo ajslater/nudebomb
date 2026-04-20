@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.0.4
+
+- Cache id lookups as well as title & year lookups.
+
 ## v1.0.3
 
 - More fixes for title parsing.
