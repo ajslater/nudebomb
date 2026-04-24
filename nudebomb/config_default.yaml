@@ -4,6 +4,7 @@ nudebomb:
   dry_run: False
   ignore: []
   languages: null
+  lookup_workers: 4
   media_type: null
   mkvmerge_bin: null
   paths: []

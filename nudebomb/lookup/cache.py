@@ -3,14 +3,15 @@
 import json
 import re
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from threading import Lock
 from typing import Final
 
 from platformdirs import user_cache_dir
 
-from nudebomb.lookup.util import format_title_year
-from nudebomb.printer import Printer
+from nudebomb.lookup.util import LogEvent, format_title_year
 from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
@@ -47,17 +48,41 @@ class CacheEntry:
         return age > expiry_days * _SECONDS_PER_DAY
 
 
-class LookupCache:
-    """File and memory cache for lookups, separated by media type."""
+def _atomic_write_text(path: Path, content: str) -> None:
+    """
+    Write ``content`` to ``path`` via a tmp file + rename.
 
-    def __init__(self, printer: Printer, cache_expiry_days: int = 30) -> None:
+    Each write is all-or-nothing — readers never see a half-written file.
+    A uuid4 suffix keeps concurrent writers to the same target from
+    clobbering each other's tmp files; the final ``replace`` is atomic so
+    last-writer-wins is the worst case.
+    """
+    tmp_path = path.with_suffix(f"{path.suffix}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp_path.write_text(content)
+        tmp_path.replace(path)
+    except OSError:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+class LookupCache:
+    """
+    File and memory cache for lookups, separated by media type.
+
+    Thread-safe: a single lock guards all in-memory cache mutations. File
+    writes go through :func:`_atomic_write_text` so readers never see a
+    torn JSON file.
+    """
+
+    def __init__(self, cache_expiry_days: int = 30) -> None:
         """Initialize."""
-        self._printer = printer
         self._cache_expiry_days = cache_expiry_days
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # In-memory cache: (media_type, id_type, id_value) -> alpha3 language or None
         self._id_mem_cache: dict[tuple[str, str, str], str | None] = {}
+        self._lock: Lock = Lock()
         # File cache root
         self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME))
         for media_type in _MEDIA_TYPES:
@@ -102,8 +127,8 @@ class LookupCache:
         *,
         db_id: str = "",
         language: str = "",
-    ) -> None:
-        """Save a slim cache entry to the file cache."""
+    ) -> list[LogEvent]:
+        """Save a slim cache entry to the file cache. Returns warn events."""
         entry = CacheEntry(
             db_id=db_id,
             language=language,
@@ -112,72 +137,79 @@ class LookupCache:
         )
         path = self._cache_path(media_type, title, year)
         try:
-            path.write_text(json.dumps(asdict(entry), indent=2))
+            _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
-            self._printer.warn(f"Could not write cache: {exc}")
+            return [LogEvent("warn", f"Could not write cache: {exc}")]
+        return []
 
     def get_mem(
         self, media_type: str, title: str, year: str
     ) -> tuple[bool, str | None]:
         """Check memory cache. Returns (found, lang)."""
         key = (media_type, title, year)
-        if key in self._mem_cache:
-            return True, self._mem_cache[key]
+        with self._lock:
+            if key in self._mem_cache:
+                return True, self._mem_cache[key]
         return False, None
 
     def set_mem(self, media_type: str, title: str, year: str, lang: str | None) -> None:
         """Set a value in the memory cache."""
-        self._mem_cache[(media_type, title, year)] = lang
+        with self._lock:
+            self._mem_cache[(media_type, title, year)] = lang
 
     def _check_mem_cache(
         self, media_type: str, title: str, year: str
-    ) -> tuple[bool, str | None]:
-        """Check in-memory cache. Returns (found, lang)."""
+    ) -> tuple[bool, str | None, list[LogEvent]]:
+        """Check in-memory cache. Returns (found, lang, events)."""
         found, lang = self.get_mem(media_type, title, year)
         if not found:
-            return False, None
+            return False, None, []
         title_year = format_title_year(title, year)
         if lang:
-            self._printer.lookup_cache_hit(
-                f"Mem cache: '{title_year}' original language: {lang}"
+            event = LogEvent(
+                "lookup_cache_hit",
+                f"Mem cache: '{title_year}' original language: {lang}",
             )
         else:
-            self._printer.lookup_no_result(
-                f"Mem cache: '{title_year}' no language found"
+            event = LogEvent(
+                "lookup_no_result",
+                f"Mem cache: '{title_year}' no language found",
             )
-        return True, lang
+        return True, lang, [event]
 
     def _check_file_cache(
         self, media_type: str, title: str, year: str
-    ) -> tuple[bool, str | None]:
-        """Check file cache. Returns (found, lang)."""
+    ) -> tuple[bool, str | None, list[LogEvent]]:
+        """Check file cache. Returns (found, lang, events)."""
         entry = self._load_entry(media_type, title, year)
         if entry is None:
-            return False, None
+            return False, None, []
         lang = entry.language or None
         self.set_mem(media_type, title, year, lang)
         title_year = format_title_year(title, year)
         if lang:
-            self._printer.lookup_cache_hit(
-                f"File cache: '{title_year}' original language: {lang}"
+            event = LogEvent(
+                "lookup_cache_hit",
+                f"File cache: '{title_year}' original language: {lang}",
             )
         else:
-            self._printer.lookup_no_result(
-                f"File cache: '{title_year}' no language found"
+            event = LogEvent(
+                "lookup_no_result",
+                f"File cache: '{title_year}' no language found",
             )
-        return True, lang
+        return True, lang, [event]
 
     def check_cache(
         self, cache_type: str, title: str, year: str
-    ) -> tuple[bool, str | None]:
+    ) -> tuple[bool, str | None, list[LogEvent]]:
         """Check Caches."""
-        found, lang = self._check_mem_cache(cache_type, title, year)
+        found, lang, events = self._check_mem_cache(cache_type, title, year)
         if found:
-            return found, lang
-        found, lang = self._check_file_cache(cache_type, title, year)
+            return found, lang, events
+        found, lang, file_events = self._check_file_cache(cache_type, title, year)
         if found:
-            return found, lang
-        return False, lang
+            return found, lang, file_events
+        return False, None, []
 
     def _id_cache_path(self, media_type: str, id_type: str, id_value: str) -> Path:
         """Return the cache file path for an ID entry."""
@@ -211,9 +243,10 @@ class LookupCache:
         language: str = "",
         title: str = "",
         year: str = "",
-    ) -> None:
+    ) -> list[LogEvent]:
         """Save an ID-based entry to both memory and file caches."""
-        self._id_mem_cache[(media_type, id_type, id_value)] = language or None
+        with self._lock:
+            self._id_mem_cache[(media_type, id_type, id_value)] = language or None
         entry = CacheEntry(
             db_id=db_id,
             language=language,
@@ -222,53 +255,66 @@ class LookupCache:
         )
         path = self._id_cache_path(media_type, id_type, id_value)
         try:
-            path.write_text(json.dumps(asdict(entry), indent=2))
+            _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
-            self._printer.warn(f"Could not write cache: {exc}")
+            return [LogEvent("warn", f"Could not write cache: {exc}")]
+        return []
 
     def _check_id_mem_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None]:
-        """Check in-memory ID cache. Returns (found, lang)."""
+    ) -> tuple[bool, str | None, list[LogEvent]]:
+        """Check in-memory ID cache. Returns (found, lang, events)."""
         key = (media_type, id_type, id_value)
-        if key not in self._id_mem_cache:
-            return False, None
-        lang = self._id_mem_cache[key]
+        with self._lock:
+            if key not in self._id_mem_cache:
+                return False, None, []
+            lang = self._id_mem_cache[key]
         id_str = f"{id_type}-{id_value}"
         if lang:
-            self._printer.lookup_cache_hit(
-                f"Mem cache: '{id_str}' original language: {lang}"
+            event = LogEvent(
+                "lookup_cache_hit",
+                f"Mem cache: '{id_str}' original language: {lang}",
             )
         else:
-            self._printer.lookup_no_result(f"Mem cache: '{id_str}' no language found")
-        return True, lang
+            event = LogEvent(
+                "lookup_no_result",
+                f"Mem cache: '{id_str}' no language found",
+            )
+        return True, lang, [event]
 
     def _check_id_file_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None]:
-        """Check file ID cache. Returns (found, lang)."""
+    ) -> tuple[bool, str | None, list[LogEvent]]:
+        """Check file ID cache. Returns (found, lang, events)."""
         entry = self._load_id_entry(media_type, id_type, id_value)
         if entry is None:
-            return False, None
+            return False, None, []
         lang = entry.language or None
-        self._id_mem_cache[(media_type, id_type, id_value)] = lang
+        with self._lock:
+            self._id_mem_cache[(media_type, id_type, id_value)] = lang
         id_str = f"{id_type}-{id_value}"
         if lang:
-            self._printer.lookup_cache_hit(
-                f"File cache: '{id_str}' original language: {lang}"
+            event = LogEvent(
+                "lookup_cache_hit",
+                f"File cache: '{id_str}' original language: {lang}",
             )
         else:
-            self._printer.lookup_no_result(f"File cache: '{id_str}' no language found")
-        return True, lang
+            event = LogEvent(
+                "lookup_no_result",
+                f"File cache: '{id_str}' no language found",
+            )
+        return True, lang, [event]
 
     def check_id_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None]:
+    ) -> tuple[bool, str | None, list[LogEvent]]:
         """Check ID caches for a given media type."""
-        found, lang = self._check_id_mem_cache(media_type, id_type, id_value)
+        found, lang, events = self._check_id_mem_cache(media_type, id_type, id_value)
         if found:
-            return found, lang
-        found, lang = self._check_id_file_cache(media_type, id_type, id_value)
+            return found, lang, events
+        found, lang, file_events = self._check_id_file_cache(
+            media_type, id_type, id_value
+        )
         if found:
-            return found, lang
-        return False, None
+            return found, lang, file_events
+        return False, None, []

@@ -25,6 +25,7 @@ TEMPLATE: Final = MappingTemplate(
                 "dry_run": bool,
                 "ignore": Sequence(str),
                 "languages": Sequence(str),
+                "lookup_workers": Integer(),
                 "media_type": Optional(str),
                 "mkvmerge_bin": Optional(str),
                 "paths": Sequence(str),
