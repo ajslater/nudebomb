@@ -1,10 +1,10 @@
-*Dockerfile
+__pycache__
 .*cache/
 .circleci
 .claude
 .git
 .venv
-__pycache__
+*Dockerfile
 bun.lock
 dist
 node_modules
