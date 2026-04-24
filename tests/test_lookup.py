@@ -146,7 +146,7 @@ class TestTMDBErrorHandling:
             media_type = "movie"
             verbose = 0
 
-        return TMDBLookup(_Cfg())  # pyright: ignore[reportArgumentType]
+        return TMDBLookup(_Cfg())  # pyright: ignore[reportArgumentType],#ty:  ignore[invalid-argument-type]
 
     @staticmethod
     def _make_http_error(status: int) -> HTTPError:
@@ -218,7 +218,7 @@ class TestTVDBErrorHandling:
                 cache_expiry_days = 30
                 verbose = 0
 
-            return TVDBLookup(_Cfg())  # pyright: ignore[reportArgumentType]
+            return TVDBLookup(_Cfg())  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
 
     def test_rate_limit_dict_does_not_cache(self, tvdb: TVDBLookup) -> None:
         parsed = ParseResult(title="Foo", year="", tmdb_id="", imdb_id="", tvdb_id="")

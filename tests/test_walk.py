@@ -38,7 +38,7 @@ def _make_walk(
         after=None,
         lookup_workers=4,
     )
-    return Walk(cfg)  # pyright: ignore[reportArgumentType]
+    return Walk(cfg)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
 
 
 class TestLookupKey:

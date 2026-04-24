@@ -24,8 +24,8 @@ def _is_tvdb_error_dict(result: object) -> bool:
     return (
         isinstance(result, dict)
         and "code" in result
-        and isinstance(result.get("code"), int)
-        and result["code"] >= _HTTP_ERROR_MIN
+        and isinstance(result.get("code"), int)  # ty: ignore[invalid-argument-type]
+        and result["code"] >= _HTTP_ERROR_MIN  # ty: ignore[invalid-argument-type,unsupported-operator]
     )
 
 
