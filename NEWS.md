@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.1.0
+
+- Parallelize online database lookups.
+
 ## v1.0.4
 
 - Cache id lookups as well as title & year lookups.
