@@ -29,6 +29,16 @@ class MKVFile:
         self._printer: Printer = Printer(self._config.verbose)
         self._init_track_map()
 
+    def update_languages(self, languages: frozenset[str]) -> None:
+        """
+        Inject a language set after init.
+
+        Enables ``MKVFile.__init__`` (which runs ``mkvmerge -J``) to be
+        kicked off before a DB lookup completes; the resolved language is
+        folded in here just before ``remove_tracks`` does any filtering.
+        """
+        self._config.languages = languages
+
     def _init_track_map(self) -> None:
         self._track_map: dict[str, list[Track]] = {}
 
