@@ -9,6 +9,7 @@ from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
 from nudebomb.log import setup as setup_logging
+from nudebomb.log.styles import MARKS
 from nudebomb.version import VERSION
 from nudebomb.walk import Walk
 
@@ -32,18 +33,21 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, values)
 
 
-CHAR_KEY: Final = (
-    (".", "dim", "MKV ignored/skipped"),
-    (".", "bold bright_green", "MKV skipped (timestamp unchanged)"),
-    (".", "green", "MKV already stripped"),
-    ("*", "white", "MKV stripped tracks"),
-    ("*", "dim", "MKV not remuxed (dry run)"),
-    ("!", "yellow", "Warning"),
-    ("X", "bold red", "Error"),
-    ("O", "cyan", "Remote DB lookup succeeded"),
-    ("x", "yellow", "Remote DB lookup no result"),
-    ("X", "yellow", "Remote DB rate limited"),
-    ("X", "bold red", "Remote DB error"),
+# Order + label for each mark in the help epilogue legend. The char and
+# style are pulled from the centralized MARKS table so the legend can
+# never drift from what the bar actually renders.
+CHAR_KEY_LABELS: Final[tuple[tuple[str, str], ...]] = (
+    ("ignored", "MKV ignored/skipped"),
+    ("skipped_timestamp", "MKV skipped (timestamp unchanged)"),
+    ("already_stripped", "MKV already stripped"),
+    ("stripped", "MKV stripped tracks"),
+    ("dry_run", "MKV not remuxed (dry run)"),
+    ("warning", "Warning"),
+    ("error", "Error"),
+    ("lookup_hit", "Remote DB lookup succeeded"),
+    ("lookup_no_result", "Remote DB lookup no result"),
+    ("lookup_rate_limited", "Remote DB rate limited"),
+    ("lookup_error", "Remote DB error"),
 )
 
 
@@ -52,8 +56,9 @@ def get_progress_char_key() -> str:
     console = Console(record=True, force_terminal=True, no_color=False)
     console.begin_capture()
     console.print("[bold]Progress char key:[/bold]")
-    for char, style, label in CHAR_KEY:
-        console.print(f"\t[{style}]{char}[/{style}]  {label}")
+    for kind, label in CHAR_KEY_LABELS:
+        mark = MARKS[kind]
+        console.print(f"\t[{mark.style}]{mark.char}[/{mark.style}]  {label}")
     return console.end_capture()
 
 

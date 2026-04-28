@@ -5,7 +5,6 @@ from __future__ import annotations
 import threading
 from collections import defaultdict, deque
 from contextlib import contextmanager
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
 
 from rich.progress import (
@@ -20,8 +19,10 @@ from rich.progress import (
 from rich.text import Text
 from typing_extensions import Self, override
 
+from nudebomb.log.styles import MARKS
+
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Mapping
+    from collections.abc import Callable, Generator
     from types import TracebackType
 
     from rich.console import Console
@@ -33,25 +34,6 @@ __all__ = (
     "make_progress",
 )
 
-
-# (char, rich-style) pairs used by mark_* helpers below.
-_CHARS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
-    {
-        # Per-file marks
-        "ignored": (".", "dim"),
-        "skipped_timestamp": (".", "bold bright_green"),
-        "already_stripped": (".", "green"),
-        "stripped": ("*", "white"),
-        "dry_run": ("*", "dim"),
-        "warning": ("!", "yellow"),
-        "error": ("X", "bold red"),
-        # Lookup marks (do not advance the bar)
-        "lookup_hit": ("O", "cyan"),
-        "lookup_no_result": ("x", "yellow"),
-        "lookup_rate_limited": ("X", "yellow"),
-        "lookup_error": ("X", "bold red"),
-    }
-)
 
 # Marks that count as a finished file and advance the bar.
 _FILE_MARKS: Final = frozenset(
@@ -141,8 +123,8 @@ class ProgressContext:
             or self._task_id is None
         ):
             return
-        char, style = _CHARS[kind]
-        self._char_column.push(int(self._task_id), char, style)
+        mark = MARKS[kind]
+        self._char_column.push(int(self._task_id), mark.char, mark.style)
         if kind in _FILE_MARKS:
             self._progress.advance(self._task_id, 1)
 

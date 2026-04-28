@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Final
 from loguru import logger
 from rich.console import Console
 
+from nudebomb.log.styles import LEVEL_STYLES, LOOKUP_HIT_LEVEL
+
 if TYPE_CHECKING:
     from loguru import Record
 
@@ -23,19 +25,6 @@ __all__ = ("LOOKUP_HIT_LEVEL", "console", "logger", "setup")
 # bracket and leaves the leading `\x1b` as a stray byte, so the dots
 # show up as literal `[2m[90m.[0m` text in the terminal.
 console: Final[Console] = Console(highlight=False)
-
-# Custom level for remote DB hits — sits at INFO numeric level but gets
-# its own color/symbol so it pops next to neutral INFO lines.
-LOOKUP_HIT_LEVEL: Final = "DBHIT"
-
-_LEVEL_STYLES: Final = {
-    "DEBUG": "dim",
-    "INFO": "white",
-    LOOKUP_HIT_LEVEL: "cyan",
-    "SUCCESS": "green",
-    "WARNING": "yellow",
-    "ERROR": "bold red",
-}
 
 # verbose -> minimum loguru level to emit
 _VERBOSE_LEVEL: Final = {
@@ -55,7 +44,7 @@ def _sink(message: object) -> None:
     """Write a loguru record to the shared Rich console."""
     record: Record = message.record  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
     level = record["level"].name
-    style = _LEVEL_STYLES.get(level, "white")
+    style = LEVEL_STYLES.get(level, "white")
     text = record["message"]
     console.print(f"[{style}]{text}[/{style}]", highlight=False, soft_wrap=True)
 
