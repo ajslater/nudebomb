@@ -15,7 +15,14 @@ __all__ = ("LOOKUP_HIT_LEVEL", "console", "logger", "setup")
 
 # Single Console for everything — both Rich Progress and the loguru sink
 # share it so the live region and log lines stay in sync.
-console: Final[Console] = Console()
+#
+# `highlight=False` is critical: the default repr-highlighter would
+# otherwise be applied to anything Rich re-prints internally, including
+# the rendered ANSI strings produced by the live progress bar. On some
+# installs that turns each `[` in `\x1b[Xm` sequences into a bold-styled
+# bracket and leaves the leading `\x1b` as a stray byte, so the dots
+# show up as literal `[2m[90m.[0m` text in the terminal.
+console: Final[Console] = Console(highlight=False)
 
 # Custom level for remote DB hits — sits at INFO numeric level but gets
 # its own color/symbol so it pops next to neutral INFO lines.
