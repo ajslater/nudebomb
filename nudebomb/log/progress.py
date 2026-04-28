@@ -236,7 +236,16 @@ def make_progress(
     if not enabled or not console.is_terminal:
         return ProgressContext(enabled=False)
 
-    char_column = CharStreamColumn()
+    # Size the streaming-char column so the whole bar fits on one line.
+    # If the bar wraps, Rich's Live region flips into multi-line mode
+    # and emits `\n` per refresh — which scrolls each frame past instead
+    # of redrawing in place.
+    #
+    # Reserve ~46 chars for the other columns:
+    #   spinner(~2) + " Stripping MKVs "(16) + counts(~12) + time(~12) +
+    #   inter-column spaces. Cap the stream at 40 on very wide terminals.
+    char_width = max(8, min(40, console.width - 46))
+    char_column = CharStreamColumn(max_width=char_width)
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
