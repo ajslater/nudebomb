@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
@@ -169,30 +168,16 @@ class MKVFile:
     @staticmethod
     def _remux_file(command: list[str]) -> None:
         """Remux a mkv file with the given parameters."""
-        sys.stdout.write("Progress 0%")
-        sys.stdout.flush()
-
-        # Call command to remux file
-        with subprocess.Popen(  # noqa: S603
-            command,
-            stdout=subprocess.PIPE,
-            bufsize=1,
+        # mkvmerge's per-file progress would fight rich's Live region —
+        # our CharStreamColumn already shows per-file activity. Silence
+        # mkvmerge with --quiet and discard its captured output.
+        quiet_command = [command[0], "--quiet", *command[1:]]
+        subprocess.run(  # noqa: S603
+            quiet_command,
+            capture_output=True,
+            check=True,
             text=True,
-        ) as process:
-            if process.stdout:
-                for line in iter(process.stdout.readline, ""):
-                    if "progress" in line.lower():
-                        outline = f"\r{line.strip()}"
-                        sys.stdout.write(outline)
-                        sys.stdout.flush()
-            print(flush=True)  # noqa: T201
-
-            # Check if return code indicates an error
-            if retcode := process.poll():
-                kwargs = {}
-                if process.stdout is not None:
-                    kwargs["output"] = process.stdout
-                raise subprocess.CalledProcessError(retcode, command, **kwargs)
+        )
 
     def _extend_und_language_command(
         self,
