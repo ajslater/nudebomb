@@ -100,20 +100,28 @@ class Stats:
 
 
 def _counts_table(stats: Stats) -> Table:
-    """Build the Counts table for the summary."""
+    """
+    Build the Counts table for the summary.
+
+    Row styles match the per-event color scheme used by the loguru sink
+    and the progress bar's CharStreamColumn so the same outcome reads
+    the same way everywhere.
+    """
     table = Table(title="Summary", show_header=False, title_style="bold")
     table.add_column("Metric")
     table.add_column("Count", justify="right")
-    table.add_row("Ignored", str(stats.ignored))
-    table.add_row("Skipped (timestamp)", str(stats.skipped_timestamp))
-    table.add_row("Already stripped", str(stats.already_stripped))
-    table.add_row("Stripped", str(len(stats.stripped)))
-    table.add_row("Not remuxed (dry run)", str(len(stats.dry_run)))
-    table.add_row("Warnings", str(len(stats.warnings)))
-    table.add_row("Errors", str(len(stats.errors)))
-    table.add_row("DB cache hits", str(stats.db_cache_hits))
-    table.add_row("Remote DB hits", str(stats.db_remote_hits))
-    table.add_row("Langfile hits", str(stats.langfile_hits))
+    table.add_row("Ignored", str(stats.ignored), style="dim")
+    table.add_row(
+        "Skipped (timestamp)", str(stats.skipped_timestamp), style="green dim"
+    )
+    table.add_row("Already stripped", str(stats.already_stripped), style="green")
+    table.add_row("Stripped", str(len(stats.stripped)), style="white")
+    table.add_row("Not remuxed (dry run)", str(len(stats.dry_run)), style="dim")
+    table.add_row("Warnings", str(len(stats.warnings)), style="yellow")
+    table.add_row("Errors", str(len(stats.errors)), style="bold red")
+    table.add_row("DB cache hits", str(stats.db_cache_hits), style="cyan")
+    table.add_row("Remote DB hits", str(stats.db_remote_hits), style="cyan")
+    table.add_row("Langfile hits", str(stats.langfile_hits), style="cyan")
     return table
 
 

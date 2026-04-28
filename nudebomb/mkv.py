@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
@@ -166,33 +165,42 @@ class MKVFile:
 
         return output, command, num_remove_ids
 
-    @staticmethod
-    def _remux_file(command: list[str]) -> None:
-        """Remux a mkv file with the given parameters."""
-        sys.stdout.write("Progress 0%")
-        sys.stdout.flush()
+    def _remux_file(self, command: list[str]) -> None:
+        """
+        Remux an mkv file with the given parameters.
 
-        # Call command to remux file
-        with subprocess.Popen(  # noqa: S603
-            command,
-            stdout=subprocess.PIPE,
-            bufsize=1,
-            text=True,
-        ) as process:
-            if process.stdout:
-                for line in iter(process.stdout.readline, ""):
-                    if "progress" in line.lower():
-                        outline = f"\r{line.strip()}"
-                        sys.stdout.write(outline)
-                        sys.stdout.flush()
-            print(flush=True)  # noqa: T201
+        Drive a transient per-file sub-task on the shared Rich Progress
+        from mkvmerge's ``--gui-mode`` progress lines (``#GUI#progress NN%``)
+        so the percentage renders beneath the main bar inside the same
+        Live region instead of fighting it via raw stdout writes.
+        """
+        gui_command = [command[0], "--gui-mode", *command[1:]]
+        with (
+            self._reporter.progress.file_subtask(f"  {self.path.name}") as update_pct,
+            subprocess.Popen(  # noqa: S603
+                gui_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=1,
+                text=True,
+            ) as process,
+        ):
+            stderr_chunks: list[str] = []
+            if process.stdout is not None:
+                for line in process.stdout:
+                    if line.startswith("#GUI#progress"):
+                        try:
+                            pct = int(line.strip().split()[-1].rstrip("%"))
+                        except (IndexError, ValueError):
+                            continue
+                        update_pct(pct)
+            if process.stderr is not None:
+                stderr_chunks.append(process.stderr.read())
 
-            # Check if return code indicates an error
-            if retcode := process.poll():
-                kwargs = {}
-                if process.stdout is not None:
-                    kwargs["output"] = process.stdout
-                raise subprocess.CalledProcessError(retcode, command, **kwargs)
+            if retcode := process.wait():
+                raise subprocess.CalledProcessError(
+                    retcode, gui_command, output="".join(stderr_chunks)
+                )
 
     def _extend_und_language_command(
         self,

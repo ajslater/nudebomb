@@ -64,6 +64,28 @@ class TestProgressContext:
         rendered = str(column.render(task))
         assert len(rendered) == 3  # noqa: PLR2004
 
+    def test_file_subtask_disabled_yields_noop(self) -> None:
+        ctx = ProgressContext(enabled=False)
+        with ctx.file_subtask("foo.mkv") as update:
+            update(50)  # no-op, no error
+
+    def test_file_subtask_creates_and_removes_task(self) -> None:
+        column = CharStreamColumn()
+        progress = Progress()
+        main_id = progress.add_task("main", total=10)
+        ctx = ProgressContext(progress, column, main_id, enabled=True)
+
+        before = len(progress.tasks)
+        with ctx.file_subtask("foo.mkv") as update:
+            during = len(progress.tasks)
+            update(50)
+            sub = next(t for t in progress.tasks if t.description == "foo.mkv")
+            assert sub.completed == 50  # noqa: PLR2004
+        after = len(progress.tasks)
+
+        assert during == before + 1
+        assert after == before
+
 
 class TestMakeProgress:
     """make_progress disables itself in a non-TTY context."""
