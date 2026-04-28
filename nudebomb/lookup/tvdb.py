@@ -10,9 +10,9 @@ from loguru import logger
 
 from nudebomb.langfiles import lang_to_alpha3
 from nudebomb.log import LOOKUP_HIT_LEVEL
+from nudebomb.log.reporter import Reporter
 from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import parse_title
-from nudebomb.reporter import Reporter
 
 if TYPE_CHECKING:
     from pathlib import Path

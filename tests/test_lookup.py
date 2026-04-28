@@ -9,12 +9,12 @@ import pytest
 from requests.exceptions import HTTPError
 from requests.models import Response
 
+from nudebomb.log.reporter import Reporter
+from nudebomb.log.summary import Stats
 from nudebomb.lookup.cache import CacheEntry, LookupCache
 from nudebomb.lookup.parser import ParseResult
 from nudebomb.lookup.tmdb import TMDBLookup
 from nudebomb.lookup.tvdb import TVDBLookup, _is_tvdb_error_dict
-from nudebomb.reporter import Reporter
-from nudebomb.summary import Stats
 
 __all__ = ()
 

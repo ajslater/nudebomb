@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from confuse import AttrDict
 
-    from nudebomb.summary import Stats
+    from nudebomb.log.summary import Stats
 
 LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
 

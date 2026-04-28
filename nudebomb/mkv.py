@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Final
 from loguru import logger
 
 from nudebomb.langfiles import lang_to_alpha3
-from nudebomb.reporter import Reporter
+from nudebomb.log.reporter import Reporter
 from nudebomb.track import Track
 
 if TYPE_CHECKING:

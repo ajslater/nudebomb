@@ -14,8 +14,8 @@ from typing import Final
 from loguru import logger
 from platformdirs import user_cache_dir
 
+from nudebomb.log.reporter import Reporter
 from nudebomb.lookup.util import format_title_year
-from nudebomb.reporter import Reporter
 from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})

@@ -5,7 +5,7 @@ import io
 from rich.console import Console
 from rich.progress import Progress, Task
 
-from nudebomb.progress import CharStreamColumn, ProgressContext, make_progress
+from nudebomb.log.progress import CharStreamColumn, ProgressContext, make_progress
 
 __all__ = ()
 

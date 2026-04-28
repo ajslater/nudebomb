@@ -5,7 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from nudebomb.summary import Stats, render
+from nudebomb.log.summary import Stats, render
 
 __all__ = ()
 

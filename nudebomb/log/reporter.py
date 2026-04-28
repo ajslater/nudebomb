@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from nudebomb.progress import ProgressContext
-from nudebomb.summary import Stats
+from nudebomb.log.progress import ProgressContext
+from nudebomb.log.summary import Stats
 
 __all__ = ("Reporter",)
 

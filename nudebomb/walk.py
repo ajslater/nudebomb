@@ -14,13 +14,13 @@ from treestamps.tree import Treestamps
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
 from nudebomb.log import console
+from nudebomb.log.progress import make_progress
+from nudebomb.log.reporter import Reporter
+from nudebomb.log.summary import Stats
+from nudebomb.log.summary import render as render_summary
 from nudebomb.lookup import TMDBLookup, TVDBLookup
 from nudebomb.lookup.parser import parse_title
 from nudebomb.mkv import MKVFile
-from nudebomb.progress import make_progress
-from nudebomb.reporter import Reporter
-from nudebomb.summary import Stats
-from nudebomb.summary import render as render_summary
 from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
