@@ -110,7 +110,7 @@ def _counts_table(stats: Stats) -> Table:
     table = Table(title="Summary", show_header=False, title_style="bold")
     table.add_column("Metric")
     table.add_column("Count", justify="right")
-    table.add_row("Ignored", str(stats.ignored), style="bright_black")
+    table.add_row("Ignored", str(stats.ignored), style="grey50")
     table.add_row(
         "Skipped (timestamp)",
         str(stats.skipped_timestamp),
@@ -118,9 +118,7 @@ def _counts_table(stats: Stats) -> Table:
     )
     table.add_row("Already stripped", str(stats.already_stripped), style="green")
     table.add_row("Stripped", str(len(stats.stripped)), style="white")
-    table.add_row(
-        "Not remuxed (dry run)", str(len(stats.dry_run)), style="bold bright_black"
-    )
+    table.add_row("Not remuxed (dry run)", str(len(stats.dry_run)), style="bold grey50")
     table.add_row("Warnings", str(len(stats.warnings)), style="yellow")
     table.add_row("Errors", str(len(stats.errors)), style="bold red")
     table.add_row("DB cache hits", str(stats.db_cache_hits), style="cyan")
@@ -169,7 +167,7 @@ def render(stats: Stats, console: Console) -> None:
     """Print the summary to the given Rich console."""
     console.print(_counts_table(stats))
     _print_paths(console, "Stripped tracks", stats.stripped, "green")
-    _print_paths(console, "Not remuxed (dry run)", stats.dry_run, "bold bright_black")
+    _print_paths(console, "Not remuxed (dry run)", stats.dry_run, "bold grey50")
     _print_pairs(console, "Warnings", stats.warnings, "yellow")
     _print_pairs(console, "Errors", stats.errors, "bold red")
     _print_messages(console, "DB lookups with no result", stats.db_no_results, "yellow")
