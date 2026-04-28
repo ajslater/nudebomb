@@ -1,5 +1,7 @@
 """Lookup caching with movie/tv separation and expiry for misses."""
 
+from __future__ import annotations
+
 import json
 import re
 import time
@@ -9,9 +11,11 @@ from pathlib import Path
 from threading import Lock
 from typing import Final
 
+from loguru import logger
 from platformdirs import user_cache_dir
 
-from nudebomb.lookup.util import LogEvent, format_title_year
+from nudebomb.log.reporter import Reporter
+from nudebomb.lookup.util import format_title_year
 from nudebomb.version import PROGRAM_NAME
 
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
@@ -75,9 +79,12 @@ class LookupCache:
     torn JSON file.
     """
 
-    def __init__(self, cache_expiry_days: int = 30) -> None:
+    def __init__(
+        self, cache_expiry_days: int = 30, reporter: Reporter | None = None
+    ) -> None:
         """Initialize."""
         self._cache_expiry_days = cache_expiry_days
+        self._reporter: Reporter = reporter if reporter is not None else Reporter()
         # In-memory cache: (media_type, title, year) -> alpha3 language or None
         self._mem_cache: dict[tuple[str, str, str], str | None] = {}
         # In-memory cache: (media_type, id_type, id_value) -> alpha3 language or None
@@ -127,8 +134,8 @@ class LookupCache:
         *,
         db_id: str = "",
         language: str = "",
-    ) -> list[LogEvent]:
-        """Save a slim cache entry to the file cache. Returns warn events."""
+    ) -> None:
+        """Save a slim cache entry to the file cache."""
         entry = CacheEntry(
             db_id=db_id,
             language=language,
@@ -139,8 +146,7 @@ class LookupCache:
         try:
             _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
-            return [LogEvent("warn", f"Could not write cache: {exc}")]
-        return []
+            logger.warning(f"Could not write cache: {exc}")
 
     def get_mem(
         self, media_type: str, title: str, year: str
@@ -157,59 +163,45 @@ class LookupCache:
         with self._lock:
             self._mem_cache[(media_type, title, year)] = lang
 
+    def _record_cache_hit(self, label: str, lang: str | None, source: str) -> None:
+        """Record a cache hit; surface no-language hits in the no-results list."""
+        self._reporter.stats.record_db_cache_hit()
+        if lang:
+            logger.debug(f"{source}: '{label}' original language: {lang}")
+        else:
+            logger.debug(f"{source}: '{label}' no language found")
+            self._reporter.stats.record_db_no_result(f"{source}: '{label}'")
+
     def _check_mem_cache(
         self, media_type: str, title: str, year: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
-        """Check in-memory cache. Returns (found, lang, events)."""
+    ) -> tuple[bool, str | None]:
+        """Check in-memory cache. Returns (found, lang)."""
         found, lang = self.get_mem(media_type, title, year)
         if not found:
-            return False, None, []
-        title_year = format_title_year(title, year)
-        if lang:
-            event = LogEvent(
-                "lookup_cache_hit",
-                f"Mem cache: '{title_year}' original language: {lang}",
-            )
-        else:
-            event = LogEvent(
-                "lookup_no_result",
-                f"Mem cache: '{title_year}' no language found",
-            )
-        return True, lang, [event]
+            return False, None
+        self._record_cache_hit(format_title_year(title, year), lang, "Mem cache")
+        return True, lang
 
     def _check_file_cache(
         self, media_type: str, title: str, year: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
-        """Check file cache. Returns (found, lang, events)."""
+    ) -> tuple[bool, str | None]:
+        """Check file cache. Returns (found, lang)."""
         entry = self._load_entry(media_type, title, year)
         if entry is None:
-            return False, None, []
+            return False, None
         lang = entry.language or None
         self.set_mem(media_type, title, year, lang)
-        title_year = format_title_year(title, year)
-        if lang:
-            event = LogEvent(
-                "lookup_cache_hit",
-                f"File cache: '{title_year}' original language: {lang}",
-            )
-        else:
-            event = LogEvent(
-                "lookup_no_result",
-                f"File cache: '{title_year}' no language found",
-            )
-        return True, lang, [event]
+        self._record_cache_hit(format_title_year(title, year), lang, "File cache")
+        return True, lang
 
     def check_cache(
         self, cache_type: str, title: str, year: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
+    ) -> tuple[bool, str | None]:
         """Check Caches."""
-        found, lang, events = self._check_mem_cache(cache_type, title, year)
+        found, lang = self._check_mem_cache(cache_type, title, year)
         if found:
-            return found, lang, events
-        found, lang, file_events = self._check_file_cache(cache_type, title, year)
-        if found:
-            return found, lang, file_events
-        return False, None, []
+            return found, lang
+        return self._check_file_cache(cache_type, title, year)
 
     def _id_cache_path(self, media_type: str, id_type: str, id_value: str) -> Path:
         """Return the cache file path for an ID entry."""
@@ -243,7 +235,7 @@ class LookupCache:
         language: str = "",
         title: str = "",
         year: str = "",
-    ) -> list[LogEvent]:
+    ) -> None:
         """Save an ID-based entry to both memory and file caches."""
         with self._lock:
             self._id_mem_cache[(media_type, id_type, id_value)] = language or None
@@ -257,64 +249,38 @@ class LookupCache:
         try:
             _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
-            return [LogEvent("warn", f"Could not write cache: {exc}")]
-        return []
+            logger.warning(f"Could not write cache: {exc}")
 
     def _check_id_mem_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
-        """Check in-memory ID cache. Returns (found, lang, events)."""
+    ) -> tuple[bool, str | None]:
+        """Check in-memory ID cache. Returns (found, lang)."""
         key = (media_type, id_type, id_value)
         with self._lock:
             if key not in self._id_mem_cache:
-                return False, None, []
+                return False, None
             lang = self._id_mem_cache[key]
-        id_str = f"{id_type}-{id_value}"
-        if lang:
-            event = LogEvent(
-                "lookup_cache_hit",
-                f"Mem cache: '{id_str}' original language: {lang}",
-            )
-        else:
-            event = LogEvent(
-                "lookup_no_result",
-                f"Mem cache: '{id_str}' no language found",
-            )
-        return True, lang, [event]
+        self._record_cache_hit(f"{id_type}-{id_value}", lang, "Mem cache")
+        return True, lang
 
     def _check_id_file_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
-        """Check file ID cache. Returns (found, lang, events)."""
+    ) -> tuple[bool, str | None]:
+        """Check file ID cache. Returns (found, lang)."""
         entry = self._load_id_entry(media_type, id_type, id_value)
         if entry is None:
-            return False, None, []
+            return False, None
         lang = entry.language or None
         with self._lock:
             self._id_mem_cache[(media_type, id_type, id_value)] = lang
-        id_str = f"{id_type}-{id_value}"
-        if lang:
-            event = LogEvent(
-                "lookup_cache_hit",
-                f"File cache: '{id_str}' original language: {lang}",
-            )
-        else:
-            event = LogEvent(
-                "lookup_no_result",
-                f"File cache: '{id_str}' no language found",
-            )
-        return True, lang, [event]
+        self._record_cache_hit(f"{id_type}-{id_value}", lang, "File cache")
+        return True, lang
 
     def check_id_cache(
         self, media_type: str, id_type: str, id_value: str
-    ) -> tuple[bool, str | None, list[LogEvent]]:
+    ) -> tuple[bool, str | None]:
         """Check ID caches for a given media type."""
-        found, lang, events = self._check_id_mem_cache(media_type, id_type, id_value)
+        found, lang = self._check_id_mem_cache(media_type, id_type, id_value)
         if found:
-            return found, lang, events
-        found, lang, file_events = self._check_id_file_cache(
-            media_type, id_type, id_value
-        )
-        if found:
-            return found, lang, file_events
-        return False, None, []
+            return found, lang
+        return self._check_id_file_cache(media_type, id_type, id_value)
