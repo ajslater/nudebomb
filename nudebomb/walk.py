@@ -326,8 +326,11 @@ class Walk:
             return
         if self._is_path_before_timestamp(top_path, path):
             return
-        wrote = self.strip_path(top_path, path)
-        if self._timestamps and wrote:
+        # `up_to_date` is True for both freshly-remuxed files and files
+        # that were already stripped — both states mean "no need to
+        # re-check next run", so write the timestamp.
+        up_to_date = self.strip_path(top_path, path)
+        if self._timestamps and up_to_date:
             self._timestamps.set(top_path, path)
 
     # ------------------------------------------------------------------
