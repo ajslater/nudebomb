@@ -228,7 +228,15 @@ class MKVFile:
         return output, command, relabeled
 
     def remove_tracks(self) -> bool:
-        """Remove the unwanted tracks."""
+        """
+        Remove the unwanted tracks.
+
+        Returns True if the file is in the desired state — remuxed this
+        run OR already-stripped before. Walk uses this to decide whether
+        to write a timestamp; both states mean "no need to re-check this
+        file next run". Dry-run and errors return False so the timestamp
+        isn't poisoned.
+        """
         if not self._track_map:
             msg = f"not removing tracks from mkv with no tracks: {self.path}"
             logger.error(msg)
@@ -272,7 +280,9 @@ class MKVFile:
             logger.info(f"\tAlready stripped {self.path}")
             self._reporter.stats.record_already_stripped()
             self._reporter.progress.mark_already_stripped()
-            return False
+            # Already in the desired state — let Walk write the timestamp
+            # so subsequent runs short-circuit on the timestamp check.
+            return True
 
         changed = False
         try:

@@ -72,6 +72,19 @@ class TestMkv(DiffTracksTest):
         out_tracks = mkv_tracks(TEST_MKV)
         assert_eng_und_only(out_tracks)
 
+    def test_already_stripped_returns_true(self) -> None:
+        """
+        A second pass over an already-stripped file still reports True.
+
+        Walk relies on this to write a timestamp even when no remux was
+        needed, so subsequent runs short-circuit on the timestamp check.
+        """
+        first = MKVFile(self._config, TEST_MKV)
+        assert first.remove_tracks()
+
+        second = MKVFile(self._config, TEST_MKV)
+        assert second.remove_tracks()
+
     def test_fail(self) -> None:
         """Test fail."""
         self._config.languages = ["xxx"]
