@@ -21,8 +21,10 @@ console: Final[Console] = Console()
 # its own color/symbol so it pops next to neutral INFO lines.
 LOOKUP_HIT_LEVEL: Final = "DBHIT"
 
+# Level → Rich style. Avoid `dim` — some terminals render `\x1b[2m`
+# as literal escape text instead of fading the glyph.
 _LEVEL_STYLES: Final = {
-    "DEBUG": "dim",
+    "DEBUG": "bright_black",
     "INFO": "white",
     LOOKUP_HIT_LEVEL: "cyan",
     "SUCCESS": "green",

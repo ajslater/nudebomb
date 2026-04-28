@@ -34,17 +34,18 @@ __all__ = (
 )
 
 
-# (char, rich-style) pairs used by mark_* helpers below. Maps roughly to
-# the legacy termcolor scheme but consolidated so each *file* gets one
-# char and lookup events get their own.
+# (char, rich-style) pairs used by mark_* helpers below. Mirrors the
+# termcolor scheme of the original Printer (dark_grey == bright_black,
+# bold for emphasis) — Rich's `dim` style emits `\x1b[2m` which some
+# terminals render as literal escape text instead of fading the glyph.
 _CHARS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
     {
         # Per-file marks
-        "ignored": (".", "dim"),
-        "skipped_timestamp": (".", "green dim"),
+        "ignored": (".", "bright_black"),
+        "skipped_timestamp": (".", "bold bright_green"),
         "already_stripped": (".", "green"),
         "stripped": ("*", "white"),
-        "dry_run": ("*", "dim"),
+        "dry_run": ("*", "bold bright_black"),
         "warning": ("!", "yellow"),
         "error": ("X", "bold red"),
         # Lookup marks (do not advance the bar)

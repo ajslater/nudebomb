@@ -33,11 +33,11 @@ class CommaListAction(Action):
 
 
 CHAR_KEY: Final = (
-    (".", "dim", "MKV ignored/skipped"),
-    (".", "green dim", "MKV skipped (timestamp unchanged)"),
+    (".", "bright_black", "MKV ignored/skipped"),
+    (".", "bold bright_green", "MKV skipped (timestamp unchanged)"),
     (".", "green", "MKV already stripped"),
     ("*", "white", "MKV stripped tracks"),
-    ("*", "dim", "MKV not remuxed (dry run)"),
+    ("*", "bold bright_black", "MKV not remuxed (dry run)"),
     ("!", "yellow", "Warning"),
     ("X", "bold red", "Error"),
     ("O", "cyan", "Remote DB lookup succeeded"),
