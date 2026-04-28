@@ -35,12 +35,6 @@ __all__ = (
 
 
 # (char, rich-style) pairs used by mark_* helpers below.
-#
-# We deliberately avoid `dim` (`\x1b[2m`) and `bright_black` (`\x1b[90m`)
-# for the grey marks: some terminals render `\x1b[2m` as literal escape
-# text, and at least one user environment with Rich 15 emits
-# `bright_black` as `\x1b[2m\x1b[90m` (with a faint prefix) which then
-# cascades into Live-region wrapping issues.
 _CHARS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
     {
         # Per-file marks
