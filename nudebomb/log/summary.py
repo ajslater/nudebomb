@@ -22,6 +22,13 @@ __all__ = ("Stats", "render")
 class Stats:
     """Thread-safe counters and itemized lists for the end-of-run summary."""
 
+    # Mode flags set once at construction so the summary table can hide
+    # rows that are irrelevant to this run (e.g. don't show
+    # "Skipped (timestamp)" when timestamps mode wasn't enabled).
+    timestamps_active: bool = False
+    dry_run_active: bool = False
+    remote_db_active: bool = False
+
     ignored: int = 0
     skipped_timestamp: int = 0
     already_stripped: int = 0
@@ -113,32 +120,39 @@ def _counts_table(stats: Stats) -> Table:
     table.add_column("Metric")
     table.add_column("Count", justify="right")
     table.add_row("Ignored", str(stats.ignored), style=MARKS["ignored"].style)
-    table.add_row(
-        "Skipped (timestamp)",
-        str(stats.skipped_timestamp),
-        style=MARKS["skipped_timestamp"].style,
-    )
+    if stats.timestamps_active:
+        table.add_row(
+            "Skipped (timestamp)",
+            str(stats.skipped_timestamp),
+            style=MARKS["skipped_timestamp"].style,
+        )
     table.add_row(
         "Already stripped",
         str(stats.already_stripped),
         style=MARKS["already_stripped"].style,
     )
     table.add_row("Stripped", str(len(stats.stripped)), style=MARKS["stripped"].style)
-    table.add_row(
-        "Not remuxed (dry run)",
-        str(len(stats.dry_run)),
-        style=MARKS["dry_run"].style,
-    )
-    table.add_row("Warnings", str(len(stats.warnings)), style=MARKS["warning"].style)
-    table.add_row("Errors", str(len(stats.errors)), style=MARKS["error"].style)
+    if stats.dry_run_active:
+        table.add_row(
+            "Not remuxed (dry run)",
+            str(len(stats.dry_run)),
+            style=MARKS["dry_run"].style,
+        )
+    if stats.warnings:
+        table.add_row(
+            "Warnings", str(len(stats.warnings)), style=MARKS["warning"].style
+        )
+    if stats.errors:
+        table.add_row("Errors", str(len(stats.errors)), style=MARKS["error"].style)
     table.add_row(
         "DB cache hits", str(stats.db_cache_hits), style=MARKS["lookup_hit"].style
     )
-    table.add_row(
-        "Remote DB hits",
-        str(stats.db_remote_hits),
-        style=MARKS["lookup_hit"].style,
-    )
+    if stats.remote_db_active:
+        table.add_row(
+            "Remote DB hits",
+            str(stats.db_remote_hits),
+            style=MARKS["lookup_hit"].style,
+        )
     table.add_row(
         "Langfile hits", str(stats.langfile_hits), style=MARKS["lookup_hit"].style
     )

@@ -40,7 +40,11 @@ class Walk:
     def __init__(self, config: AttrDict) -> None:
         """Initialize."""
         self._config: AttrDict = config
-        self._stats: Stats = Stats()
+        self._stats: Stats = Stats(
+            timestamps_active=bool(config.timestamps or config.after),
+            dry_run_active=bool(config.dry_run),
+            remote_db_active=bool(config.tmdb_api_key or config.tvdb_api_key),
+        )
         # Progress is built later (in run()) once we know the total count.
         self._reporter: Reporter = Reporter(stats=self._stats)
         self._langfiles: LangFiles = LangFiles(config, stats=self._stats)

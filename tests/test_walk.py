@@ -35,6 +35,8 @@ def _make_walk(
         symlinks=True,
         cache_expiry_days=30,
         after=None,
+        timestamps=False,
+        dry_run=False,
         lookup_workers=4,
     )
     return Walk(cfg)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
