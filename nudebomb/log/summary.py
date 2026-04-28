@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from rich.table import Table
 
+from nudebomb.log.styles import MARKS
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -110,20 +112,36 @@ def _counts_table(stats: Stats) -> Table:
     table = Table(title="Summary", show_header=False, title_style="bold")
     table.add_column("Metric")
     table.add_column("Count", justify="right")
-    table.add_row("Ignored", str(stats.ignored), style="dim")
+    table.add_row("Ignored", str(stats.ignored), style=MARKS["ignored"].style)
     table.add_row(
         "Skipped (timestamp)",
         str(stats.skipped_timestamp),
-        style="bold bright_green",
+        style=MARKS["skipped_timestamp"].style,
     )
-    table.add_row("Already stripped", str(stats.already_stripped), style="green")
-    table.add_row("Stripped", str(len(stats.stripped)), style="white")
-    table.add_row("Not remuxed (dry run)", str(len(stats.dry_run)), style="dim")
-    table.add_row("Warnings", str(len(stats.warnings)), style="yellow")
-    table.add_row("Errors", str(len(stats.errors)), style="bold red")
-    table.add_row("DB cache hits", str(stats.db_cache_hits), style="cyan")
-    table.add_row("Remote DB hits", str(stats.db_remote_hits), style="cyan")
-    table.add_row("Langfile hits", str(stats.langfile_hits), style="cyan")
+    table.add_row(
+        "Already stripped",
+        str(stats.already_stripped),
+        style=MARKS["already_stripped"].style,
+    )
+    table.add_row("Stripped", str(len(stats.stripped)), style=MARKS["stripped"].style)
+    table.add_row(
+        "Not remuxed (dry run)",
+        str(len(stats.dry_run)),
+        style=MARKS["dry_run"].style,
+    )
+    table.add_row("Warnings", str(len(stats.warnings)), style=MARKS["warning"].style)
+    table.add_row("Errors", str(len(stats.errors)), style=MARKS["error"].style)
+    table.add_row(
+        "DB cache hits", str(stats.db_cache_hits), style=MARKS["lookup_hit"].style
+    )
+    table.add_row(
+        "Remote DB hits",
+        str(stats.db_remote_hits),
+        style=MARKS["lookup_hit"].style,
+    )
+    table.add_row(
+        "Langfile hits", str(stats.langfile_hits), style=MARKS["lookup_hit"].style
+    )
     return table
 
 
@@ -166,9 +184,20 @@ def _print_messages(
 def render(stats: Stats, console: Console) -> None:
     """Print the summary to the given Rich console."""
     console.print(_counts_table(stats))
-    _print_paths(console, "Stripped tracks", stats.stripped, "green")
-    _print_paths(console, "Not remuxed (dry run)", stats.dry_run, "dim")
-    _print_pairs(console, "Warnings", stats.warnings, "yellow")
-    _print_pairs(console, "Errors", stats.errors, "bold red")
-    _print_messages(console, "DB lookups with no result", stats.db_no_results, "yellow")
-    _print_messages(console, "Remote DB errors", stats.db_remote_errors, "bold red")
+    _print_paths(
+        console, "Stripped tracks", stats.stripped, MARKS["already_stripped"].style
+    )
+    _print_paths(
+        console, "Not remuxed (dry run)", stats.dry_run, MARKS["dry_run"].style
+    )
+    _print_pairs(console, "Warnings", stats.warnings, MARKS["warning"].style)
+    _print_pairs(console, "Errors", stats.errors, MARKS["error"].style)
+    _print_messages(
+        console,
+        "DB lookups with no result",
+        stats.db_no_results,
+        MARKS["lookup_no_result"].style,
+    )
+    _print_messages(
+        console, "Remote DB errors", stats.db_remote_errors, MARKS["error"].style
+    )

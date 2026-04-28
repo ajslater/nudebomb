@@ -352,10 +352,14 @@ class Walk:
         logger.info("Searching for MKV files to process…")
 
         if self._config.timestamps:
+            # Force `verbose=0` so treestamps's own termcolor Printer
+            # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
+            # dots straight to stdout for each `.set()` call, bypassing
+            # rich's Live region and breaking the bar's in-place redraw.
             grove_config = GrovestampsConfig(
                 PROGRAM_NAME,
                 paths=self._config.paths,
-                verbose=self._config.verbose,
+                verbose=0,
                 symlinks=self._config.symlinks,
                 ignore=self._config.ignore,
                 check_config=self._config.timestamps_check_config,
