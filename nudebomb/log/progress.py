@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from collections import defaultdict, deque
+from contextlib import contextmanager
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
 
@@ -20,7 +21,7 @@ from rich.text import Text
 from typing_extensions import Self, override
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Generator, Mapping
     from types import TracebackType
 
     from rich.console import Console
@@ -190,6 +191,38 @@ class ProgressContext:
     def mark_lookup_error(self) -> None:
         """Mark a remote DB lookup error (no bar advance)."""
         self._mark("lookup_error")
+
+    @contextmanager
+    def file_subtask(
+        self, description: str
+    ) -> Generator[Callable[[int], None], None, None]:
+        """
+        Yield a callable for updating a transient per-file sub-task.
+
+        The sub-task lives inside the same Live region as the main bar,
+        so per-file progress (e.g. mkvmerge percentage) renders beneath
+        it without breaking the in-place redraw, and disappears on exit.
+        When the ProgressContext is disabled, yields a no-op.
+        """
+        if not self._enabled or self._progress is None:
+            yield _noop_update
+            return
+        # Capture in a local so the closure and the ``finally`` block
+        # see a non-None Progress without re-narrowing.
+        progress = self._progress
+        task_id = progress.add_task(description, total=100)
+        try:
+
+            def _update(pct: int) -> None:
+                progress.update(task_id, completed=pct)
+
+            yield _update
+        finally:
+            progress.remove_task(task_id)
+
+
+def _noop_update(_pct: int) -> None:
+    """No-op fallback for `file_subtask` when progress is disabled."""
 
 
 def make_progress(
