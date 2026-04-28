@@ -1,20 +1,25 @@
 """TMDB API lookup for media language detection."""
 
-from pathlib import Path
-from typing import Final
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Final
 
 import tmdbsimple as tmdb
-from confuse import AttrDict
+from loguru import logger
 from requests.exceptions import HTTPError
 
+from nudebomb.log import LOOKUP_HIT_LEVEL
 from nudebomb.lookup.cache import LookupCache
-from nudebomb.lookup.parser import ParseResult, parse_title
-from nudebomb.lookup.util import (
-    LogEvent,
-    LookupResult,
-    format_title_year,
-    resolve_language,
-)
+from nudebomb.lookup.parser import parse_title
+from nudebomb.lookup.util import format_title_year, resolve_language
+from nudebomb.reporter import Reporter
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from confuse import AttrDict
+
+    from nudebomb.lookup.parser import ParseResult
 
 _RATE_LIMIT_STATUS: Final = 429
 
@@ -22,10 +27,11 @@ _RATE_LIMIT_STATUS: Final = 429
 class TMDBLookup:
     """Look up original language of media from TMDB."""
 
-    def __init__(self, config: AttrDict) -> None:
+    def __init__(self, config: AttrDict, reporter: Reporter | None = None) -> None:
         """Initialize."""
         tmdb.API_KEY = config.tmdb_api_key
-        self._cache = LookupCache(config.cache_expiry_days)
+        self._reporter: Reporter = reporter if reporter is not None else Reporter()
+        self._cache = LookupCache(config.cache_expiry_days, self._reporter)
         self._media_type: str = config.media_type
 
     def _search_tmdb(
@@ -93,43 +99,44 @@ class TMDBLookup:
         """Extract the database ID from a TMDB result."""
         return str(result.get("id", ""))
 
-    def _query_api(
-        self, title: str, year: str, parsed: ParseResult
-    ) -> tuple[dict | None, list[LogEvent]]:
+    def _query_api(self, title: str, year: str, parsed: ParseResult) -> dict | None:
         """
         Query TMDB API.
 
-        Returns ``(result, events)`` where ``result`` is:
+        Returns:
         - a dict on hit
         - ``None`` on no-result (cache as a miss)
         - ``{}`` on rate-limit or error (do not cache — retry next run)
+
+        Side effects: emits warning/error log + progress mark + stats
+        bookkeeping for rate-limits and errors.
+
         """
         try:
             if parsed.tmdb_id or parsed.imdb_id:
-                return self._lookup_by_id(parsed), []
-            return self._search_tmdb(title, year), []
+                return self._lookup_by_id(parsed)
+            return self._search_tmdb(title, year)
         except HTTPError as exc:
             response = exc.response
             title_year = format_title_year(title, year)
             if response is not None and response.status_code == _RATE_LIMIT_STATUS:
-                event = LogEvent(
-                    "lookup_rate_limited",
-                    f"TMDB rate limited for '{title_year}'",
-                )
+                msg = f"TMDB rate limited for '{title_year}'"
+                logger.warning(msg)
+                self._reporter.progress.mark_lookup_rate_limited()
+                self._reporter.stats.record_db_remote_error(msg)
             else:
-                event = LogEvent(
-                    "lookup_error",
-                    f"TMDB HTTP error for '{title_year}': {exc}",
-                )
-            return {}, [event]
+                msg = f"TMDB HTTP error for '{title_year}': {exc}"
+                logger.error(msg)
+                self._reporter.progress.mark_lookup_error()
+                self._reporter.stats.record_db_remote_error(msg)
+            return {}
         except Exception as exc:
             title_year = format_title_year(title, year)
-            return {}, [
-                LogEvent(
-                    "lookup_error",
-                    f"TMDB lookup failed for '{title_year}': {exc}",
-                )
-            ]
+            msg = f"TMDB lookup failed for '{title_year}': {exc}"
+            logger.error(msg)
+            self._reporter.progress.mark_lookup_error()
+            self._reporter.stats.record_db_remote_error(msg)
+            return {}
 
     def _id_lookup_keys(self, parsed: ParseResult) -> list[tuple[str, str]]:
         """Return (id_type, id_value) pairs present on the parse result."""
@@ -140,116 +147,103 @@ class TMDBLookup:
             keys.append(("imdb", parsed.imdb_id))
         return keys
 
-    def _check_id_caches(
-        self, parsed: ParseResult
-    ) -> tuple[bool, str | None, list[LogEvent]]:
+    def _check_id_caches(self, parsed: ParseResult) -> tuple[bool, str | None]:
         """Check caches for any known ID across both media types."""
-        events: list[LogEvent] = []
         for id_type, id_value in self._id_lookup_keys(parsed):
             for media_type in ("movie", "tv"):
-                found, lang, check_events = self._cache.check_id_cache(
-                    media_type, id_type, id_value
-                )
-                events.extend(check_events)
+                found, lang = self._cache.check_id_cache(media_type, id_type, id_value)
                 if found:
-                    return True, lang, events
-        return False, None, events
+                    return True, lang
+        return False, None
 
-    def _lookup_by_id_language(self, parsed: ParseResult) -> LookupResult:
+    def _record_remote_hit(self, label: str, lang: str) -> None:
+        """Record a successful remote lookup with a language."""
+        logger.log(LOOKUP_HIT_LEVEL, f"{label}: original language: {lang}")
+        self._reporter.progress.mark_lookup_hit()
+        self._reporter.stats.record_db_remote_hit()
+
+    def _record_remote_no_result(self, label: str) -> None:
+        """Record a remote lookup that returned no result."""
+        msg = f"{label}: no result found"
+        logger.warning(msg)
+        self._reporter.progress.mark_lookup_no_result()
+        self._reporter.stats.record_db_no_result(msg)
+
+    def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
         """Look up language by TMDB/IMDB ID, bypassing title-based caching."""
-        events: list[LogEvent] = []
-        found, cached_lang, cache_events = self._check_id_caches(parsed)
-        events.extend(cache_events)
+        found, cached_lang = self._check_id_caches(parsed)
         if found:
-            return LookupResult(lang=cached_lang, events=tuple(events))
+            return cached_lang
 
-        result, query_events = self._query_api("", "", parsed)
-        events.extend(query_events)
+        result = self._query_api("", "", parsed)
         if result == {}:
             # Rate-limited or error: do not cache, retry next run.
-            return LookupResult(lang=None, events=tuple(events))
+            return None
+        id_str = parsed.tmdb_id or parsed.imdb_id
+        label = f"TMDB ID {id_str}"
         if not result:
             # Genuine no-result; IDs aren't cached as misses today.
-            id_str = parsed.tmdb_id or parsed.imdb_id
-            events.append(
-                LogEvent("lookup_no_result", f"TMDB ID {id_str}: no result found")
-            )
-            return LookupResult(lang=None, events=tuple(events))
+            self._record_remote_no_result(label)
+            return None
 
         lang = resolve_language(result) or ""
         media_type = result.get("media_type", "")
         db_id = self._extract_db_id(result)
         if media_type:
             for id_type, id_value in self._id_lookup_keys(parsed):
-                save_events = self._cache.save_id(
+                self._cache.save_id(
                     media_type, id_type, id_value, db_id=db_id, language=lang
                 )
-                events.extend(save_events)
 
-        id_str = parsed.tmdb_id or parsed.imdb_id
         if lang:
-            events.append(
-                LogEvent("lookup_hit", f"TMDB ID {id_str}: original language: {lang}")
-            )
+            self._record_remote_hit(label, lang)
         else:
-            events.append(
-                LogEvent("lookup_no_result", f"TMDB ID {id_str}: no result found")
-            )
-        return LookupResult(lang=lang or None, events=tuple(events))
+            self._record_remote_no_result(label)
+        return lang or None
 
     def _lookup_by_title_language(
         self, title: str, year: str, parsed: ParseResult
-    ) -> LookupResult:
+    ) -> str | None:
         """Look up language by title search with caching."""
         cache_type = self._media_type
-        events: list[LogEvent] = []
-
-        found, lang, cache_events = self._cache.check_cache(cache_type, title, year)
-        events.extend(cache_events)
+        found, lang = self._cache.check_cache(cache_type, title, year)
         if found:
-            return LookupResult(lang=lang, events=tuple(events))
+            return lang
 
         # Query API
-        result, query_events = self._query_api(title, year, parsed)
-        events.extend(query_events)
+        result = self._query_api(title, year, parsed)
         if result == {}:
             # Rate-limited or error: do not cache.
-            return LookupResult(lang=None, events=tuple(events))
+            return None
 
         if result is not None:
             lang = resolve_language(result) or ""
             result_media_type = result.get("media_type", "")
-            save_events = self._cache.save_file(
+            self._cache.save_file(
                 result_media_type or cache_type,
                 title,
                 year,
                 db_id=self._extract_db_id(result),
                 language=lang,
             )
-            events.extend(save_events)
         else:
-            save_events = self._cache.save_file(cache_type, title, year)
-            events.extend(save_events)
+            self._cache.save_file(cache_type, title, year)
             lang = ""
 
         self._cache.set_mem(cache_type, title, year, lang or None)
+        label = f"TMDB: '{title}'"
         if lang:
-            events.append(
-                LogEvent("lookup_hit", f"TMDB: '{title}' original language: {lang}")
-            )
+            self._record_remote_hit(label, lang)
         else:
-            events.append(
-                LogEvent("lookup_no_result", f"TMDB: '{title}' no result found")
-            )
-        return LookupResult(lang=lang or None, events=tuple(events))
+            self._record_remote_no_result(label)
+        return lang or None
 
-    def lookup_language(self, path: Path) -> LookupResult:
+    def lookup_language(self, path: Path) -> str | None:
         """
         Look up the original language for a media file.
 
-        Returns a :class:`LookupResult` with an ISO 639-3 language code (or
-        ``None``) and a tuple of deferred log events for the main thread to
-        replay.
+        Returns an ISO 639-3 language code (or ``None``). All log /
+        progress / stats side effects happen inline.
         """
         parsed = parse_title(path.stem, self._media_type)
 
@@ -257,6 +251,6 @@ class TMDBLookup:
             return self._lookup_by_id_language(parsed)
 
         if not parsed.title:
-            return LookupResult()
+            return None
 
         return self._lookup_by_title_language(parsed.title, parsed.year, parsed)

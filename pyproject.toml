@@ -9,9 +9,11 @@ classifiers = [
 ]
 dependencies = [
   "confuse~=2.1.0,<2.2.0",
+  "loguru~=0.7",
   "platformdirs>=4.9.6",
   "pycountry~=26.2",
   "python-dateutil~=2.8",
+  "rich~=14.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
   "treestamps~=3.0.0",

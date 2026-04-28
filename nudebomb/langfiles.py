@@ -1,13 +1,19 @@
 """Module for reading lang files."""
 
+from __future__ import annotations
+
 from contextlib import suppress
-from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pycountry
-from confuse import AttrDict
+from loguru import logger
 
-from nudebomb.printer import Printer
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from confuse import AttrDict
+
+    from nudebomb.summary import Stats
 
 LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
 
@@ -24,23 +30,21 @@ def lang_to_alpha3(lang: str) -> str:
                 if lo := pycountry.languages.get(alpha_2=lang):
                     return lo.alpha_3
         case _:
-            Printer(2).warn(
-                f"Languages should be in two or three letter format: {lang}"
-            )
+            logger.warning(f"Languages should be in two or three letter format: {lang}")
     return lang
 
 
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, config: AttrDict) -> None:
+    def __init__(self, config: AttrDict, stats: Stats | None = None) -> None:
         """Initialize."""
         self._config: AttrDict = config
         self._lang_roots: dict[Path, set[str]] = {}
         self._languages: frozenset[str] = frozenset(
             lang_to_alpha3(lang) for lang in self._config.languages
         )
-        self._printer: Printer = Printer(self._config.verbose)
+        self._stats: Stats | None = stats
 
     def _read_lang_file(self, path: Path, fn: str) -> None:
         langpath = path / fn
@@ -57,9 +61,10 @@ class LangFiles:
             for lang in line.strip().split(",")
             if lang.strip()
         }
-        if self._config.verbose > 1:
-            newlangs_str = " ,".join(sorted(newlangs))
-            self._printer.config(f"Also keeping {newlangs_str} for {path}")
+        newlangs_str = ", ".join(sorted(newlangs))
+        logger.info(f"Also keeping {newlangs_str} for {path}")
+        if self._stats is not None and newlangs:
+            self._stats.record_langfile_hit()
         self._lang_roots[path] |= newlangs
 
     def read_lang_files(self, path: Path) -> set[str]:

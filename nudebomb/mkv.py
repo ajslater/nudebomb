@@ -1,17 +1,22 @@
 """MKV file operations."""
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from confuse import AttrDict
+from loguru import logger
 
 from nudebomb.langfiles import lang_to_alpha3
-from nudebomb.printer import Printer
+from nudebomb.reporter import Reporter
 from nudebomb.track import Track
+
+if TYPE_CHECKING:
+    from confuse import AttrDict
 
 
 class MKVFile:
@@ -22,11 +27,13 @@ class MKVFile:
     SUBTITLE_TRACK_NAME: Final = "subtitles"
     REMOVABLE_TRACK_NAMES: Final = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
 
-    def __init__(self, config: AttrDict, path: Path) -> None:
+    def __init__(
+        self, config: AttrDict, path: Path, reporter: Reporter | None = None
+    ) -> None:
         """Initialize."""
         self._config: AttrDict = config
         self.path: Path = Path(path)
-        self._printer: Printer = Printer(self._config.verbose)
+        self._reporter: Reporter = reporter if reporter is not None else Reporter()
         self._init_track_map()
 
     def update_languages(self, languages: frozenset[str]) -> None:
@@ -55,15 +62,17 @@ class MKVFile:
         json_data = json.loads(proc.stdout)
         if errors := json_data.get("errors"):
             for error in errors:
-                self._printer.error(error)
+                logger.error(error)
+                self._reporter.stats.record_error(self.path, error)
         if warnings := json_data.get("warnings"):
             for warning in warnings:
-                self._printer.warn(warning)
+                logger.warning(warning)
+                self._reporter.stats.record_warning(self.path, warning)
         tracks = json_data.get("tracks")
         if not tracks:
-            self._printer.warn(
-                f"No tracks. Might not be a valid matroshka video file: {self.path}",
-            )
+            msg = f"No tracks. Might not be a valid matroshka video file: {self.path}"
+            logger.warning(msg)
+            self._reporter.stats.record_warning(self.path, msg)
             return
 
         # load into our map.
@@ -86,7 +95,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            self._printer.extra_info(f"\t{track_type}: {track.id} {track.lang}")
+            logger.debug(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
@@ -138,7 +147,9 @@ class MKVFile:
         elif track_type == self.SUBTITLE_TRACK_NAME:
             command += ["--no-subtitles"]
         else:
-            self._printer.warn(f"No tracks to remove from {self.path}")
+            msg = f"No tracks to remove from {self.path}"
+            logger.warning(msg)
+            self._reporter.stats.record_warning(self.path, msg)
             return output, command, num_remove_ids
 
         # Report what tracks will be removed
@@ -211,11 +222,12 @@ class MKVFile:
     def remove_tracks(self) -> bool:
         """Remove the unwanted tracks."""
         if not self._track_map:
-            self._printer.error(
-                f"not removing tracks from mkv with no tracks: {self.path}",
-            )
+            msg = f"not removing tracks from mkv with no tracks: {self.path}"
+            logger.error(msg)
+            self._reporter.stats.record_error(self.path, msg)
+            self._reporter.progress.mark_error()
             return False
-        self._printer.extra_info(f"Checking {self.path}:")
+        logger.debug(f"Checking {self.path}:")
         # The command line args required to remux the mkv file
         output = f"\nRemuxing: {self.path}\n"
         output += "============================\n"
@@ -249,19 +261,27 @@ class MKVFile:
         command += [(str(self.path))]
 
         if not num_remove_ids and not und_relabeled:
-            self._printer.skip_timestamp(f"\tAlready stripped {self.path}")
+            logger.info(f"\tAlready stripped {self.path}")
+            self._reporter.stats.record_already_stripped()
+            self._reporter.progress.mark_already_stripped()
             return False
 
         changed = False
         try:
-            self._printer.work_manifest(output)
+            logger.info(output)
             if self._config.dry_run:
-                self._printer.dry_run(f"\tNot remuxing on dry run {self.path}")
+                logger.info(f"\tNot remuxing on dry run {self.path}")
+                self._reporter.stats.record_dry_run(self.path)
+                self._reporter.progress.mark_dry_run()
             else:
                 self._remux_file(command)
                 tmp_path.replace(self.path)
                 changed = True
+                self._reporter.stats.record_stripped(self.path)
+                self._reporter.progress.mark_stripped()
         except Exception as exc:
-            self._printer.error("", exc)
+            logger.error(str(exc))
+            self._reporter.stats.record_error(self.path, str(exc))
+            self._reporter.progress.mark_error()
             tmp_path.unlink(missing_ok=True)
         return changed
