@@ -45,19 +45,13 @@ LOOKUP_HIT_LEVEL: Final = "DBHIT"
 # helpers and the summary table rows.
 #
 # Style notes:
-#  - We avoid Rich's `dim` (`\x1b[2m`) and the 16-color `bright_black`
-#    extension (`\x1b[90m`) for the grey marks: some terminals render
-#    `\x1b[2m` as literal escape text, and at least one Rich 15
-#    environment renders `bright_black` with an unwanted faint prefix.
-#    `grey50` resolves to a single 256-color code (`\x1b[38;5;244m`)
-#    which renders cleanly everywhere.
 #  - `bold` is used as emphasis where the original termcolor scheme had
 #    `[bold]` (e.g. dry-run, timestamp-skipped).
 MARKS: Final[Mapping[str, Mark]] = MappingProxyType(
     {
         # Per-file marks (advance the bar)
-        "ignored": Mark(".", "grey50"),
-        "skipped_timestamp": Mark(".", "bold bright_green"),
+        "ignored": Mark(".", "dim"),
+        "skipped_timestamp": Mark(".", "dim green"),
         "already_stripped": Mark(".", "green"),
         "stripped": Mark("*", "white"),
         "dry_run": Mark("*", "bold grey50"),
