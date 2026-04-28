@@ -28,13 +28,8 @@ console: Final[Console] = Console(highlight=False)
 # its own color/symbol so it pops next to neutral INFO lines.
 LOOKUP_HIT_LEVEL: Final = "DBHIT"
 
-# Level → Rich style. Avoid `dim` (`\x1b[2m`) and `bright_black`
-# (`\x1b[90m`): some terminals render `\x1b[2m` as literal escape text,
-# and at least one Rich 15 env emits `bright_black` as `\x1b[2m\x1b[90m`
-# which cascades into broken Live-region rendering. `grey50` is a
-# single 256-color code (`\x1b[38;5;244m`) that renders reliably.
 _LEVEL_STYLES: Final = {
-    "DEBUG": "grey50",
+    "DEBUG": "dim",
     "INFO": "white",
     LOOKUP_HIT_LEVEL: "cyan",
     "SUCCESS": "green",

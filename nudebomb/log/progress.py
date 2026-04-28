@@ -34,24 +34,21 @@ __all__ = (
 )
 
 
-# (char, rich-style) pairs used by mark_* helpers below. Mirrors the
-# termcolor scheme of the original Printer (dark_grey == grey50).
+# (char, rich-style) pairs used by mark_* helpers below.
 #
 # We deliberately avoid `dim` (`\x1b[2m`) and `bright_black` (`\x1b[90m`)
 # for the grey marks: some terminals render `\x1b[2m` as literal escape
 # text, and at least one user environment with Rich 15 emits
 # `bright_black` as `\x1b[2m\x1b[90m` (with a faint prefix) which then
-# cascades into Live-region wrapping issues. `grey50` resolves to a
-# single 256-color code (`\x1b[38;5;244m`) which is a separate code
-# path and renders cleanly everywhere we've tested.
+# cascades into Live-region wrapping issues.
 _CHARS: Final[Mapping[str, tuple[str, str]]] = MappingProxyType(
     {
         # Per-file marks
-        "ignored": (".", "grey50"),
+        "ignored": (".", "dim"),
         "skipped_timestamp": (".", "bold bright_green"),
         "already_stripped": (".", "green"),
         "stripped": ("*", "white"),
-        "dry_run": ("*", "bold grey50"),
+        "dry_run": ("*", "dim"),
         "warning": ("!", "yellow"),
         "error": ("X", "bold red"),
         # Lookup marks (do not advance the bar)
