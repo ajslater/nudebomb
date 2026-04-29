@@ -398,7 +398,7 @@ class Walk:
                 self._executor = None
 
         if self._timestamps and (dumped := self._timestamps.dumpf()):
-            roots = ", ".join(dumped)
+            roots = ", ".join(str(p) for p in dumped)
             logger.info(f"Dumped timestamps for {roots}")
 
         if self._config.verbose > 0:
