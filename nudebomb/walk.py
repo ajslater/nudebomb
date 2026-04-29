@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -24,7 +25,7 @@ from nudebomb.mkv import MKVFile
 from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
-    from confuse import AttrDict
+    from nudebomb.config import NudebombSettings
 
 # Canonical key shape: (namespace, key_a, key_b). Namespaces are cheap
 # strings so the same dict handles both id-based and title-based lookups.
@@ -37,9 +38,9 @@ _MAX_LOOKUP_WORKERS: Final = 8
 class Walk:
     """Directory traversal class."""
 
-    def __init__(self, config: AttrDict) -> None:
+    def __init__(self, config: NudebombSettings) -> None:
         """Initialize."""
-        self._config: AttrDict = config
+        self._config: NudebombSettings = config
         self._stats: Stats = Stats(
             timestamps_active=bool(config.timestamps or config.after),
             dry_run_active=bool(config.dry_run),
@@ -181,7 +182,7 @@ class Walk:
         Matches the cache keys used by :class:`LookupCache` so two files
         that would hit the same cache entry share a single future.
         """
-        parsed = parse_title(path.stem, self._config.media_type)
+        parsed = parse_title(path.stem, self._config.media_type or "")
         if parsed.tvdb_id:
             return ("tv", "tvdb", parsed.tvdb_id)
         if parsed.tmdb_id:
@@ -367,7 +368,8 @@ class Walk:
                 symlinks=self._config.symlinks,
                 ignore=self._config.ignore,
                 check_config=self._config.timestamps_check_config,
-                program_config=self._config,
+                # GrovestampsConfig wants a Mapping; convert the dataclass.
+                program_config=asdict(self._config),
                 program_config_keys=TIMESTAMPS_CONFIG_KEYS,
             )
             self._timestamps = Grovestamps(grove_config)

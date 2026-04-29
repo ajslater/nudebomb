@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+## v1.3.0
+
+- Update to confuse 2.2.0
+- Introduce NudebombSettings class to type the config.
+
 ## v1.2.1
 
 - Fix mkvmerge output being squished into one line.

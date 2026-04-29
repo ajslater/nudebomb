@@ -10,7 +10,7 @@ from nudebomb.mkv import MKVFile
 from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
 
 if TYPE_CHECKING:
-    from confuse import AttrDict
+    from nudebomb.config import NudebombSettings
 
 __all__ = ()
 
@@ -51,7 +51,7 @@ class TestMkv(DiffTracksTest):
         self.src_tracks: list = mkv_tracks(TEST_MKV)  #  pyright: ignore[reportUninitializedInstanceVariable]
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__0"] = "und"
         os.environ["NUDEBOMB_NUDEBOMB__LANGUAGES__1"] = "eng"
-        self._config: AttrDict = NudebombConfig().get_config()  #  pyright: ignore[reportUninitializedInstanceVariable]
+        self._config: NudebombSettings = NudebombConfig().get_config()  #  pyright: ignore[reportUninitializedInstanceVariable]
 
     def teardown_method(self) -> None:
         """Tear down method."""
@@ -87,7 +87,7 @@ class TestMkv(DiffTracksTest):
 
     def test_fail(self) -> None:
         """Test fail."""
-        self._config.languages = ["xxx"]
+        self._config.languages = frozenset({"xxx"})
         mkvfile = MKVFile(self._config, TEST_MKV)
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)

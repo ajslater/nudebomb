@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Final
 import tvdb_v4_official
 from loguru import logger
 
-from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.lang import lang_to_alpha3
 from nudebomb.log import LOOKUP_HIT_LEVEL
 from nudebomb.log.reporter import Reporter
 from nudebomb.lookup.cache import LookupCache
@@ -17,8 +17,7 @@ from nudebomb.lookup.parser import parse_title
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from confuse import AttrDict
-
+    from nudebomb.config import NudebombSettings
     from nudebomb.lookup.parser import ParseResult
 
 # Loose rate-limit heuristics: TVDB surfaces errors as ``{"code": int,
@@ -41,8 +40,13 @@ def _is_tvdb_error_dict(result: object) -> bool:
 class TVDBLookup:
     """Look up original language of TV series from TVDB."""
 
-    def __init__(self, config: AttrDict, reporter: Reporter | None = None) -> None:
+    def __init__(
+        self, config: NudebombSettings, reporter: Reporter | None = None
+    ) -> None:
         """Initialize."""
+        if not config.tvdb_api_key:
+            msg = "TVDBLookup requires a tvdb_api_key in config"
+            raise ValueError(msg)
         self._tvdb = tvdb_v4_official.TVDB(config.tvdb_api_key)
         # tvdb_v4_official stores pagination state on the shared Request
         # object; serialize HTTP calls to keep that state consistent.

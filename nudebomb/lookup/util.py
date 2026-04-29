@@ -1,6 +1,6 @@
 """Utility functions for the lookup module."""
 
-from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.lang import lang_to_alpha3
 
 
 def resolve_language(result: dict) -> str | None:
