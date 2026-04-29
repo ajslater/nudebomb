@@ -3,6 +3,7 @@
 import io
 from pathlib import Path
 
+import pytest
 from rich.console import Console
 
 from nudebomb.log.summary import Stats, render
@@ -71,52 +72,83 @@ class TestRender:
         assert "Warnings:" not in output
         assert "Errors:" not in output
 
-    def test_renders_itemized_lists(self) -> None:
+    @pytest.mark.parametrize(
+        ("record", "args", "header", "content"),
+        [
+            ("record_stripped", (Path("/a.mkv"),), "Stripped tracks", "/a.mkv"),
+            (
+                "record_dry_run",
+                (Path("/b.mkv"),),
+                "Not remuxed (dry run)",
+                "/b.mkv",
+            ),
+            ("record_warning", (Path("/c.mkv"), "weird"), "Warnings", "weird"),
+            ("record_error", (Path("/d.mkv"), "boom"), "Errors", "boom"),
+            (
+                "record_db_no_result",
+                ("missing one",),
+                "DB lookups with no result",
+                "missing one",
+            ),
+            (
+                "record_db_remote_error",
+                ("rate limited",),
+                "Remote DB errors",
+                "rate limited",
+            ),
+        ],
+    )
+    def test_renders_itemized_section(
+        self,
+        record: str,
+        args: tuple[object, ...],
+        header: str,
+        content: str,
+    ) -> None:
+        """Each itemized section appears with its header and contents."""
         stats = Stats(
             timestamps_active=True,
             dry_run_active=True,
             remote_db_active=True,
         )
-        stats.record_stripped(Path("/a.mkv"))
-        stats.record_dry_run(Path("/b.mkv"))
-        stats.record_warning(Path("/c.mkv"), "weird")
-        stats.record_error(Path("/d.mkv"), "boom")
-        stats.record_db_no_result("missing one")
-        stats.record_db_remote_error("rate limited")
+        getattr(stats, record)(*args)
 
         output = _render(stats)
 
-        assert "Stripped tracks" in output
-        assert "/a.mkv" in output
-        assert "Not remuxed (dry run)" in output
-        assert "/b.mkv" in output
-        assert "Warnings" in output
-        assert "weird" in output
-        assert "Errors" in output
-        assert "boom" in output
-        assert "DB lookups with no result" in output
-        assert "missing one" in output
-        assert "Remote DB errors" in output
-        assert "rate limited" in output
+        assert header in output
+        assert content in output
 
 
 class TestConditionalRows:
     """Mode-specific summary rows are hidden when their mode is inactive."""
 
-    def test_default_hides_mode_specific_rows(self) -> None:
-        output = _render(Stats())
-        # Mode flags are False, no warnings/errors
-        assert "Skipped (timestamp)" not in output
-        assert "Not remuxed (dry run)" not in output
-        assert "Remote DB hits" not in output
-        assert "Warnings" not in output
-        assert "Errors" not in output
-        # Always-shown rows still appear
-        assert "Ignored" in output
-        assert "Already stripped" in output
-        assert "Stripped" in output
-        assert "DB cache hits" in output
-        assert "Langfile hits" in output
+    @pytest.mark.parametrize(
+        "row",
+        [
+            "Skipped (timestamp)",
+            "Not remuxed (dry run)",
+            "Remote DB hits",
+            "Warnings",
+            "Errors",
+        ],
+    )
+    def test_default_hides_mode_specific_row(self, row: str) -> None:
+        """Mode-specific rows are hidden when no mode flag is set."""
+        assert row not in _render(Stats())
+
+    @pytest.mark.parametrize(
+        "row",
+        [
+            "Ignored",
+            "Already stripped",
+            "Stripped",
+            "DB cache hits",
+            "Langfile hits",
+        ],
+    )
+    def test_default_shows_always_visible_row(self, row: str) -> None:
+        """Always-on rows still render with default Stats."""
+        assert row in _render(Stats())
 
     def test_timestamps_active_shows_skipped_row(self) -> None:
         output = _render(Stats(timestamps_active=True))
