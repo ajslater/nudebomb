@@ -4,10 +4,12 @@ from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormat
 from collections.abc import Sequence
 from typing import Any, Final
 
-from termcolor import colored
+from rich.console import Console
 from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
+from nudebomb.log import setup as setup_logging
+from nudebomb.log.styles import MARKS
 from nudebomb.version import VERSION
 from nudebomb.walk import Walk
 
@@ -31,27 +33,33 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, values)
 
 
-COLOR_KEY: Final = (
-    (". MKV ignored/skipped", "dark_grey", []),
-    (". MKV skipped because timestamp unchanged", "light_green", ["dark", "bold"]),
-    (". MKV already stripped", "green", []),
-    (". MKV stripped tracks", "white", []),
-    (". MKV not remuxed on dry run", "dark_grey", ["bold"]),
-    (". WARNING", "light_yellow", []),
-    (". ERROR", "light_red", []),
-    (". Remote DB lookup succeeded (cached)", "cyan", []),
-    ("O Remote DB lookup succeeded", "cyan", []),
-    ("x Remote DB lookup no result", "light_yellow", []),
-    ("X Remote error", "light_red", []),
+# Order + label for each mark in the help epilogue legend. The char and
+# style are pulled from the centralized MARKS table so the legend can
+# never drift from what the bar actually renders.
+CHAR_KEY_LABELS: Final[tuple[tuple[str, str], ...]] = (
+    ("ignored", "MKV ignored/skipped"),
+    ("skipped_timestamp", "MKV skipped (timestamp unchanged)"),
+    ("already_stripped", "MKV already stripped"),
+    ("stripped", "MKV stripped tracks"),
+    ("dry_run", "MKV not remuxed (dry run)"),
+    ("warning", "Warning"),
+    ("error", "Error"),
+    ("lookup_hit", "Remote DB lookup succeeded"),
+    ("lookup_no_result", "Remote DB lookup no result"),
+    ("lookup_rate_limited", "Remote DB rate limited"),
+    ("lookup_error", "Remote DB error"),
 )
 
 
-def get_dot_color_key() -> str:
-    """Create dot color key."""
-    epilogue = "Dot color key:\n"
-    for text, color, attrs in COLOR_KEY:
-        epilogue += "\t" + colored(text, color=color, attrs=attrs) + "\n"
-    return epilogue
+def get_progress_char_key() -> str:
+    """Create the progress char legend for the help epilogue."""
+    console = Console(record=True, force_terminal=True, no_color=False)
+    console.begin_capture()
+    console.print("[bold]Progress char key:[/bold]")
+    for kind, label in CHAR_KEY_LABELS:
+        mark = MARKS[kind]
+        console.print(f"\t[{mark.style}]{mark.char}[/{mark.style}]  {label}")
+    return console.end_capture()
 
 
 def get_arguments(
@@ -59,7 +67,7 @@ def get_arguments(
 ) -> Namespace:
     """Command line interface."""
     description = "Strips unnecessary tracks from MKV files."
-    epilog = get_dot_color_key()
+    epilog = get_progress_char_key()
     parser = ArgumentParser(
         description=description,
         epilog=epilog,
@@ -258,6 +266,7 @@ def get_arguments(
 def main(args: tuple[str, ...] | None = None) -> None:
     """Process command line arguments, config and walk inputs."""
     arguments = get_arguments(args)
+    setup_logging(arguments.nudebomb.verbose)
     config = NudebombConfig().get_config(arguments)
     # Iterate over all found mkv files
     walker = Walk(config)

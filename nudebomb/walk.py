@@ -1,22 +1,30 @@
 """Walk directory trees and strip mkvs."""
 
+from __future__ import annotations
+
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from confuse import AttrDict
+from loguru import logger
 from treestamps import Grovestamps, GrovestampsConfig
 from treestamps.tree import Treestamps
 
 from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
 from nudebomb.langfiles import LangFiles
+from nudebomb.log import console
+from nudebomb.log.progress import make_progress
+from nudebomb.log.reporter import Reporter
+from nudebomb.log.summary import Stats
+from nudebomb.log.summary import render as render_summary
 from nudebomb.lookup import TMDBLookup, TVDBLookup
 from nudebomb.lookup.parser import parse_title
-from nudebomb.lookup.util import LogEvent, LookupResult
 from nudebomb.mkv import MKVFile
-from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
+
+if TYPE_CHECKING:
+    from confuse import AttrDict
 
 # Canonical key shape: (namespace, key_a, key_b). Namespaces are cheap
 # strings so the same dict handles both id-based and title-based lookups.
@@ -32,20 +40,26 @@ class Walk:
     def __init__(self, config: AttrDict) -> None:
         """Initialize."""
         self._config: AttrDict = config
-        self._langfiles: LangFiles = LangFiles(config)
-        self._printer: Printer = Printer(self._config.verbose)
+        self._stats: Stats = Stats(
+            timestamps_active=bool(config.timestamps or config.after),
+            dry_run_active=bool(config.dry_run),
+            remote_db_active=bool(config.tmdb_api_key or config.tvdb_api_key),
+        )
+        # Progress is built later (in run()) once we know the total count.
+        self._reporter: Reporter = Reporter(stats=self._stats)
+        self._langfiles: LangFiles = LangFiles(config, stats=self._stats)
         self._timestamps: Grovestamps | None = None
         self._tmdb: TMDBLookup | None = (
-            TMDBLookup(config) if config.tmdb_api_key else None
+            TMDBLookup(config, self._reporter) if config.tmdb_api_key else None
         )
         self._tvdb: TVDBLookup | None = (
-            TVDBLookup(config) if config.tvdb_api_key else None
+            TVDBLookup(config, self._reporter) if config.tvdb_api_key else None
         )
         self._executor: ThreadPoolExecutor | None = None
         # Walk-wide future map keyed by canonical cache key.
         # The first file in a (title, year) / (id_type, id_value) group
         # submits the lookup; later files reuse the same future.
-        self._pending: dict[_LookupKey, Future[LookupResult]] = {}
+        self._pending: dict[_LookupKey, Future[str | None]] = {}
 
     # ------------------------------------------------------------------
     # Guards
@@ -55,14 +69,17 @@ class Walk:
         """Return if the suffix should skipped."""
         if path.suffix == ".mkv":
             return False
-        self._printer.skip("Suffix is not 'mkv'", path)
+        logger.debug(f"Skip: Suffix is not 'mkv': {path}")
+        self._stats.record_ignored()
+        self._reporter.progress.mark_ignored()
         return True
 
     def _is_path_ignored(self, path: Path) -> bool:
         """Return if path should be ignored."""
         if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            self._printer.skip("ignored", path)
-
+            logger.debug(f"Skip: ignored: {path}")
+            self._stats.record_ignored()
+            self._reporter.progress.mark_ignored()
             return True
         return False
 
@@ -76,13 +93,17 @@ class Walk:
             mtime = None
 
         if mtime is not None and mtime > path.stat().st_mtime:
-            self._printer.skip_timestamp(f"Skip by timestamps {path}")
+            logger.debug(f"Skip by timestamps {path}")
+            self._stats.record_skipped_timestamp()
+            self._reporter.progress.mark_skipped_timestamp()
             return True
         return False
 
     def _is_path_skippable_symlink(self, path: Path) -> bool:
         if not self._config.symlinks and path.is_symlink():
-            self._printer.skip("symlink", path)
+            logger.debug(f"Skip: symlink: {path}")
+            self._stats.record_ignored()
+            self._reporter.progress.mark_ignored()
             return True
         return False
 
@@ -106,6 +127,45 @@ class Walk:
         else:
             mtime = None
         return not (mtime is not None and mtime > path.stat().st_mtime)
+
+    # ------------------------------------------------------------------
+    # Pre-walk file count (drives a determinate progress bar)
+    # ------------------------------------------------------------------
+
+    def _count_dir(self, top_path: Path, dir_path: Path) -> int:
+        """Recurse a directory mirroring walk_file/walk_dir's guards."""
+        if not self._config.recurse:
+            return 0
+        total = 0
+        try:
+            entries = sorted(dir_path.iterdir())
+        except OSError:
+            return 0
+        for entry in entries:
+            total += self._count_path(top_path, entry)
+        return total
+
+    def _count_path(self, top_path: Path, path: Path) -> int:
+        """Count files under a single path, mirroring walk_file's guards."""
+        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
+            return 1  # still represents one bar advance via mark_ignored
+        if not self._config.symlinks and path.is_symlink():
+            return 1
+        if path.is_dir():
+            return self._count_dir(top_path, path)
+        # Every visited non-dir entry contributes exactly one bar advance:
+        # either the file is processed (stripped/dry-run/already-stripped/
+        # error) or it gets skipped (non-mkv suffix, timestamp).
+        return 1
+
+    def _count_total(self) -> int:
+        """Total advance count for the progress bar across all configured paths."""
+        total = 0
+        for path_str in self._config.paths:
+            path = Path(path_str)
+            top_path = Treestamps.get_dir(path)
+            total += self._count_path(top_path, path)
+        return total
 
     # ------------------------------------------------------------------
     # Lookup dispatch
@@ -132,27 +192,22 @@ class Walk:
             return (self._config.media_type or "", parsed.title, parsed.year)
         return None
 
-    def _do_lookup(self, path: Path) -> LookupResult:
+    def _do_lookup(self, path: Path) -> str | None:
         """
         Run the configured lookups in TVDB-first-then-TMDB order.
 
-        Executed on a worker thread; must not touch Printer directly.
-        Collected events are replayed by :meth:`_replay_events` on the
-        main thread.
+        Executed on a worker thread; the lookup classes log / advance
+        progress / record stats inline (loguru and rich.Progress are both
+        thread-safe, and Stats has its own lock).
         """
-        events: list[LogEvent] = []
         lang: str | None = None
         if self._tvdb and self._config.media_type == "tv":
-            tvdb_result = self._tvdb.lookup_language(path)
-            events.extend(tvdb_result.events)
-            lang = tvdb_result.lang
+            lang = self._tvdb.lookup_language(path)
         if not lang and self._tmdb:
-            tmdb_result = self._tmdb.lookup_language(path)
-            events.extend(tmdb_result.events)
-            lang = tmdb_result.lang
-        return LookupResult(lang=lang, events=tuple(events))
+            lang = self._tmdb.lookup_language(path)
+        return lang
 
-    def _submit_lookup(self, path: Path) -> Future[LookupResult] | None:
+    def _submit_lookup(self, path: Path) -> Future[str | None] | None:
         """Submit (or reuse) a lookup future for ``path``."""
         if self._executor is None or not self._has_lookup_backend():
             return None
@@ -167,7 +222,7 @@ class Walk:
 
     def _get_or_submit_lookup(
         self, top_path: Path, dir_path: Path, path: Path
-    ) -> Future[LookupResult] | None:
+    ) -> Future[str | None] | None:
         """
         Return the lookup future for ``path``, submitting if needed.
 
@@ -179,19 +234,6 @@ class Walk:
         if self._langfiles.found_lang_files(top_path, dir_path):
             return None
         return self._submit_lookup(path)
-
-    def _replay_events(self, events: tuple[LogEvent, ...]) -> None:
-        """Replay deferred worker log events on the main thread's Printer."""
-        for event in events:
-            method = getattr(self._printer, event.method, None)
-            if method is None:
-                # Defensive: unknown method name — fall back to warn so we
-                # don't silently drop the message.
-                self._printer.warn(
-                    f"[unknown printer method: {event.method}] {event.message}"
-                )
-                continue
-            method(event.message)
 
     # ------------------------------------------------------------------
     # Core per-file processing
@@ -211,19 +253,15 @@ class Walk:
 
         # Run mkvmerge -J now — it doesn't need lookup results, so it
         # overlaps with the in-flight DB call.
-        mkv_obj = MKVFile(config, path)
+        mkv_obj = MKVFile(config, path, self._reporter)
 
         # Now fold the (usually-already-resolved) lookup into languages.
         if lookup_future is not None:
-            result = lookup_future.result()
-            self._replay_events(result.events)
-            if result.lang:
-                mkv_obj.update_languages(frozenset(config.languages | {result.lang}))
+            lang = lookup_future.result()
+            if lang:
+                mkv_obj.update_languages(frozenset(config.languages | {lang}))
 
-        wrote = mkv_obj.remove_tracks()
-        if self._timestamps and wrote:
-            self._timestamps.set(top_path, path)
-        return wrote
+        return mkv_obj.remove_tracks()
 
     # ------------------------------------------------------------------
     # Directory walking
@@ -292,22 +330,40 @@ class Walk:
             return
         if self._is_path_before_timestamp(top_path, path):
             return
-        self.strip_path(top_path, path)
+        # `up_to_date` is True for both freshly-remuxed files and files
+        # that were already stripped — both states mean "no need to
+        # re-check next run", so write the timestamp.
+        up_to_date = self.strip_path(top_path, path)
+        if self._timestamps and up_to_date:
+            self._timestamps.set(top_path, path)
 
     # ------------------------------------------------------------------
     # Entry point
     # ------------------------------------------------------------------
 
+    def _print_config(self) -> None:
+        """Log the keep-languages config at INFO."""
+        langs = ", ".join(sorted(self._config.languages))
+        audio = "audio " if self._config.sub_languages else ""
+        logger.info(f"Stripping {audio}languages except {langs}.")
+        if self._config.sub_languages:
+            sub_langs = ", ".join(sorted(self._config.sub_languages))
+            logger.info(f"Stripping subtitle languages except {sub_langs}.")
+
     def run(self) -> None:
         """Run the stripper against all configured paths."""
-        self._printer.print_config(self._config.languages, self._config.sub_languages)
-        self._printer.start_operation()
+        self._print_config()
+        logger.info("Searching for MKV files to process…")
 
         if self._config.timestamps:
+            # Force `verbose=0` so treestamps's own termcolor Printer
+            # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
+            # dots straight to stdout for each `.set()` call, bypassing
+            # rich's Live region and breaking the bar's in-place redraw.
             grove_config = GrovestampsConfig(
                 PROGRAM_NAME,
                 paths=self._config.paths,
-                verbose=self._config.verbose,
+                verbose=0,
                 symlinks=self._config.symlinks,
                 ignore=self._config.ignore,
                 check_config=self._config.timestamps_check_config,
@@ -315,12 +371,23 @@ class Walk:
                 program_config_keys=TIMESTAMPS_CONFIG_KEYS,
             )
             self._timestamps = Grovestamps(grove_config)
+            roots = ", ".join(sorted(str(p) for p in self._timestamps))
+            logger.info(f"Read timestamps from {roots}")
+
+        total = self._count_total()
+        progress = make_progress(total, console, enabled=self._config.verbose > 0)
+        # Replace the no-op progress that lookup classes captured at
+        # construction time so they advance the real bar.
+        self._reporter.progress = progress
 
         max_workers = max(1, min(int(self._config.lookup_workers), _MAX_LOOKUP_WORKERS))
-        with ThreadPoolExecutor(
-            max_workers=max_workers,
-            thread_name_prefix="nb-lookup",
-        ) as executor:
+        with (
+            progress,
+            ThreadPoolExecutor(
+                max_workers=max_workers,
+                thread_name_prefix="nb-lookup",
+            ) as executor,
+        ):
             self._executor = executor
             try:
                 for path_str in self._config.paths:
@@ -329,7 +396,10 @@ class Walk:
                     self.walk_file(top_path, path)
             finally:
                 self._executor = None
-        self._printer.done()
 
-        if self._timestamps:
-            self._timestamps.dumpf()
+        if self._timestamps and (dumped := self._timestamps.dumpf()):
+            roots = ", ".join(dumped)
+            logger.info(f"Dumped timestamps for {roots}")
+
+        if self._config.verbose > 0:
+            render_summary(self._stats, console)
