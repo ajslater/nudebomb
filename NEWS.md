@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+## v1.2.0
+
+- Fix "Already Stripped" state not writing timestamps.
+- New Progress and logging output
+
 ## v1.1.0
 
 - Parallelize online database lookups.

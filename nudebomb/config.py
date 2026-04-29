@@ -11,9 +11,9 @@ from typing import Final
 from confuse import Configuration
 from confuse.templates import AttrDict, Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import parse
+from loguru import logger
 
 from nudebomb.langfiles import lang_to_alpha3
-from nudebomb.printer import Printer
 from nudebomb.version import PROGRAM_NAME
 
 TEMPLATE: Final = MappingTemplate(
@@ -66,10 +66,6 @@ if system() == "Windows":
 class NudebombConfig:
     """Nudebomb config."""
 
-    def __init__(self) -> None:
-        """Initialize printer."""
-        self._printer: Printer = Printer(2)
-
     @staticmethod
     def _set_after(config: Configuration) -> None:
         after = config[PROGRAM_NAME]["after"].get()
@@ -117,7 +113,7 @@ class NudebombConfig:
         self._set_unique_lang_list(config, "languages")
         if not config[PROGRAM_NAME]["languages"].get():
             error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."
-            self._printer.error(error)
+            logger.error(error)
             sys.exit(1)
 
     @staticmethod
@@ -144,7 +140,7 @@ class NudebombConfig:
         try:
             config.read()
         except Exception as exc:
-            self._printer.warn(str(exc))
+            logger.warning(str(exc))
         if args and args.nudebomb and args.nudebomb.config:
             config.set_file(args.nudebomb.config)
         config.set_env()

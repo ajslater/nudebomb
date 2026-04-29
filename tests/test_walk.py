@@ -1,4 +1,4 @@
-"""Tests for Walk-level lookup dispatch, dedupe, and event replay."""
+"""Tests for Walk-level lookup dispatch and dedupe."""
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nudebomb.lookup.util import LogEvent, LookupResult
 from nudebomb.walk import Walk
 
 __all__ = ()
@@ -23,8 +22,8 @@ def _make_walk(
     """Build a Walk with TMDB/TVDB clients pre-patched for offline testing."""
     # Stub out the lookup client construction so Walk.__init__ doesn't try
     # to reach the network.
-    monkeypatch.setattr("nudebomb.walk.TMDBLookup", lambda _cfg: tmdb)
-    monkeypatch.setattr("nudebomb.walk.TVDBLookup", lambda _cfg: tvdb)
+    monkeypatch.setattr("nudebomb.walk.TMDBLookup", lambda _cfg, _rep: tmdb)
+    monkeypatch.setattr("nudebomb.walk.TVDBLookup", lambda _cfg, _rep: tvdb)
 
     cfg = SimpleNamespace(
         tmdb_api_key="fake" if tmdb is not None else None,
@@ -36,6 +35,8 @@ def _make_walk(
         symlinks=True,
         cache_expiry_days=30,
         after=None,
+        timestamps=False,
+        dry_run=False,
         lookup_workers=4,
     )
     return Walk(cfg)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
@@ -76,7 +77,7 @@ class TestSubmitLookupDedup:
 
     def test_same_key_same_future(self, monkeypatch: pytest.MonkeyPatch) -> None:
         tmdb = MagicMock()
-        tmdb.lookup_language.return_value = LookupResult(lang="eng")
+        tmdb.lookup_language.return_value = "eng"
         walk = _make_walk(monkeypatch, tmdb=tmdb)
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -94,7 +95,7 @@ class TestSubmitLookupDedup:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         tmdb = MagicMock()
-        tmdb.lookup_language.return_value = LookupResult(lang="eng")
+        tmdb.lookup_language.return_value = "eng"
         walk = _make_walk(monkeypatch, tmdb=tmdb)
         expected_calls = 2
 
@@ -124,13 +125,13 @@ class TestDoLookup:
 
     def test_tvdb_tv_hit_skips_tmdb(self, monkeypatch: pytest.MonkeyPatch) -> None:
         tvdb = MagicMock()
-        tvdb.lookup_language.return_value = LookupResult(lang="jpn")
+        tvdb.lookup_language.return_value = "jpn"
         tmdb = MagicMock()
         walk = _make_walk(monkeypatch, media_type="tv", tmdb=tmdb, tvdb=tvdb)
 
         result = walk._do_lookup(Path("Cowboy Bebop.mkv"))
 
-        assert result.lang == "jpn"
+        assert result == "jpn"
         assert tvdb.lookup_language.call_count == 1
         assert tmdb.lookup_language.call_count == 0
 
@@ -138,71 +139,23 @@ class TestDoLookup:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         tvdb = MagicMock()
-        tvdb.lookup_language.return_value = LookupResult(lang=None)
+        tvdb.lookup_language.return_value = None
         tmdb = MagicMock()
-        tmdb.lookup_language.return_value = LookupResult(lang="eng")
+        tmdb.lookup_language.return_value = "eng"
         walk = _make_walk(monkeypatch, media_type="tv", tmdb=tmdb, tvdb=tvdb)
 
         result = walk._do_lookup(Path("Breaking Bad.mkv"))
 
-        assert result.lang == "eng"
+        assert result == "eng"
         assert tvdb.lookup_language.call_count == 1
         assert tmdb.lookup_language.call_count == 1
 
     def test_movie_skips_tvdb(self, monkeypatch: pytest.MonkeyPatch) -> None:
         tvdb = MagicMock()
         tmdb = MagicMock()
-        tmdb.lookup_language.return_value = LookupResult(lang="eng")
+        tmdb.lookup_language.return_value = "eng"
         walk = _make_walk(monkeypatch, media_type="movie", tmdb=tmdb, tvdb=tvdb)
 
         walk._do_lookup(Path("Dune (2021).mkv"))
         assert tvdb.lookup_language.call_count == 0
         assert tmdb.lookup_language.call_count == 1
-
-    def test_events_are_combined(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Events from both backends flow through to the caller."""
-        tvdb = MagicMock()
-        tvdb.lookup_language.return_value = LookupResult(
-            lang=None, events=(LogEvent("lookup_no_result", "tvdb miss"),)
-        )
-        tmdb = MagicMock()
-        tmdb.lookup_language.return_value = LookupResult(
-            lang="eng", events=(LogEvent("lookup_hit", "tmdb hit"),)
-        )
-        walk = _make_walk(monkeypatch, media_type="tv", tmdb=tmdb, tvdb=tvdb)
-
-        result = walk._do_lookup(Path("Foo.mkv"))
-
-        methods = [e.method for e in result.events]
-        assert methods == ["lookup_no_result", "lookup_hit"]
-
-
-class TestReplayEvents:
-    """Events get replayed on the main thread's Printer."""
-
-    def test_replay_calls_printer_methods(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        walk = _make_walk(monkeypatch, tmdb=MagicMock())
-        walk._printer = MagicMock()
-
-        events = (
-            LogEvent("lookup_hit", "hit: Foo"),
-            LogEvent("lookup_no_result", "miss: Bar"),
-            LogEvent("lookup_rate_limited", "slow down"),
-        )
-        walk._replay_events(events)
-
-        walk._printer.lookup_hit.assert_called_once_with("hit: Foo")
-        walk._printer.lookup_no_result.assert_called_once_with("miss: Bar")
-        walk._printer.lookup_rate_limited.assert_called_once_with("slow down")
-
-    def test_unknown_method_falls_back_to_warn(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        walk = _make_walk(monkeypatch, tmdb=MagicMock())
-        walk._printer = MagicMock(spec=["warn"])
-
-        walk._replay_events((LogEvent("bogus_method", "hello"),))
-
-        walk._printer.warn.assert_called_once()

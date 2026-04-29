@@ -1,4 +1,4 @@
-"""Tests for the lookup module: cache thread-safety, event replay, errors."""
+"""Tests for the lookup module: cache thread-safety, error handling."""
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -9,11 +9,12 @@ import pytest
 from requests.exceptions import HTTPError
 from requests.models import Response
 
+from nudebomb.log.reporter import Reporter
+from nudebomb.log.summary import Stats
 from nudebomb.lookup.cache import CacheEntry, LookupCache
 from nudebomb.lookup.parser import ParseResult
 from nudebomb.lookup.tmdb import TMDBLookup
 from nudebomb.lookup.tvdb import TVDBLookup, _is_tvdb_error_dict
-from nudebomb.lookup.util import LogEvent, LookupResult
 
 __all__ = ()
 
@@ -40,7 +41,7 @@ class TestLookupCacheThreadSafety:
         def worker(i: int) -> tuple[bool, str | None]:
             title = f"title-{i % 16}"
             tmp_cache.set_mem("movie", title, "2024", f"eng-{i}")
-            found, lang, _events = tmp_cache.check_cache("movie", title, "2024")
+            found, lang = tmp_cache.check_cache("movie", title, "2024")
             return found, lang
 
         with ThreadPoolExecutor(max_workers=_N_THREADS) as pool:
@@ -54,8 +55,8 @@ class TestLookupCacheThreadSafety:
     def test_concurrent_save_id(self, tmp_cache: LookupCache) -> None:
         """Concurrent save_id writes should not crash or tear files."""
 
-        def worker(i: int) -> list[LogEvent]:
-            return tmp_cache.save_id(
+        def worker(i: int) -> None:
+            tmp_cache.save_id(
                 "movie",
                 "tmdb",
                 str(i % 4),
@@ -64,48 +65,74 @@ class TestLookupCacheThreadSafety:
             )
 
         with ThreadPoolExecutor(max_workers=_N_THREADS) as pool:
-            all_events = list(pool.map(worker, range(_N_ITERATIONS)))
+            list(pool.map(worker, range(_N_ITERATIONS)))
 
-        # No OSError warn events should surface on a temp dir.
-        assert all(not events for events in all_events)
         # File exists and parses back as valid JSON.
         for i in range(4):
-            found, lang, _events = tmp_cache.check_id_cache("movie", "tmdb", str(i))
+            found, lang = tmp_cache.check_id_cache("movie", "tmdb", str(i))
             assert found
             assert lang == "eng"
 
 
-class TestLookupCacheEvents:
-    """check_cache and check_id_cache return structured LogEvents, not prints."""
+class TestLookupCacheStats:
+    """Cache hits update the Reporter's Stats counters."""
 
-    def test_mem_hit_returns_cache_hit_event(self, tmp_cache: LookupCache) -> None:
-        tmp_cache.set_mem("tv", "Foo", "", "eng")
-        found, lang, events = tmp_cache.check_cache("tv", "Foo", "")
+    def test_mem_hit_records_db_cache_hit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "nudebomb.lookup.cache.user_cache_dir",
+            lambda _prog: str(tmp_path),
+        )
+        reporter = Reporter(stats=Stats())
+        cache = LookupCache(cache_expiry_days=30, reporter=reporter)
+        cache.set_mem("tv", "Foo", "", "eng")
+
+        found, lang = cache.check_cache("tv", "Foo", "")
+
         assert found
         assert lang == "eng"
-        assert len(events) == 1
-        assert events[0].method == "lookup_cache_hit"
-        assert "eng" in events[0].message
+        assert reporter.stats.db_cache_hits == 1
+        assert reporter.stats.db_no_results == []
 
-    def test_mem_miss_returns_empty_events(self, tmp_cache: LookupCache) -> None:
-        found, lang, events = tmp_cache.check_cache("tv", "never-saved", "")
+    def test_mem_miss_records_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "nudebomb.lookup.cache.user_cache_dir",
+            lambda _prog: str(tmp_path),
+        )
+        reporter = Reporter(stats=Stats())
+        cache = LookupCache(cache_expiry_days=30, reporter=reporter)
+
+        found, lang = cache.check_cache("tv", "never-saved", "")
+
         assert not found
         assert lang is None
-        assert events == []
+        assert reporter.stats.db_cache_hits == 0
+        assert reporter.stats.db_no_results == []
 
-    def test_file_miss_event(self, tmp_cache: LookupCache) -> None:
+    def test_file_miss_records_no_result(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "nudebomb.lookup.cache.user_cache_dir",
+            lambda _prog: str(tmp_path),
+        )
+        reporter = Reporter(stats=Stats())
+        cache = LookupCache(cache_expiry_days=30, reporter=reporter)
+
         # Empty-language save (a miss cached to disk).
-        events = tmp_cache.save_file("movie", "Unknown", "1999", language="")
-        assert not events
-
+        cache.save_file("movie", "Unknown", "1999", language="")
         # Evict the mem cache so we hit the file layer.
-        tmp_cache._mem_cache.clear()
+        cache._mem_cache.clear()
 
-        found, lang, events = tmp_cache.check_cache("movie", "Unknown", "1999")
+        found, lang = cache.check_cache("movie", "Unknown", "1999")
+
         assert found
         assert lang is None
-        assert len(events) == 1
-        assert events[0].method == "lookup_no_result"
+        assert reporter.stats.db_cache_hits == 1
+        assert len(reporter.stats.db_no_results) == 1
 
 
 class TestTVDBErrorDict:
@@ -134,7 +161,9 @@ class TestTMDBErrorHandling:
     """Rate-limit and error responses must NOT poison the cache."""
 
     @pytest.fixture
-    def tmdb(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TMDBLookup:
+    def tmdb(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[TMDBLookup, Reporter]:
         monkeypatch.setattr(
             "nudebomb.lookup.cache.user_cache_dir",
             lambda _prog: str(tmp_path),
@@ -146,7 +175,8 @@ class TestTMDBErrorHandling:
             media_type = "movie"
             verbose = 0
 
-        return TMDBLookup(_Cfg())  # pyright: ignore[reportArgumentType],#ty:  ignore[invalid-argument-type]
+        reporter = Reporter(stats=Stats())
+        return TMDBLookup(_Cfg(), reporter), reporter  # pyright: ignore[reportArgumentType],#ty:  ignore[invalid-argument-type]
 
     @staticmethod
     def _make_http_error(status: int) -> HTTPError:
@@ -156,44 +186,57 @@ class TestTMDBErrorHandling:
         exc.response = resp
         return exc
 
-    def test_rate_limit_does_not_cache_miss(self, tmdb: TMDBLookup) -> None:
+    def test_rate_limit_does_not_cache_miss(
+        self, tmdb: tuple[TMDBLookup, Reporter]
+    ) -> None:
         """429 returns None and leaves the cache clean for a retry."""
+        tmdb_lookup, reporter = tmdb
         parsed = ParseResult(
             title="Foo", year="2024", tmdb_id="", imdb_id="", tvdb_id=""
         )
 
-        with patch.object(tmdb, "_search_tmdb", side_effect=self._make_http_error(429)):
-            result = tmdb._lookup_by_title_language("Foo", "2024", parsed)
+        with patch.object(
+            tmdb_lookup, "_search_tmdb", side_effect=self._make_http_error(429)
+        ):
+            lang = tmdb_lookup._lookup_by_title_language("Foo", "2024", parsed)
 
-        assert result.lang is None
+        assert lang is None
         # No cache entry was written.
-        found, _lang, _events = tmdb._cache.check_cache("movie", "Foo", "2024")
+        found, _lang = tmdb_lookup._cache.check_cache("movie", "Foo", "2024")
         assert not found
-        # A rate-limit event was surfaced.
-        assert any(e.method == "lookup_rate_limited" for e in result.events)
+        # A rate-limit error was recorded.
+        assert reporter.stats.db_remote_errors
 
-    def test_generic_http_error_does_not_cache_miss(self, tmdb: TMDBLookup) -> None:
+    def test_generic_http_error_does_not_cache_miss(
+        self, tmdb: tuple[TMDBLookup, Reporter]
+    ) -> None:
+        tmdb_lookup, reporter = tmdb
         parsed = ParseResult(
             title="Foo", year="2024", tmdb_id="", imdb_id="", tvdb_id=""
         )
-        with patch.object(tmdb, "_search_tmdb", side_effect=self._make_http_error(500)):
-            result = tmdb._lookup_by_title_language("Foo", "2024", parsed)
+        with patch.object(
+            tmdb_lookup, "_search_tmdb", side_effect=self._make_http_error(500)
+        ):
+            lang = tmdb_lookup._lookup_by_title_language("Foo", "2024", parsed)
 
-        assert result.lang is None
-        found, _lang, _events = tmdb._cache.check_cache("movie", "Foo", "2024")
+        assert lang is None
+        found, _lang = tmdb_lookup._cache.check_cache("movie", "Foo", "2024")
         assert not found
-        assert any(e.method == "lookup_error" for e in result.events)
+        assert reporter.stats.db_remote_errors
 
-    def test_no_result_is_cached_as_miss(self, tmdb: TMDBLookup) -> None:
+    def test_no_result_is_cached_as_miss(
+        self, tmdb: tuple[TMDBLookup, Reporter]
+    ) -> None:
         """A genuine empty response IS cached (as a miss) to avoid re-hitting."""
+        tmdb_lookup, _reporter = tmdb
         parsed = ParseResult(
             title="Foo", year="2024", tmdb_id="", imdb_id="", tvdb_id=""
         )
-        with patch.object(tmdb, "_search_tmdb", return_value=None):
-            result = tmdb._lookup_by_title_language("Foo", "2024", parsed)
+        with patch.object(tmdb_lookup, "_search_tmdb", return_value=None):
+            lang = tmdb_lookup._lookup_by_title_language("Foo", "2024", parsed)
 
-        assert result.lang is None
-        found, lang, _events = tmdb._cache.check_cache("movie", "Foo", "2024")
+        assert lang is None
+        found, lang = tmdb_lookup._cache.check_cache("movie", "Foo", "2024")
         assert found
         assert lang is None
 
@@ -202,7 +245,9 @@ class TestTVDBErrorHandling:
     """TVDB error-dicts are detected and not cached."""
 
     @pytest.fixture
-    def tvdb(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TVDBLookup:
+    def tvdb(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[TVDBLookup, Reporter]:
         monkeypatch.setattr(
             "nudebomb.lookup.cache.user_cache_dir",
             lambda _prog: str(tmp_path),
@@ -218,29 +263,36 @@ class TestTVDBErrorHandling:
                 cache_expiry_days = 30
                 verbose = 0
 
-            return TVDBLookup(_Cfg())  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+            reporter = Reporter(stats=Stats())
+            return TVDBLookup(_Cfg(), reporter), reporter  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
 
-    def test_rate_limit_dict_does_not_cache(self, tvdb: TVDBLookup) -> None:
+    def test_rate_limit_dict_does_not_cache(
+        self, tvdb: tuple[TVDBLookup, Reporter]
+    ) -> None:
+        tvdb_lookup, reporter = tvdb
         parsed = ParseResult(title="Foo", year="", tmdb_id="", imdb_id="", tvdb_id="")
         rate_limited = {"code": 429, "message": "rate limited"}
-        with patch.object(tvdb, "_search_tvdb", return_value=rate_limited):
-            result = tvdb._lookup_by_title_language("Foo", parsed)
+        with patch.object(tvdb_lookup, "_search_tvdb", return_value=rate_limited):
+            lang = tvdb_lookup._lookup_by_title_language("Foo", parsed)
 
-        assert result.lang is None
-        found, _lang, _events = tvdb._cache.check_cache("tv", "Foo", "")
+        assert lang is None
+        found, _lang = tvdb_lookup._cache.check_cache("tv", "Foo", "")
         assert not found
-        assert any(e.method == "lookup_rate_limited" for e in result.events)
+        assert reporter.stats.db_remote_errors
 
-    def test_server_error_dict_does_not_cache(self, tvdb: TVDBLookup) -> None:
+    def test_server_error_dict_does_not_cache(
+        self, tvdb: tuple[TVDBLookup, Reporter]
+    ) -> None:
+        tvdb_lookup, reporter = tvdb
         parsed = ParseResult(title="Foo", year="", tmdb_id="", imdb_id="", tvdb_id="")
         server_error = {"code": 500, "message": "down"}
-        with patch.object(tvdb, "_search_tvdb", return_value=server_error):
-            result = tvdb._lookup_by_title_language("Foo", parsed)
+        with patch.object(tvdb_lookup, "_search_tvdb", return_value=server_error):
+            lang = tvdb_lookup._lookup_by_title_language("Foo", parsed)
 
-        assert result.lang is None
-        found, _lang, _events = tvdb._cache.check_cache("tv", "Foo", "")
+        assert lang is None
+        found, _lang = tvdb_lookup._cache.check_cache("tv", "Foo", "")
         assert not found
-        assert any(e.method == "lookup_error" for e in result.events)
+        assert reporter.stats.db_remote_errors
 
 
 class TestCacheEntry:
@@ -255,15 +307,6 @@ class TestCacheEntry:
         assert entry.is_expired(expiry_days=30)
 
 
-class TestLookupResult:
-    """LookupResult default construction."""
-
-    def test_default_is_empty(self) -> None:
-        result = LookupResult()
-        assert result.lang is None
-        assert result.events == ()
-
-
 class TestLookupCacheDedup:
     """Populated caches dedupe subsequent calls."""
 
@@ -271,18 +314,16 @@ class TestLookupCacheDedup:
         tmp_cache.save_file("movie", "Dune", "2021", db_id="123", language="eng")
         # Even if we clear the mem cache, the file cache should hit.
         tmp_cache._mem_cache.clear()
-        found, lang, events = tmp_cache.check_cache("movie", "Dune", "2021")
+        found, lang = tmp_cache.check_cache("movie", "Dune", "2021")
         assert found
         assert lang == "eng"
-        assert events
 
     def test_id_hit_after_save(self, tmp_cache: LookupCache) -> None:
         tmp_cache.save_id("tv", "tvdb", "81189", db_id="81189", language="eng")
         tmp_cache._id_mem_cache.clear()
-        found, lang, events = tmp_cache.check_id_cache("tv", "tvdb", "81189")
+        found, lang = tmp_cache.check_id_cache("tv", "tvdb", "81189")
         assert found
         assert lang == "eng"
-        assert events
 
 
 class TestAtomicWrite:
