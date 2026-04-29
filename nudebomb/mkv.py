@@ -98,7 +98,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            logger.debug(f"\t{track_type}: {track.id} {track.lang}")
+            logger.info(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
