@@ -17,8 +17,7 @@ from nudebomb.lookup.util import format_title_year, resolve_language
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from confuse import AttrDict
-
+    from nudebomb.config import NudebombSettings
     from nudebomb.lookup.parser import ParseResult
 
 _RATE_LIMIT_STATUS: Final = 429
@@ -27,12 +26,14 @@ _RATE_LIMIT_STATUS: Final = 429
 class TMDBLookup:
     """Look up original language of media from TMDB."""
 
-    def __init__(self, config: AttrDict, reporter: Reporter | None = None) -> None:
+    def __init__(
+        self, config: NudebombSettings, reporter: Reporter | None = None
+    ) -> None:
         """Initialize."""
         tmdb.API_KEY = config.tmdb_api_key
         self._reporter: Reporter = reporter if reporter is not None else Reporter()
         self._cache = LookupCache(config.cache_expiry_days, self._reporter)
-        self._media_type: str = config.media_type
+        self._media_type: str = config.media_type or ""
 
     def _search_tmdb(
         self, title: str, year: str = "", media_type: str = ""

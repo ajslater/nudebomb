@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING, Final
 
 from loguru import logger
 
-from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.lang import lang_to_alpha3
 from nudebomb.log import console
 from nudebomb.log.reporter import Reporter
 from nudebomb.track import Track
 
 if TYPE_CHECKING:
-    from confuse import AttrDict
+    from nudebomb.config import NudebombSettings
 
 
 class MKVFile:
@@ -28,10 +28,13 @@ class MKVFile:
     REMOVABLE_TRACK_NAMES: Final = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
 
     def __init__(
-        self, config: AttrDict, path: Path, reporter: Reporter | None = None
+        self,
+        config: NudebombSettings,
+        path: Path,
+        reporter: Reporter | None = None,
     ) -> None:
         """Initialize."""
-        self._config: AttrDict = config
+        self._config: NudebombSettings = config
         self.path: Path = Path(path)
         self._reporter: Reporter = reporter if reporter is not None else Reporter()
         self._init_track_map()
