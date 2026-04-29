@@ -371,6 +371,8 @@ class Walk:
                 program_config_keys=TIMESTAMPS_CONFIG_KEYS,
             )
             self._timestamps = Grovestamps(grove_config)
+            for top_path in self._timestamps:
+                logger.info(f"Read timestamps from {top_path}")
 
         total = self._count_total()
         progress = make_progress(total, console, enabled=self._config.verbose > 0)
@@ -397,6 +399,8 @@ class Walk:
 
         if self._timestamps:
             self._timestamps.dumpf()
+            for top_path in self._timestamps:
+                logger.info(f"Saved timestamps for {top_path}")
 
         if self._config.verbose > 0:
             render_summary(self._stats, console)
