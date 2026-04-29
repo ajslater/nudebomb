@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Final
 from loguru import logger
 
 from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.log import console
 from nudebomb.log.reporter import Reporter
 from nudebomb.track import Track
 
@@ -165,6 +166,23 @@ class MKVFile:
 
         return output, command, num_remove_ids
 
+    @staticmethod
+    def _remux_file_stdout_line(raw_line: str, update_pct, *, show_output: bool):
+        line = raw_line.rstrip()
+        if line.startswith("#GUI#progress"):
+            try:
+                pct = int(line.split()[-1].rstrip("%"))
+            except (IndexError, ValueError):
+                return False
+            update_pct(pct)
+        elif line.startswith("#GUI#"):
+            # Other GUI markers (begin/end_scanning_playlists,
+            # etc.) carry no human-readable info — skip.
+            return False
+        elif line and show_output:
+            console.print(line, highlight=False)
+        return True
+
     def _remux_file(self, command: list[str]) -> None:
         """
         Remux an mkv file with the given parameters.
@@ -172,9 +190,13 @@ class MKVFile:
         Drive a transient per-file sub-task on the shared Rich Progress
         from mkvmerge's ``--gui-mode`` progress lines (``#GUI#progress NN%``)
         so the percentage renders beneath the main bar inside the same
-        Live region instead of fighting it via raw stdout writes.
+        Live region. Other (human-readable) lines from mkvmerge are
+        printed through the shared Console so they scroll above the bar
+        like log output — Rich keeps the bar pinned beneath them via
+        the active Live region.
         """
         gui_command = [command[0], "--gui-mode", *command[1:]]
+        show_output = self._config.verbose > 0
         with (
             self._reporter.progress.file_subtask(f"  {self.path.name}") as update_pct,
             subprocess.Popen(  # noqa: S603
@@ -187,13 +209,11 @@ class MKVFile:
         ):
             stderr_chunks: list[str] = []
             if process.stdout is not None:
-                for line in process.stdout:
-                    if line.startswith("#GUI#progress"):
-                        try:
-                            pct = int(line.strip().split()[-1].rstrip("%"))
-                        except (IndexError, ValueError):
-                            continue
-                        update_pct(pct)
+                for raw_line in process.stdout:
+                    if not self._remux_file_stdout_line(
+                        raw_line, update_pct, show_output=show_output
+                    ):
+                        continue
             if process.stderr is not None:
                 stderr_chunks.append(process.stderr.read())
 
