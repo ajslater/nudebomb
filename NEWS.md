@@ -1,9 +1,5 @@
 # 📰 Nudebomb News
 
-## v1.3.0
-
-- New progress bar and logging.
-
 ## v1.2.0
 
 - Fix "Already Stripped" state not writing timestamps.
