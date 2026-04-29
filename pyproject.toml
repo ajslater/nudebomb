@@ -16,7 +16,7 @@ dependencies = [
   "rich~=15.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
-  "treestamps~=4.0.1",
+  "treestamps~=4.0.2",
   "tvdb_v4_official~=1.1",
   "typing-extensions~=4.13",
 ]
