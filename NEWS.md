@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.2.1
+
+- Fix mkvmerge output being squished into one line.
+
 ## v1.2.0
 
 - Fix "Already Stripped" state not writing timestamps.

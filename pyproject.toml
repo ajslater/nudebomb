@@ -26,7 +26,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 name = "nudebomb"
-version = "1.2.0"
+version = "1.2.1"
 [[project.authors]]
 name = "AJ Slater"
 email = "aj@slater.net"

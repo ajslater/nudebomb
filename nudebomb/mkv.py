@@ -166,6 +166,23 @@ class MKVFile:
 
         return output, command, num_remove_ids
 
+    @staticmethod
+    def _remux_file_stdout_line(raw_line: str, update_pct, *, show_output: bool):
+        line = raw_line.rstrip()
+        if line.startswith("#GUI#progress"):
+            try:
+                pct = int(line.split()[-1].rstrip("%"))
+            except (IndexError, ValueError):
+                return False
+            update_pct(pct)
+        elif line.startswith("#GUI#"):
+            # Other GUI markers (begin/end_scanning_playlists,
+            # etc.) carry no human-readable info — skip.
+            return False
+        elif line and show_output:
+            console.print(line, highlight=False)
+        return True
+
     def _remux_file(self, command: list[str]) -> None:
         """
         Remux an mkv file with the given parameters.
@@ -193,19 +210,10 @@ class MKVFile:
             stderr_chunks: list[str] = []
             if process.stdout is not None:
                 for raw_line in process.stdout:
-                    line = raw_line.rstrip()
-                    if line.startswith("#GUI#progress"):
-                        try:
-                            pct = int(line.split()[-1].rstrip("%"))
-                        except (IndexError, ValueError):
-                            continue
-                        update_pct(pct)
-                    elif line.startswith("#GUI#"):
-                        # Other GUI markers (begin/end_scanning_playlists,
-                        # etc.) carry no human-readable info — skip.
+                    if not self._remux_file_stdout_line(
+                        raw_line, update_pct, show_output=show_output
+                    ):
                         continue
-                    elif line and show_output:
-                        console.print(line, highlight=False)
             if process.stderr is not None:
                 stderr_chunks.append(process.stderr.read())
 
