@@ -2,44 +2,29 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import TYPE_CHECKING, Final
 
-import pycountry
 from loguru import logger
+
+from nudebomb.lang import lang_to_alpha3
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from confuse import AttrDict
-
+    from nudebomb.config import NudebombSettings
     from nudebomb.log.summary import Stats
 
+__all__ = ("LANGS_FNS", "LangFiles", "lang_to_alpha3")
+
 LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
-
-
-def lang_to_alpha3(lang: str) -> str:
-    """Convert a language code to ISO 639-3 (alpha3) format."""
-    if not lang:
-        return "und"
-    match len(lang):
-        case 3:
-            return lang
-        case 2:
-            with suppress(Exception):
-                if lo := pycountry.languages.get(alpha_2=lang):
-                    return lo.alpha_3
-        case _:
-            logger.warning(f"Languages should be in two or three letter format: {lang}")
-    return lang
 
 
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, config: AttrDict, stats: Stats | None = None) -> None:
+    def __init__(self, config: NudebombSettings, stats: Stats | None = None) -> None:
         """Initialize."""
-        self._config: AttrDict = config
+        self._config: NudebombSettings = config
         self._lang_roots: dict[Path, set[str]] = {}
         self._languages: frozenset[str] = frozenset(
             lang_to_alpha3(lang) for lang in self._config.languages

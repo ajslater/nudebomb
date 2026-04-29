@@ -1,20 +1,24 @@
 """Confuse config for nudebomb."""
 
+from __future__ import annotations
+
 import os
 import sys
-from argparse import Namespace
-from pathlib import Path
+from dataclasses import dataclass
 from platform import system
 from time import mktime
-from typing import Final
+from typing import TYPE_CHECKING, Final, TypedDict, cast
 
 from confuse import Configuration
-from confuse.templates import AttrDict, Integer, MappingTemplate, Optional, Sequence
+from confuse.templates import Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import parse
 from loguru import logger
 
-from nudebomb.langfiles import lang_to_alpha3
+from nudebomb.lang import lang_to_alpha3
 from nudebomb.version import PROGRAM_NAME
+
+if TYPE_CHECKING:
+    from argparse import Namespace
 
 TEMPLATE: Final = MappingTemplate(
     {
@@ -61,6 +65,89 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
 
 if system() == "Windows":
     os.system("color")  # noqa: S605, S607
+
+
+@dataclass(slots=True)
+class NudebombSettings:
+    """
+    Typed runtime config for nudebomb.
+
+    Built once by :meth:`NudebombConfig.get_config` from a confuse-validated
+    ``AttrDict``; every downstream module takes ``NudebombSettings`` so
+    consumers never have to touch the loosely-typed AttrDict.
+
+    Not ``frozen``: ``Walk.strip_path`` deepcopies the run-wide settings
+    and overrides ``languages`` per-file from a discovered langfile, and
+    ``MKVFile.update_languages`` augments it again after a DB lookup
+    resolves. Both paths mutate the per-file copy, never the run-wide
+    instance.
+    """
+
+    # Sequence-shaped fields. ``languages`` and ``sub_languages`` use
+    # ``frozenset`` because consumers do set-algebra on them
+    # (``config.languages | {lang}``); ``paths`` and ``ignore`` keep
+    # iteration order so ``tuple`` is right.
+    paths: tuple[str, ...]
+    languages: frozenset[str]
+    sub_languages: frozenset[str] | None
+    ignore: tuple[str, ...]
+
+    # Numeric fields
+    after: float | None
+    cache_expiry_days: int
+    lookup_workers: int
+    verbose: int
+
+    # String fields
+    media_type: str | None
+    mkvmerge_bin: str
+    tmdb_api_key: str | None
+    tvdb_api_key: str | None
+    und_language: str | None
+
+    # Boolean fields
+    dry_run: bool
+    recurse: bool
+    strip_und_language: bool
+    subtitles: bool
+    symlinks: bool
+    timestamps: bool
+    timestamps_check_config: bool
+    title: bool
+
+
+class _NudebombSchema(TypedDict):
+    """
+    Static-typing view of the nudebomb section of the validated AttrDict.
+
+    confuse 2.2.0 returns ``AttrDict[str, object]`` from ``MappingTemplate``;
+    the runtime types are guaranteed by ``TEMPLATE`` validation. This
+    TypedDict declares those types so the conversion in
+    :meth:`NudebombConfig.get_config` type-checks via a single ``cast``
+    rather than a per-field cast.
+    """
+
+    after: float | None
+    cache_expiry_days: int
+    dry_run: bool
+    ignore: list[str]
+    languages: list[str]
+    lookup_workers: int
+    media_type: str | None
+    mkvmerge_bin: str
+    paths: list[str]
+    recurse: bool
+    strip_und_language: bool
+    sub_languages: list[str] | None
+    subtitles: bool
+    symlinks: bool
+    timestamps: bool
+    timestamps_check_config: bool
+    title: bool
+    tmdb_api_key: str | None
+    tvdb_api_key: str | None
+    und_language: str | None
+    verbose: int
 
 
 class NudebombConfig:
@@ -130,12 +217,49 @@ class NudebombConfig:
         ]["dry_run"].get(bool)
         config[PROGRAM_NAME]["timestamps"].set(timestamps)
 
+    @staticmethod
+    def _to_settings(nb_attrdict: object) -> NudebombSettings:
+        """
+        Convert the validated nudebomb AttrDict into a typed Settings.
+
+        Accepts ``object`` because confuse 2.2.0's typing for the inner
+        AttrDict (``AttrDict[str, int | str | list[str] | None]``) and our
+        ``_NudebombSchema`` TypedDict don't formally overlap; the cast
+        through ``object`` is the documented escape hatch for crossing
+        between confuse's runtime-validated dict and a TypedDict view.
+        """
+        nb = cast("_NudebombSchema", nb_attrdict)
+        sub_langs = nb["sub_languages"]
+        return NudebombSettings(
+            paths=tuple(nb["paths"]),
+            languages=frozenset(nb["languages"]),
+            sub_languages=frozenset(sub_langs) if sub_langs else None,
+            ignore=tuple(nb["ignore"]),
+            after=nb["after"],
+            cache_expiry_days=nb["cache_expiry_days"],
+            lookup_workers=nb["lookup_workers"],
+            verbose=nb["verbose"],
+            media_type=nb["media_type"],
+            mkvmerge_bin=nb["mkvmerge_bin"],
+            tmdb_api_key=nb["tmdb_api_key"],
+            tvdb_api_key=nb["tvdb_api_key"],
+            und_language=nb["und_language"],
+            dry_run=nb["dry_run"],
+            recurse=nb["recurse"],
+            strip_und_language=nb["strip_und_language"],
+            subtitles=nb["subtitles"],
+            symlinks=nb["symlinks"],
+            timestamps=nb["timestamps"],
+            timestamps_check_config=nb["timestamps_check_config"],
+            title=nb["title"],
+        )
+
     def get_config(
         self,
         args: Namespace | None = None,
         modname: str = PROGRAM_NAME,
-    ) -> AttrDict:
-        """Get the config dict, layering env and args over defaults."""
+    ) -> NudebombSettings:
+        """Get the typed config, layering env and args over defaults."""
         config = Configuration(PROGRAM_NAME, modname=modname, read=False)
         try:
             config.read()
@@ -153,10 +277,8 @@ class NudebombConfig:
         self._set_unique_lang_list(config, "sub_languages")
         self._set_ignore(config)
         self._set_timestamps(config)
+        # confuse 2.2.0 types the result of ``config.get(TEMPLATE)``
+        # precisely from the MappingTemplate, so an ``isinstance``
+        # narrowing is no longer needed.
         ad = config.get(TEMPLATE)
-        if not isinstance(ad, AttrDict):
-            raise TypeError
-        ad.paths = sorted(
-            frozenset(str(Path(path).resolve()) for path in ad.nudebomb.paths)
-        )
-        return ad.nudebomb
+        return self._to_settings(ad.nudebomb)
