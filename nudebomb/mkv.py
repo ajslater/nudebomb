@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from loguru import logger
+from rich.rule import Rule
+from rich.text import Text
 
 from nudebomb.lang import lang_to_alpha3
 from nudebomb.log import console
@@ -16,6 +18,10 @@ from nudebomb.log.reporter import Reporter
 from nudebomb.track import Track
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from rich.console import RenderableType
+
     from nudebomb.config import NudebombSettings
 
 
@@ -98,7 +104,7 @@ class MKVFile:
         # Iterate through all tracks to find which track to keep or remove
         tracks = self._track_map.get(track_type, [])
         for track in tracks:
-            logger.debug(f"\t{track_type}: {track.id} {track.lang}")
+            logger.info(f"\t{track_type}: {track.id} {track.lang}")
             track_lang = lang_to_alpha3(track.lang)
             if track_lang in languages_to_keep:
                 # Tracks we want to keep
@@ -118,28 +124,36 @@ class MKVFile:
     def _extend_track_command(
         self,
         track_type: str,
-        output: str,
         command: list[str],
         num_remove_ids: int,
-    ) -> tuple[str, list[str], int]:
+    ) -> tuple[list[RenderableType], list[str], int]:
+        """
+        Extend ``command`` with the keep/remove flags for ``track_type``.
+
+        Returns ``(section, command, num_remove_ids)`` — a list of rich
+        renderables describing what will happen to this track type, plus
+        the augmented mkvmerge command and the running count of removed
+        tracks.
+        """
         keep, remove = self._filtered_tracks(track_type)
+        section: list[RenderableType] = []
 
         # Build the keep tracks options
         keep_ids = set()
 
-        retaining_output = ""
+        retaining_lines: list[str] = []
         for count, track in enumerate(keep):
             keep_ids.add(str(track.id))
-            retaining_output += f"   {track}\n"
+            retaining_lines.append(f"   {track}")
 
             # Set the first track as default
             command += [
                 "--default-track",
                 ":".join((str(track.id), "0" if count else "1")),
             ]
-        if retaining_output:
-            output += f"Retaining {track_type} track(s):\n"
-            output += retaining_output
+        if retaining_lines:
+            section.append(Text(f"Retaining {track_type} track(s):", style="bold"))
+            section.extend(Text(line) for line in retaining_lines)
 
         # Set which tracks are to be kept
         if keep_ids:
@@ -153,38 +167,38 @@ class MKVFile:
             msg = f"No tracks to remove from {self.path}"
             logger.warning(msg)
             self._reporter.stats.record_warning(self.path, msg)
-            return output, command, num_remove_ids
+            return section, command, num_remove_ids
 
         # Report what tracks will be removed
-        remove_output = ""
-        for track in remove:
-            remove_output += f"   {track}\n"
-        if remove_output:
-            output += f"Removing {track_type} track(s):\n"
-            output += remove_output
+        if remove:
+            section.append(Text(f"Removing {track_type} track(s):", style="bold"))
+            section.extend(Text(f"   {track}") for track in remove)
 
-        output += "----------------------------\n"
-
+        section.append(Rule(style="bright_black"))
         num_remove_ids += len(remove)
 
-        return output, command, num_remove_ids
+        return section, command, num_remove_ids
 
     @staticmethod
-    def _remux_file_stdout_line(raw_line: str, update_pct, *, show_output: bool):
-        line = raw_line.rstrip()
+    def _remux_file_stdout_line(
+        line: str,
+        update_pct: Callable[[int], None],
+        *,
+        show_output: bool,
+    ) -> None:
+        """Route one mkvmerge output line to either the sub-task or the console."""
         if line.startswith("#GUI#progress"):
             try:
                 pct = int(line.split()[-1].rstrip("%"))
             except (IndexError, ValueError):
-                return False
+                return
             update_pct(pct)
         elif line.startswith("#GUI#"):
-            # Other GUI markers (begin/end_scanning_playlists,
-            # etc.) carry no human-readable info — skip.
-            return False
+            # Other GUI markers (begin/end_scanning_playlists, etc.)
+            # carry no human-readable info — skip.
+            return
         elif line and show_output:
             console.print(line, highlight=False)
-        return True
 
     def _remux_file(self, command: list[str]) -> None:
         """
@@ -197,58 +211,86 @@ class MKVFile:
         printed through the shared Console so they scroll above the bar
         like log output — Rich keeps the bar pinned beneath them via
         the active Live region.
+
+        ``stderr`` is merged into ``stdout`` (``stderr=subprocess.STDOUT``)
+        so mkvmerge's own progress / warning output streams in real time
+        through the same single-reader loop. Without the merge the user
+        only ever saw stderr at end-of-process via the
+        ``CalledProcessError`` payload on failure.
         """
         gui_command = [command[0], "--gui-mode", *command[1:]]
         show_output = self._config.verbose > 0
+        collected: list[str] = []
         with (
             self._reporter.progress.file_subtask(f"  {self.path.name}") as update_pct,
             subprocess.Popen(  # noqa: S603
                 gui_command,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 bufsize=1,
                 text=True,
             ) as process,
         ):
-            stderr_chunks: list[str] = []
             if process.stdout is not None:
                 for raw_line in process.stdout:
-                    if not self._remux_file_stdout_line(
-                        raw_line, update_pct, show_output=show_output
-                    ):
-                        continue
-            if process.stderr is not None:
-                stderr_chunks.append(process.stderr.read())
+                    line = raw_line.rstrip()
+                    collected.append(line)
+                    self._remux_file_stdout_line(
+                        line, update_pct, show_output=show_output
+                    )
 
             if retcode := process.wait():
                 raise subprocess.CalledProcessError(
-                    retcode, gui_command, output="".join(stderr_chunks)
+                    retcode, gui_command, output="\n".join(collected)
                 )
 
     def _extend_und_language_command(
         self,
-        output: str,
         command: list[str],
-    ) -> tuple[str, list[str], bool]:
-        """Add --language flags to relabel und tracks."""
+    ) -> tuple[list[RenderableType], list[str], bool]:
+        """
+        Add ``--language`` flags to relabel ``und`` tracks.
+
+        Returns ``(section, command, relabeled)`` — a list of rich
+        renderables describing what will happen, plus the augmented
+        mkvmerge command and a flag indicating whether any track was
+        relabeled.
+        """
         und_language = self._config.und_language
         if not und_language:
-            return output, command, False
+            return [], command, False
 
-        relabeled = False
-        relabel_output = ""
+        section: list[RenderableType] = []
+        relabel_lines: list[str] = []
         for tracks in self._track_map.values():
             for track in tracks:
                 if track.lang == "und":
                     command += ["--language", f"{track.id}:{und_language}"]
-                    relabel_output += f"   {track} -> {und_language}\n"
-                    relabeled = True
-        if relabel_output:
-            output += f"Relabeling 'und' track(s) to '{und_language}':\n"
-            output += relabel_output
-            output += "----------------------------\n"
+                    relabel_lines.append(f"   {track} -> {und_language}")
+        if relabel_lines:
+            section.append(
+                Text(f"Relabeling 'und' track(s) to '{und_language}':", style="bold")
+            )
+            section.extend(Text(line) for line in relabel_lines)
+            section.append(Rule(style="bright_black"))
 
-        return output, command, relabeled
+        return section, command, bool(relabel_lines)
+
+    def _print_manifest(self, manifest: list[RenderableType]) -> None:
+        """
+        Print the planned-work manifest above the live progress bar.
+
+        Gated on ``verbose > 0``: in quiet mode (``-q``) the per-file
+        plan is suppressed along with everything else, but at default
+        verbosity (1) it surfaces alongside mkvmerge's own output —
+        ``logger.info`` would have buried it under the WARNING-level
+        filter, which is the bug this method fixes.
+        """
+        if self._config.verbose <= 0:
+            return
+        console.rule(Text(f"Remuxing {self.path}", style="bold"), align="left")
+        for renderable in manifest:
+            console.print(renderable, highlight=False)
 
     def remove_tracks(self) -> bool:
         """
@@ -267,9 +309,6 @@ class MKVFile:
             self._reporter.progress.mark_error()
             return False
         logger.debug(f"Checking {self.path}:")
-        # The command line args required to remux the mkv file
-        output = f"\nRemuxing: {self.path}\n"
-        output += "============================\n"
 
         # Output the remuxed file to a temp tile, This will protect
         # the original file from been corrupted if anything goes wrong
@@ -285,17 +324,19 @@ class MKVFile:
                 self.path.stem,
             ]
 
-        # Iterate all tracks and mark which tracks are to be kept
+        # Iterate all tracks and mark which tracks are to be kept,
+        # accumulating a list of rich renderables describing the plan.
+        manifest: list[RenderableType] = []
         num_remove_ids = 0
         for track_type in self.REMOVABLE_TRACK_NAMES:
-            output, command, num_remove_ids = self._extend_track_command(
-                track_type, output, command, num_remove_ids
+            section, command, num_remove_ids = self._extend_track_command(
+                track_type, command, num_remove_ids
             )
+            manifest.extend(section)
 
         # Relabel und tracks if configured
-        output, command, und_relabeled = self._extend_und_language_command(
-            output, command
-        )
+        und_section, command, und_relabeled = self._extend_und_language_command(command)
+        manifest.extend(und_section)
 
         command += [(str(self.path))]
 
@@ -309,9 +350,16 @@ class MKVFile:
 
         changed = False
         try:
-            logger.info(output)
+            self._print_manifest(manifest)
             if self._config.dry_run:
-                logger.info(f"\tNot remuxing on dry run {self.path}")
+                if self._config.verbose > 0:
+                    console.print(
+                        Text(
+                            f"\tNot remuxing on dry run {self.path}",
+                            style="bold bright_black",
+                        ),
+                        highlight=False,
+                    )
                 self._reporter.stats.record_dry_run(self.path)
                 self._reporter.progress.mark_dry_run()
             else:
