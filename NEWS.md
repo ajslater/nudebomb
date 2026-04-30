@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+## v1.3.1
+
+- Expose action logging that was hidden.
+- Expose mkvmerge live progress that got hidden.
+
 ## v1.3.0
 
 - Update to confuse 2.2.0
