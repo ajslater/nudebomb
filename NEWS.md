@@ -1,5 +1,9 @@
 # 📰 Nudebomb News
 
+## v1.4.0
+
+- Use rich_argparse to format help.
+
 ## v1.3.1
 
 - Expose action logging that was hidden.
