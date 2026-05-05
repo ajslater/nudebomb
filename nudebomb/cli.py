@@ -1,10 +1,10 @@
 """Command line interface for nudebomb."""
 
-from argparse import Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from argparse import Action, ArgumentParser, Namespace
 from collections.abc import Sequence
-from typing import Any, Final
+from typing import Any, ClassVar, Final
 
-from rich.console import Console
+from rich_argparse import RawDescriptionRichHelpFormatter
 from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
@@ -33,6 +33,29 @@ class CommaListAction(Action):
         setattr(namespace, self.dest, values)
 
 
+class NudebombHelpFormatter(RawDescriptionRichHelpFormatter):
+    """
+    Help formatter that colorizes example values, defaults, and option refs.
+
+    Inherits the parent's ``--option`` highlighting (so options mentioned
+    in help strings render in the same color as in the option list) and
+    adds highlights for example values shown after ``e.g.`` or in single
+    quotes, and for ``Default: <value>`` callouts.
+    """
+
+    styles: ClassVar[dict[str, Any]] = {
+        **RawDescriptionRichHelpFormatter.styles,
+        "argparse.example": "green",
+        "argparse.default": "italic yellow",
+    }
+    highlights: ClassVar[list[str]] = [
+        *RawDescriptionRichHelpFormatter.highlights,
+        r"(?P<example>'[^']+')",
+        r"(?<=\be\.g\.\s)(?P<example>[\w,]+)",
+        r"\bDefault:\s+(?P<default>[\w-]+)",
+    ]
+
+
 # Order + label for each mark in the help epilogue legend. The char and
 # style are pulled from the centralized MARKS table so the legend can
 # never drift from what the bar actually renders.
@@ -53,13 +76,11 @@ CHAR_KEY_LABELS: Final[tuple[tuple[str, str], ...]] = (
 
 def get_progress_char_key() -> str:
     """Create the progress char legend for the help epilogue."""
-    console = Console(record=True, force_terminal=True, no_color=False)
-    console.begin_capture()
-    console.print("[bold]Progress char key:[/bold]")
+    lines = ["[bold]Progress char key:[/bold]"]
     for kind, label in CHAR_KEY_LABELS:
         mark = MARKS[kind]
-        console.print(f"\t[{mark.style}]{mark.char}[/{mark.style}]  {label}")
-    return console.end_capture()
+        lines.append(f"\t[{mark.style}]{mark.char}[/{mark.style}]  {label}")
+    return "\n".join(lines)
 
 
 def get_arguments(
@@ -71,7 +92,7 @@ def get_arguments(
     parser = ArgumentParser(
         description=description,
         epilog=epilog,
-        formatter_class=RawDescriptionHelpFormatter,
+        formatter_class=NudebombHelpFormatter,
     )
     parser.add_argument(
         "-d",
