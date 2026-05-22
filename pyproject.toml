@@ -13,8 +13,8 @@ dependencies = [
   "platformdirs>=4.9.6",
   "pycountry~=26.2",
   "python-dateutil~=2.8",
-  "rich~=15.0",
   "rich-argparse~=1.8",
+  "rich~=15.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
   "treestamps~=4.0.2",
@@ -111,6 +111,7 @@ source-include = [
   "frontend/**",
   "img/**",
   "mkdocks.yml",
+  "mkdocs.yml",
   "mock_comics/**",
   "package-lock.json",
   "package.json",
@@ -128,7 +129,6 @@ exclude = [
   "**/node_modules",
   "dist",
   "frontend",
-  "site",
   "site",
   "test-results",
   "typings",
@@ -156,14 +156,19 @@ reportUnusedParameter = false
 [tool.codespell]
 builtin = "clear,code,rare"
 check-hidden = true
-ignore-words-list = "coverd,falsy,ro,searchd,thead,versio,ws"
-skip = "*~,.*,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock"
+ignore-words-list = "coverd,crate,falsy,iff,ro,searchd,thead,versio,wan,warmup,ws"
+skip = "*.svg,*~,.*,.*/*,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,test-results,typings,uv.lock"
 
 [tool.complexipy]
 failed = true
 paths = ["nudebomb", "tests"]
 exclude = [
+  "**/__pycache__",
   "*/.*",
+  ".cache",
+  ".git",
+  ".github",
+  ".venv",
   "frontend",
   "node_modules",
   "site",
@@ -209,7 +214,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.radon]
-exclude = "*~,.*,.*/*,__pycache__/*,config/*,dist/*,frontend/*,node_modules/*,site/*,test-results/*,typings/*"
+exclude = "*~,.*,.*/*,__pycache__/*,config/*,dist/*,frontend/*,node_modules/*,site/*,test-results/*,typings/*,vulture_ignorelist.py"
 
 [tool.ruff]
 builtins = ["ic"]
@@ -332,13 +337,11 @@ exclude = [
   "vulture_ignorelist.py",
 ]
 
-[tool.typos.default.extend-words]
-bookmarkd = "bookmarkd"
-coverd = "coverd"
-versio = "versio"
-
 [tool.vulture]
 exclude = [
+  "**/.*",
+  "**/__pycache__",
+  "**/node_modules",
   "*/.*",
   "*/__pycache__*",
   "*/node_modules*",
@@ -351,3 +354,8 @@ exclude = [
 ]
 min_confidence = 61
 sort_by_size = true
+
+[tool.typos.default.extend-words]
+bookmarkd = "bookmarkd"
+coverd = "coverd"
+versio = "versio"

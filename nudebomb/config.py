@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from dataclasses import dataclass
 from platform import system
@@ -64,7 +63,9 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
 )
 
 if system() == "Windows":
-    os.system("color")  # noqa: S605, S607
+    from colorama import just_fix_windows_console
+
+    just_fix_windows_console()
 
 
 @dataclass(slots=True)
