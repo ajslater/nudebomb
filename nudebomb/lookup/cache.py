@@ -6,6 +6,7 @@ import json
 import re
 import time
 import uuid
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from threading import Lock
@@ -21,6 +22,10 @@ from nudebomb.version import PROGRAM_NAME
 _MEDIA_TYPES: Final = frozenset({"movie", "tv"})
 _SECONDS_PER_DAY: Final = 86400
 _IDS_SUBDIR: Final = "ids"
+# Entries WITH a language expire on this long horizon so a wrong search
+# match (or a corrected upstream DB entry) eventually self-heals; misses
+# use the much shorter user-configurable expiry.
+POSITIVE_EXPIRY_DAYS: Final = 365
 
 
 def _sanitize_cache_key(title: str) -> str:
@@ -44,12 +49,37 @@ class CacheEntry:
         """
         Return True if this entry has expired.
 
-        Only entries with no language found can expire.
+        Entries with a language expire after :data:`POSITIVE_EXPIRY_DAYS`;
+        no-language misses expire after the configurable ``expiry_days``.
         """
         if self.language:
-            return False
+            expiry_days = POSITIVE_EXPIRY_DAYS
         age = time.time() - self.cached_at
         return age > expiry_days * _SECONDS_PER_DAY
+
+
+def _load_entry_file(path: Path, expiry_days: int) -> CacheEntry | None:
+    """
+    Load a cache entry from ``path``, returning None if missing/bad/expired.
+
+    Corrupt JSON and schema drift (extra/renamed keys raising TypeError)
+    are treated as misses and the offending file is deleted so it can't
+    break every future run.
+    """
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+        entry = CacheEntry(**data)
+    except (json.JSONDecodeError, OSError, TypeError):
+        with suppress(OSError):
+            path.unlink(missing_ok=True)
+        return None
+
+    if entry.is_expired(expiry_days):
+        path.unlink(missing_ok=True)
+        return None
+    return entry
 
 
 def _atomic_write_text(path: Path, content: str) -> None:
@@ -112,19 +142,9 @@ class LookupCache:
 
     def _load_entry(self, media_type: str, title: str, year: str) -> CacheEntry | None:
         """Load a cache entry from disk, returning None if missing or expired."""
-        path = self._cache_path(media_type, title, year)
-        if not path.is_file():
-            return None
-        try:
-            data = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
-            return None
-
-        entry = CacheEntry(**data)
-        if entry.is_expired(self._cache_expiry_days):
-            path.unlink(missing_ok=True)
-            return None
-        return entry
+        return _load_entry_file(
+            self._cache_path(media_type, title, year), self._cache_expiry_days
+        )
 
     def save_file(
         self,
@@ -211,19 +231,10 @@ class LookupCache:
         self, media_type: str, id_type: str, id_value: str
     ) -> CacheEntry | None:
         """Load an ID cache entry from disk, returning None if missing or expired."""
-        path = self._id_cache_path(media_type, id_type, id_value)
-        if not path.is_file():
-            return None
-        try:
-            data = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
-            return None
-
-        entry = CacheEntry(**data)
-        if entry.is_expired(self._cache_expiry_days):
-            path.unlink(missing_ok=True)
-            return None
-        return entry
+        return _load_entry_file(
+            self._id_cache_path(media_type, id_type, id_value),
+            self._cache_expiry_days,
+        )
 
     def save_id(
         self,

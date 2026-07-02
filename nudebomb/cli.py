@@ -255,7 +255,8 @@ def get_arguments(
         type=int,
         help=(
             "Number of days before cache entries with no language found expire "
-            "and are re-queried. Default: 30. Entries with a language never expire."
+            "and are re-queried. Default: 30. Entries with a language expire "
+            "after a year."
         ),
     )
     parser.add_argument(

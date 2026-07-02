@@ -22,9 +22,14 @@ def _make_walk(
 ) -> Walk:
     """Build a Walk with TMDB/TVDB clients pre-patched for offline testing."""
     # Stub out the lookup client construction so Walk.__init__ doesn't try
-    # to reach the network.
-    monkeypatch.setattr("nudebomb.walk.TMDBLookup", lambda _cfg, _rep: tmdb)
-    monkeypatch.setattr("nudebomb.walk.TVDBLookup", lambda _cfg, _rep: tvdb)
+    # to reach the network, and keep the shared cache out of the real
+    # user cache dir.
+    monkeypatch.setattr(
+        "nudebomb.lookup.cache.user_cache_dir",
+        lambda _prog: "/tmp/nudebomb.test.walk.cache",  # noqa: S108
+    )
+    monkeypatch.setattr("nudebomb.walk.TMDBLookup", lambda _cfg, _rep, _cache: tmdb)
+    monkeypatch.setattr("nudebomb.walk.TVDBLookup", lambda _cfg, _rep, _cache: tvdb)
 
     cfg = SimpleNamespace(
         tmdb_api_key="fake" if tmdb is not None else None,

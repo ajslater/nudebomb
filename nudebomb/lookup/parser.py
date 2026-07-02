@@ -93,9 +93,15 @@ def _parse_title_without_noise(normalized: str) -> tuple[str, str]:
 
 def _parse_tv_episode_matched_title(normalized: str) -> str:
     if episode_match := _EPISODE_PATTERN.search(normalized):
-        # Series name is everything before the " - S01E02" segment.
-        # Walk backwards from the episode match to find the separator.
-        return normalized[: episode_match.start()].strip()
+        # Truncate at the leftmost of the episode marker and any noise
+        # token: resolutions like 1920x1080 also match the episode
+        # pattern, so noise preceding a false-positive match must still
+        # be stripped (e.g. "Movie BluRay 1920x1080 x264" -> "Movie").
+        cut = episode_match.start()
+        noise_match = _NOISE_CUTOFF.search(normalized)
+        if noise_match and noise_match.start() < cut:
+            cut = noise_match.start()
+        return normalized[:cut].strip()
     return ""
 
 

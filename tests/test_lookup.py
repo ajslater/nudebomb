@@ -1,5 +1,7 @@
 """Tests for the lookup module: cache thread-safety, error handling."""
 
+import socket
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Final
@@ -9,12 +11,18 @@ import pytest
 from requests.exceptions import HTTPError
 from requests.models import Response
 
+from nudebomb.log import setup as setup_logging
 from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.lookup.cache import CacheEntry, LookupCache
 from nudebomb.lookup.parser import ParseResult
-from nudebomb.lookup.tmdb import TMDBLookup
+from nudebomb.lookup.tmdb import TMDBLookup, _result_title, _result_year
 from nudebomb.lookup.tvdb import TVDBLookup, _is_tvdb_error_dict
+from nudebomb.lookup.util import (
+    LOOKUP_TIMEOUT_SECONDS,
+    best_title_match,
+    redact_api_key,
+)
 
 __all__ = ()
 
@@ -298,9 +306,15 @@ class TestTVDBErrorHandling:
 class TestCacheEntry:
     """CacheEntry expiry semantics."""
 
-    def test_hit_never_expires(self) -> None:
-        entry = CacheEntry(cached_at=0.0, language="eng")
+    def test_fresh_hit_ignores_short_expiry(self) -> None:
+        """The configurable miss expiry does not apply to hits."""
+        entry = CacheEntry(cached_at=time.time(), language="eng")
         assert not entry.is_expired(expiry_days=1)
+
+    def test_ancient_hit_expires_on_long_horizon(self) -> None:
+        """Positive entries self-heal after POSITIVE_EXPIRY_DAYS."""
+        entry = CacheEntry(cached_at=0.0, language="eng")
+        assert entry.is_expired(expiry_days=1)
 
     def test_miss_expires_after_window(self) -> None:
         entry = CacheEntry(cached_at=0.0, language="")
@@ -364,3 +378,147 @@ class TestAtomicWriteHelper:
         _atomic_write_text(target, "first")
         _atomic_write_text(target, "second")
         assert target.read_text() == "second"
+
+
+class TestCorruptCacheFiles:
+    """Corrupt or stale-schema cache files are misses and get deleted."""
+
+    def test_schema_drift_treated_as_miss(self, tmp_cache: LookupCache) -> None:
+        tmp_cache.save_file("movie", "Drift", "2024", language="eng")
+        path = tmp_cache._cache_path("movie", "Drift", "2024")
+        path.write_text('{"unexpected_key": 1, "language": "eng"}')
+        tmp_cache._mem_cache.clear()
+
+        found, _lang = tmp_cache.check_cache("movie", "Drift", "2024")
+
+        assert not found
+        assert not path.exists()
+
+    def test_non_dict_json_treated_as_miss(self, tmp_cache: LookupCache) -> None:
+        path = tmp_cache._cache_path("movie", "Listy", "")
+        path.write_text("[1, 2, 3]")
+
+        found, _lang = tmp_cache.check_cache("movie", "Listy", "")
+
+        assert not found
+        assert not path.exists()
+
+
+class TestGenericTitleCachePersistence:
+    """With no media type set, disk hits under the result's type are found."""
+
+    def test_cross_instance_file_cache_hit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Register the custom DBHIT loguru level the hit path logs at.
+        setup_logging(0)
+        monkeypatch.setattr(
+            "nudebomb.lookup.cache.user_cache_dir",
+            lambda _prog: str(tmp_path),
+        )
+
+        class _Cfg:
+            tmdb_api_key = "fake"
+            cache_expiry_days = 30
+            media_type = None
+            verbose = 0
+
+        result = {
+            "media_type": "movie",
+            "id": 1,
+            "title": "Dune",
+            "release_date": "2021-10-22",
+            "original_language": "en",
+        }
+        parsed = ParseResult(
+            title="Dune", year="2021", tmdb_id="", imdb_id="", tvdb_id=""
+        )
+
+        first = TMDBLookup(_Cfg(), Reporter(stats=Stats()))  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+        with patch.object(first, "_search_tmdb", return_value=result):
+            assert first._lookup_by_title_language("Dune", "2021", parsed) == "eng"
+
+        # A new instance (fresh mem cache) must hit the file cache, not
+        # the API — before the fix the write went under movie/ while the
+        # read looked in the root, so every run re-queried.
+        second = TMDBLookup(_Cfg(), Reporter(stats=Stats()))  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+        with patch.object(
+            second, "_search_tmdb", side_effect=AssertionError("unexpected API call")
+        ):
+            assert second._lookup_by_title_language("Dune", "2021", parsed) == "eng"
+
+
+class TestBestTitleMatch:
+    """Search results are verified against the query title before use."""
+
+    def test_wrong_first_result_rejected(self) -> None:
+        results = [
+            {"title": "Totally Different", "release_date": "1999-01-01"},
+            {"title": "Dune", "release_date": "2021-10-22"},
+        ]
+        match = best_title_match(results, "Dune", "", _result_title, _result_year)
+        assert match is not None
+        assert match["title"] == "Dune"
+
+    def test_year_disambiguates_same_titles(self) -> None:
+        results = [
+            {"title": "Dune", "release_date": "2021-10-22"},
+            {"title": "Dune", "release_date": "1984-12-14"},
+        ]
+        match = best_title_match(results, "Dune", "1984", _result_title, _result_year)
+        assert match is not None
+        assert match["release_date"] == "1984-12-14"
+
+    def test_no_acceptable_match_returns_none(self) -> None:
+        results = [{"title": "Unrelated Thing", "release_date": "2000-01-01"}]
+        assert (
+            best_title_match(results, "Dune", "", _result_title, _result_year) is None
+        )
+
+    def test_fuzzy_match_accepted(self) -> None:
+        results = [{"name": "Battlestar Galactica (1978)", "first_air_date": "1978"}]
+        match = best_title_match(
+            results, "Battlestar Galactica", "", _result_title, _result_year
+        )
+        assert match is not None
+
+
+class TestSecretRedaction:
+    """API keys embedded in exception text never reach logs or stats."""
+
+    def test_api_key_redacted(self) -> None:
+        raw = (
+            "404 Client Error: Not Found for url: "
+            "https://api.themoviedb.org/3/search/movie?api_key=SECRET123&query=Alien"
+        )
+        redacted = redact_api_key(raw)
+        assert "SECRET123" not in redacted
+        assert "api_key=REDACTED" in redacted
+        assert "query=Alien" in redacted
+
+
+class TestTimeouts:
+    """Both lookup backends get an HTTP timeout configured."""
+
+    def test_tmdb_timeout_configured(self, tmp_cache: LookupCache) -> None:
+        import tmdbsimple
+
+        class _Cfg:
+            tmdb_api_key = "fake"
+            cache_expiry_days = 30
+            media_type = None
+            verbose = 0
+
+        TMDBLookup(_Cfg(), Reporter(stats=Stats()), tmp_cache)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+        assert tmdbsimple.REQUESTS_TIMEOUT == LOOKUP_TIMEOUT_SECONDS
+
+    def test_tvdb_socket_timeout_configured(self, tmp_cache: LookupCache) -> None:
+        class _Cfg:
+            tvdb_api_key = "fake"
+            cache_expiry_days = 30
+            verbose = 0
+
+        with patch("tvdb_v4_official.TVDB") as mock_tvdb:
+            mock_tvdb.return_value = object()
+            TVDBLookup(_Cfg(), Reporter(stats=Stats()), tmp_cache)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+        assert socket.getdefaulttimeout() == LOOKUP_TIMEOUT_SECONDS

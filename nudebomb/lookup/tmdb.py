@@ -12,7 +12,13 @@ from nudebomb.log import LOOKUP_HIT_LEVEL
 from nudebomb.log.reporter import Reporter
 from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import parse_title
-from nudebomb.lookup.util import format_title_year, resolve_language
+from nudebomb.lookup.util import (
+    LOOKUP_TIMEOUT_SECONDS,
+    best_title_match,
+    format_title_year,
+    redact_api_key,
+    resolve_language,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,16 +29,41 @@ if TYPE_CHECKING:
 _RATE_LIMIT_STATUS: Final = 429
 
 
+def _result_title(result: dict) -> str:
+    """Title field for a TMDB result (movies use title, tv uses name)."""
+    return result.get("title") or result.get("name") or ""
+
+
+def _result_year(result: dict) -> str:
+    """Year field for a TMDB result."""
+    date = result.get("release_date") or result.get("first_air_date") or ""
+    return date[:4]
+
+
 class TMDBLookup:
     """Look up original language of media from TMDB."""
 
     def __init__(
-        self, config: NudebombSettings, reporter: Reporter | None = None
+        self,
+        config: NudebombSettings,
+        reporter: Reporter | None = None,
+        cache: LookupCache | None = None,
     ) -> None:
         """Initialize."""
+        # tmdbsimple holds its configuration as module globals by design.
+        # No lock is needed around calls: API objects are constructed
+        # fresh per request and REQUESTS_SESSION stays unset, so each
+        # call uses its own requests.Session.
         tmdb.API_KEY = config.tmdb_api_key
+        # tmdbsimple types this from its env-var default, but it goes
+        # straight to requests, which wants a number.
+        tmdb.REQUESTS_TIMEOUT = LOOKUP_TIMEOUT_SECONDS  # ty: ignore[invalid-assignment]
         self._reporter: Reporter = reporter if reporter is not None else Reporter()
-        self._cache = LookupCache(config.cache_expiry_days, self._reporter)
+        self._cache = (
+            cache
+            if cache is not None
+            else LookupCache(config.cache_expiry_days, self._reporter)
+        )
         self._media_type: str = config.media_type or ""
 
     def _search_tmdb(
@@ -61,11 +92,8 @@ class TMDBLookup:
         if not results:
             return None
 
-        for result in results:
-            if result.get("media_type") in ("movie", "tv"):
-                return result
-
-        return None
+        candidates = [r for r in results if r.get("media_type") in ("movie", "tv")]
+        return best_title_match(candidates, title, year, _result_title, _result_year)
 
     def _lookup_by_id(self, parsed: ParseResult) -> dict | None:
         """Look up a media item directly by TMDB or IMDB ID."""
@@ -126,14 +154,17 @@ class TMDBLookup:
                 self._reporter.progress.mark_lookup_rate_limited()
                 self._reporter.stats.record_db_remote_error(msg)
             else:
-                msg = f"TMDB HTTP error for '{title_year}': {exc}"
+                # Redact: tmdbsimple sends the api_key as a URL query
+                # parameter and requests embeds the full URL in
+                # exception text.
+                msg = f"TMDB HTTP error for '{title_year}': {redact_api_key(str(exc))}"
                 logger.error(msg)
                 self._reporter.progress.mark_lookup_error()
                 self._reporter.stats.record_db_remote_error(msg)
             return {}
         except Exception as exc:
             title_year = format_title_year(title, year)
-            msg = f"TMDB lookup failed for '{title_year}': {exc}"
+            msg = f"TMDB lookup failed for '{title_year}': {redact_api_key(str(exc))}"
             logger.error(msg)
             self._reporter.progress.mark_lookup_error()
             self._reporter.stats.record_db_remote_error(msg)
@@ -207,9 +238,14 @@ class TMDBLookup:
     ) -> str | None:
         """Look up language by title search with caching."""
         cache_type = self._media_type
-        found, lang = self._cache.check_cache(cache_type, title, year)
-        if found:
-            return lang
+        # Writes land under the result's media type (or the root when
+        # unknown), so with no configured media type a hit may live under
+        # any of the three locations — check them all.
+        check_types = (cache_type,) if cache_type else ("", "movie", "tv")
+        for check_type in check_types:
+            found, lang = self._cache.check_cache(check_type, title, year)
+            if found:
+                return lang
 
         # Query API
         result = self._query_api(title, year, parsed)

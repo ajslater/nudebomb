@@ -20,6 +20,7 @@ from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.log.summary import render as render_summary
 from nudebomb.lookup import TMDBLookup, TVDBLookup
+from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import parse_title
 from nudebomb.mkv import MKVFile
 from nudebomb.version import PROGRAM_NAME
@@ -50,11 +51,22 @@ class Walk:
         self._reporter: Reporter = Reporter(stats=self._stats)
         self._langfiles: LangFiles = LangFiles(config, stats=self._stats)
         self._timestamps: Grovestamps | None = None
+        # One cache shared by both lookup backends so their in-memory
+        # layers cooperate instead of duplicating disk reads.
+        lookup_cache = (
+            LookupCache(config.cache_expiry_days, self._reporter)
+            if config.tmdb_api_key or config.tvdb_api_key
+            else None
+        )
         self._tmdb: TMDBLookup | None = (
-            TMDBLookup(config, self._reporter) if config.tmdb_api_key else None
+            TMDBLookup(config, self._reporter, lookup_cache)
+            if config.tmdb_api_key
+            else None
         )
         self._tvdb: TVDBLookup | None = (
-            TVDBLookup(config, self._reporter) if config.tvdb_api_key else None
+            TVDBLookup(config, self._reporter, lookup_cache)
+            if config.tvdb_api_key
+            else None
         )
         self._executor: ThreadPoolExecutor | None = None
         # Walk-wide future map keyed by canonical cache key.
