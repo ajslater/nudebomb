@@ -27,6 +27,7 @@ def lang_to_alpha3(lang: str) -> str:
             with suppress(Exception):
                 if lo := pycountry.languages.get(alpha_2=lang):
                     return lo.alpha_3
+            logger.warning(f"Unrecognized two letter language code: {lang}")
         case _:
             logger.warning(f"Languages should be in two or three letter format: {lang}")
     return lang

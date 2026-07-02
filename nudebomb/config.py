@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from datetime import date, datetime, time
 from platform import system
-from time import mktime
 from typing import TYPE_CHECKING, Final, TypedDict, cast
 
 from confuse import Configuration
+from confuse.exceptions import ConfigError
 from confuse.templates import Integer, MappingTemplate, Optional, Sequence
-from dateutil.parser import parse
+from dateutil.parser import ParserError, parse
 from loguru import logger
 
 from nudebomb.lang import lang_to_alpha3
@@ -23,7 +24,9 @@ TEMPLATE: Final = MappingTemplate(
     {
         PROGRAM_NAME: MappingTemplate(
             {
-                "after": Optional(str),
+                # ``_set_after`` normalizes any input form to an epoch float
+                # before template validation runs.
+                "after": Optional(float),
                 "cache_expiry_days": Integer(),
                 "dry_run": bool,
                 "ignore": Sequence(str),
@@ -155,16 +158,34 @@ class NudebombConfig:
     """Nudebomb config."""
 
     @staticmethod
-    def _set_after(config: Configuration) -> None:
+    def _parse_after(after: object) -> float:
+        """Convert an epoch number, datetime string, or YAML date to an epoch float."""
+        # Unquoted dates in YAML config files arrive as date/datetime objects.
+        if isinstance(after, datetime):
+            return after.timestamp()
+        if isinstance(after, date):
+            return datetime.combine(after, time.min).timestamp()
+        if isinstance(after, int | float):
+            return float(after)
+        after_str = str(after)
+        try:
+            return float(after_str)
+        except ValueError:
+            # ``timestamp()`` honors an explicit timezone offset and reads
+            # naive datetimes as local time.
+            return parse(after_str).timestamp()
+
+    @classmethod
+    def _set_after(cls, config: Configuration) -> None:
         after = config[PROGRAM_NAME]["after"].get()
         if after is None:
             return
 
         try:
-            timestamp = float(after)
-        except ValueError:
-            after_dt = parse(after)
-            timestamp = mktime(after_dt.timetuple())
+            timestamp = cls._parse_after(after)
+        except (ParserError, OverflowError, ValueError) as exc:
+            logger.error(f"Invalid after value {after!r}: {exc}")
+            sys.exit(1)
 
         config[PROGRAM_NAME]["after"].set(timestamp)
 
@@ -182,13 +203,30 @@ class NudebombConfig:
 
     @staticmethod
     def _set_unique_lang_list(config: Configuration, key: str) -> None:
-        if config[PROGRAM_NAME][key].get() is not None:
-            items = set(config[PROGRAM_NAME][key].get())
-            und_language = config[PROGRAM_NAME]["und_language"].get()
-            strip_und = config[PROGRAM_NAME]["strip_und_language"].get()
-            if und_language or not strip_und:
-                items.add("und")
-            config[PROGRAM_NAME][key].set(sorted(frozenset(items)))
+        value = config[PROGRAM_NAME][key].get()
+        if value is None:
+            return
+        if not isinstance(value, list | tuple):
+            # A scalar (e.g. ``languages: eng`` in a config file or
+            # ``NUDEBOMB_NUDEBOMB__LANGUAGES=eng``) would otherwise be
+            # iterated character by character.
+            logger.error(
+                f"{key} must be a list of language codes, got {value!r}. "
+                f"Use a comma separated option like '-l eng,fra', a YAML "
+                f"list, or enumerated environment variables like "
+                f"NUDEBOMB_NUDEBOMB__{key.upper()}__0=eng."
+            )
+            sys.exit(1)
+        items = {
+            lang_to_alpha3(stripped)
+            for item in value
+            if (stripped := str(item).strip())
+        }
+        und_language = config[PROGRAM_NAME]["und_language"].get()
+        strip_und = config[PROGRAM_NAME]["strip_und_language"].get()
+        if und_language or not strip_und:
+            items.add("und")
+        config[PROGRAM_NAME][key].set(sorted(items))
 
     @staticmethod
     def _set_und_language(config: Configuration) -> None:
@@ -265,9 +303,17 @@ class NudebombConfig:
         try:
             config.read()
         except Exception as exc:
-            logger.warning(str(exc))
+            # A broken user config must not also drop the packaged
+            # defaults, or the first template access crashes with an
+            # unrelated NotFoundError.
+            logger.error(f"Could not read the user config file: {exc}")
+            config.read(user=False)
         if args and args.nudebomb and args.nudebomb.config:
-            config.set_file(args.nudebomb.config)
+            try:
+                config.set_file(args.nudebomb.config)
+            except ConfigError as exc:
+                logger.error(f"Could not read config file: {exc}")
+                sys.exit(1)
         config.set_env()
         if args:
             config.set_args(args)

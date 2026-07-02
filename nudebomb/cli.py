@@ -29,7 +29,11 @@ class CommaListAction(Action):
     ) -> None:
         """Split by delineator and assign to dest variable."""
         if isinstance(values, str):
-            values = values.strip().split(self.DELINEATOR)
+            values = [
+                stripped
+                for item in values.split(self.DELINEATOR)
+                if (stripped := item.strip())
+            ]
         setattr(namespace, self.dest, values)
 
 
@@ -94,10 +98,15 @@ def get_arguments(
         epilog=epilog,
         formatter_class=NudebombHelpFormatter,
     )
+    # Flag options use default=None (not argparse's False/True) so that
+    # confuse's set_args drops unset flags and the env var / config file /
+    # config_default.yaml layers can take effect. A non-None default here
+    # would silently override every lower layer.
     parser.add_argument(
         "-d",
         "--dry-run",
         action="store_true",
+        default=None,
         help="Enable mkvmerge dry run for testing.",
     )
     parser.add_argument(
@@ -119,8 +128,11 @@ def get_arguments(
         "-m",
         "--media-type",
         action="store",
-        default="",
-        help="TMBD media type. Specify 'movie' or 'tv' type to target tmbd lookups.",
+        choices=("movie", "tv"),
+        help=(
+            "TMDB media type. Specify 'movie' or 'tv' to target TMDB lookups. "
+            "The 'tv' type also enables TVDB lookups when --tvdb-api-key is set."
+        ),
     )
     parser.add_argument(
         "-u",
@@ -135,6 +147,7 @@ def get_arguments(
         "-U",
         "--strip-und-language",
         action="store_true",
+        default=None,
         help=(
             "Strip the 'und' undetermined or untagged language tracks. "
             "By default nudebomb does not strip these tracks."
@@ -155,6 +168,7 @@ def get_arguments(
         "--no-subtitles",
         action="store_false",
         dest="subtitles",
+        default=None,
         help=(
             "If no subtitles match the languages to retain, strip all subtitles. "
             "By default nudebomb keeps all subtitles if no subtitles match specified "
@@ -173,6 +187,7 @@ def get_arguments(
         "--no-symlinks",
         action="store_false",
         dest="symlinks",
+        default=None,
         help="Do not follow symlinks for files and directories",
     )
     parser.add_argument(
@@ -180,6 +195,7 @@ def get_arguments(
         "--no-title",
         action="store_false",
         dest="title",
+        default=None,
         help="Do not rewrite the metadata title with the filename stem when remuxing.",
     )
     parser.add_argument(
@@ -200,12 +216,14 @@ def get_arguments(
         "-r",
         "--recurse",
         action="store_true",
+        default=None,
         help="Recurse through all paths on the command line.",
     )
     parser.add_argument(
         "-t",
         "--timestamps",
         action="store_true",
+        default=None,
         help=(
             "Read and write timestamps to strip only files that have been "
             "modified since the last run."
@@ -216,7 +234,7 @@ def get_arguments(
         "--timestamps-no-check-config",
         dest="timestamps_check_config",
         action="store_false",
-        default=True,
+        default=None,
         help="Do not compare program config options with loaded timestamps.",
     )
     parser.add_argument(
@@ -275,10 +293,10 @@ def get_arguments(
         params = params[1:]
     nns = parser.parse_args(params)
 
-    # increment verbose
-    if nns.verbose is None:
-        nns.verbose = 1
-    elif nns.verbose > 0:
+    # Increment verbose so one -v means 2 (the base level is 1). When no
+    # -v/-q is given, leave it None so env vars and config files can set
+    # verbosity; -q pins it to 0.
+    if nns.verbose is not None and nns.verbose > 0:
         nns.verbose += 1
 
     return Namespace(nudebomb=nns)
@@ -287,8 +305,13 @@ def get_arguments(
 def main(args: tuple[str, ...] | None = None) -> None:
     """Process command line arguments, config and walk inputs."""
     arguments = get_arguments(args)
-    setup_logging(arguments.nudebomb.verbose)
+    # Provisional logging so config parsing problems are visible; the
+    # final verbosity may come from env vars or config files, so
+    # reconfigure once the full config resolves.
+    cli_verbose = arguments.nudebomb.verbose
+    setup_logging(cli_verbose if cli_verbose is not None else 1)
     config = NudebombConfig().get_config(arguments)
+    setup_logging(config.verbose)
     # Iterate over all found mkv files
     walker = Walk(config)
     walker.run()
