@@ -301,6 +301,7 @@ class Walk:
             )
             logger.warning(msg)
             self._stats.record_warning(dir_path, msg)
+            self._reporter.progress.mark_warning()
             return
 
         mkv_files: list[Path] = []

@@ -159,6 +159,12 @@ def _counts_table(stats: Stats) -> Table:
     return table
 
 
+# The itemized lines print with markup=False: they embed raw paths and
+# mkvmerge/exception text where bracketed release tags like [x265] would
+# parse as Rich markup and vanish, and a stray [/...] would raise
+# MarkupError and kill the whole summary.
+
+
 def _print_paths(
     console: Console, header: str, paths: list[Path], style: str = ""
 ) -> None:
@@ -166,8 +172,7 @@ def _print_paths(
         return
     console.print(f"[bold]{header}:[/bold]")
     for path in paths:
-        line = f"  - {path}"
-        console.print(f"[{style}]{line}[/{style}]" if style else line, highlight=False)
+        console.print(f"  - {path}", style=style or None, markup=False, highlight=False)
 
 
 def _print_pairs(
@@ -181,7 +186,7 @@ def _print_pairs(
     console.print(f"[bold]{header}:[/bold]")
     for path, message in pairs:
         line = f"  - {path}: {message}" if path else f"  - {message}"
-        console.print(f"[{style}]{line}[/{style}]" if style else line, highlight=False)
+        console.print(line, style=style or None, markup=False, highlight=False)
 
 
 def _print_messages(
@@ -191,16 +196,15 @@ def _print_messages(
         return
     console.print(f"[bold]{header}:[/bold]")
     for message in messages:
-        line = f"  - {message}"
-        console.print(f"[{style}]{line}[/{style}]" if style else line, highlight=False)
+        console.print(
+            f"  - {message}", style=style or None, markup=False, highlight=False
+        )
 
 
 def render(stats: Stats, console: Console) -> None:
     """Print the summary to the given Rich console."""
     console.print(_counts_table(stats))
-    _print_paths(
-        console, "Stripped tracks", stats.stripped, MARKS["already_stripped"].style
-    )
+    _print_paths(console, "Stripped tracks", stats.stripped, MARKS["stripped"].style)
     _print_paths(
         console, "Not remuxed (dry run)", stats.dry_run, MARKS["dry_run"].style
     )

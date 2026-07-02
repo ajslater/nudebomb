@@ -86,11 +86,13 @@ class MKVFile:
             for warning in warnings:
                 logger.warning(warning)
                 self._reporter.stats.record_warning(self.path, warning)
+                self._reporter.progress.mark_warning()
         tracks = json_data.get("tracks")
         if not tracks:
             msg = f"No tracks. Might not be a valid matroshka video file: {self.path}"
             logger.warning(msg)
             self._reporter.stats.record_warning(self.path, msg)
+            self._reporter.progress.mark_warning()
             return
 
         # load into our map.
@@ -176,6 +178,7 @@ class MKVFile:
             msg = f"No tracks to remove from {self.path}"
             logger.warning(msg)
             self._reporter.stats.record_warning(self.path, msg)
+            self._reporter.progress.mark_warning()
             return section, command, num_remove_ids
 
         # Report what tracks will be removed
@@ -207,7 +210,10 @@ class MKVFile:
             # carry no human-readable info — skip.
             return
         elif line and show_output:
-            console.print(line, highlight=False)
+            # markup=False: mkvmerge echoes file paths whose bracket tags
+            # would parse as Rich markup (or raise MarkupError and falsely
+            # fail the remux).
+            console.print(line, markup=False, highlight=False)
 
     def _remux_file(self, command: list[str]) -> None:
         """

@@ -107,3 +107,34 @@ class TestMakeProgress:
         with ctx:
             ctx.mark_ignored()
         assert buffer.getvalue() == ""
+
+
+class TestFileSubtask:
+    """Sub-task descriptions are truncated and markup-escaped."""
+
+    @staticmethod
+    def _make_enabled(width: int) -> ProgressContext:
+        console = Console(file=io.StringIO(), force_terminal=True, width=width)
+        return make_progress(10, console, enabled=True)
+
+    def test_long_description_truncated(self) -> None:
+        """A long filename can't squeeze the main bar's columns away."""
+        context = self._make_enabled(width=80)
+        # width(80) - fixed(32) - char stream(34) = 14 budget
+        budget = 14
+        with context.file_subtask("X" * 200):
+            desc = context._progress.tasks[-1].description  # pyright: ignore[reportOptionalMemberAccess], # ty: ignore[unresolved-attribute]
+            assert len(desc) == budget
+
+    def test_short_description_untouched(self) -> None:
+        context = self._make_enabled(width=120)
+        with context.file_subtask("short.mkv"):
+            desc = context._progress.tasks[-1].description  # pyright: ignore[reportOptionalMemberAccess], # ty: ignore[unresolved-attribute]
+            assert desc == "short.mkv"
+
+    def test_description_markup_escaped(self) -> None:
+        """Bracket tags in filenames must not parse as Rich markup."""
+        context = self._make_enabled(width=120)
+        with context.file_subtask("Movie.[x265].mkv"):
+            desc = context._progress.tasks[-1].description  # pyright: ignore[reportOptionalMemberAccess], # ty: ignore[unresolved-attribute]
+            assert "\\[x265]" in desc

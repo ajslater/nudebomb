@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Final
 
+from rich.markup import escape
 from rich.progress import (
     MofNCompleteColumn,
     Progress,
@@ -46,6 +47,14 @@ _FILE_MARKS: Final = frozenset(
         "error",
     }
 )
+
+# The main bar's description; also the floor for sub-task description
+# width so the description column never shrinks below the main row.
+_MAIN_DESCRIPTION: Final = "Stripping MKVs"
+
+# Width of the fixed columns besides the description: spinner(~2) +
+# counts(~12) + time(~12) + inter-column spaces.
+_FIXED_COLUMNS_WIDTH: Final = 32
 
 
 class CharStreamColumn(ProgressColumn):
@@ -92,12 +101,14 @@ class ProgressContext:
         task_id: TaskID | None = None,
         *,
         enabled: bool = False,
+        max_description: int = len(_MAIN_DESCRIPTION),
     ) -> None:
         """Initialize."""
         self._progress = progress
         self._char_column = char_column
         self._task_id: TaskID | None = task_id
         self._enabled = enabled
+        self._max_description = max_description
 
     def __enter__(self) -> Self:
         """Enter the underlying live progress region (no-op when disabled)."""
@@ -190,7 +201,14 @@ class ProgressContext:
         # Capture in a local so the closure and the ``finally`` block
         # see a non-None Progress without re-narrowing.
         progress = self._progress
-        task_id = progress.add_task(description, total=100)
+        # Truncate so the shared description column can't outgrow the
+        # main row's budget (long release-style filenames would squeeze
+        # the char stream and counts to zero width), and escape because
+        # TextColumn parses descriptions as markup — filename bracket
+        # tags would vanish or raise MarkupError mid-render.
+        if len(description) > self._max_description:
+            description = description[: self._max_description - 1] + "…"
+        task_id = progress.add_task(escape(description), total=100)
         try:
 
             def _update(pct: int) -> None:
@@ -220,10 +238,17 @@ def make_progress(
     # and emits `\n` per refresh — which scrolls each frame past instead
     # of redrawing in place.
     #
-    # Reserve ~46 chars for the other columns:
-    #   spinner(~2) + " Stripping MKVs "(16) + counts(~12) + time(~12) +
-    #   inter-column spaces. Cap the stream at 40 on very wide terminals.
-    char_width = max(8, min(40, console.width - 46))
+    # Reserve room for the fixed columns plus the main description.
+    # Cap the stream at 40 on very wide terminals.
+    reserved = _FIXED_COLUMNS_WIDTH + len(_MAIN_DESCRIPTION)
+    char_width = max(8, min(40, console.width - reserved))
+    # Whatever width remains after the fixed columns and the char stream
+    # is the budget for per-file sub-task descriptions; never below the
+    # main description's own width.
+    max_description = max(
+        len(_MAIN_DESCRIPTION),
+        console.width - _FIXED_COLUMNS_WIDTH - char_width,
+    )
     char_column = CharStreamColumn(max_width=char_width)
     progress = Progress(
         SpinnerColumn(),
@@ -234,5 +259,11 @@ def make_progress(
         console=console,
         transient=False,
     )
-    task_id = progress.add_task("Stripping MKVs", total=total)
-    return ProgressContext(progress, char_column, task_id, enabled=True)
+    task_id = progress.add_task(_MAIN_DESCRIPTION, total=total)
+    return ProgressContext(
+        progress,
+        char_column,
+        task_id,
+        enabled=True,
+        max_description=max_description,
+    )

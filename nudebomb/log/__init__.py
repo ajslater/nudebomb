@@ -46,7 +46,10 @@ def _sink(message: object) -> None:
     level = record["level"].name
     style = LEVEL_STYLES.get(level, "white")
     text = record["message"]
-    console.print(f"[{style}]{text}[/{style}]", highlight=False, soft_wrap=True)
+    # markup=False: messages embed arbitrary paths and mkvmerge output;
+    # bracketed release tags like [x265] would parse as Rich markup and
+    # vanish, and a stray [/...] would raise MarkupError.
+    console.print(text, style=style, markup=False, highlight=False, soft_wrap=True)
 
 
 _configured = False

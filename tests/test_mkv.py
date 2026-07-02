@@ -4,6 +4,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 from nudebomb.config import NudebombConfig
 from nudebomb.log.reporter import Reporter
@@ -112,6 +113,14 @@ class TestMkv(DiffTracksTest):
         mkvfile = MKVFile(self._config, garbage, reporter)
         assert not mkvfile.remove_tracks()
         assert stats.errors or stats.warnings
+
+    def test_warning_marks_progress(self) -> None:
+        """Warnings push the documented '!' mark onto the progress bar."""
+        garbage = TEST_DIR / "warn.mkv"
+        garbage.write_bytes(b"not a matroska file")
+        reporter = Reporter(stats=Stats(), progress=MagicMock())  # pyright: ignore[reportArgumentType]
+        MKVFile(self._config, garbage, reporter)
+        assert reporter.progress.mark_warning.called  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
 
     def test_stale_tmp_removed(self) -> None:
         """A leftover .tmp from a killed run is cleaned up on the next pass."""

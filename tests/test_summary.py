@@ -173,3 +173,19 @@ class TestConditionalRows:
         stats.record_error(Path("/x.mkv"), "boom")
         output = _render(stats)
         assert "Errors" in output
+
+
+class TestMarkupSafety:
+    """Raw paths and messages render literally instead of as Rich markup."""
+
+    def test_bracket_tags_render_literally(self) -> None:
+        stats = Stats()
+        stats.record_stripped(Path("/m/Movie.[x265]-GRP.mkv"))
+        output = _render(stats)
+        assert "[x265]" in output
+
+    def test_closing_tag_like_text_does_not_crash(self) -> None:
+        stats = Stats()
+        stats.record_error(Path("/m/dir[/sub"), "cmd failed: [/bad] tag")
+        output = _render(stats)
+        assert "[/bad]" in output
