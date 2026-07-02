@@ -35,6 +35,11 @@ _LookupKey = tuple[str, str, str]
 # Hard cap to protect TMDB/TVDB rate limits even if the user cranks the knob.
 _MAX_LOOKUP_WORKERS: Final = 8
 
+# Skip reasons with special handling in walk_file/_count_path; all other
+# reasons are logged and counted as ignored.
+_DIR_REASON: Final = "directory"
+_TIMESTAMP_REASON: Final = "timestamp"
+
 
 class Walk:
     """Directory traversal class."""
@@ -73,30 +78,15 @@ class Walk:
         # The first file in a (title, year) / (id_type, id_value) group
         # submits the lookup; later files reuse the same future.
         self._pending: dict[_LookupKey, Future[str | None]] = {}
+        # Skip verdicts computed by the prefetch pass, consumed (popped)
+        # by walk_file so the guard work runs once per file.
+        self._prefetched_skip_reasons: dict[Path, str | None] = {}
 
     # ------------------------------------------------------------------
     # Guards
     # ------------------------------------------------------------------
 
-    def _is_path_suffix_not_mkv(self, path: Path) -> bool:
-        """Return if the suffix should skipped."""
-        if path.suffix == ".mkv":
-            return False
-        logger.debug(f"Skip: Suffix is not 'mkv': {path}")
-        self._stats.record_ignored()
-        self._reporter.progress.mark_ignored()
-        return True
-
-    def _is_path_ignored(self, path: Path) -> bool:
-        """Return if path should be ignored."""
-        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            logger.debug(f"Skip: ignored: {path}")
-            self._stats.record_ignored()
-            self._reporter.progress.mark_ignored()
-            return True
-        return False
-
-    def _is_path_before_timestamp(self, top_path: Path, path: Path) -> bool:
+    def _is_before_timestamp(self, top_path: Path, path: Path) -> bool:
         """Return if the file was last updated before the timestamp."""
         if self._config.after:
             mtime: float | None = self._config.after
@@ -104,42 +94,30 @@ class Walk:
             mtime = self._timestamps.get_timestamp(top_path, path)
         else:
             mtime = None
+        return mtime is not None and mtime > path.stat().st_mtime
 
-        if mtime is not None and mtime > path.stat().st_mtime:
-            logger.debug(f"Skip by timestamps {path}")
-            self._stats.record_skipped_timestamp()
-            self._reporter.progress.mark_skipped_timestamp()
-            return True
-        return False
-
-    def _is_path_skippable_symlink(self, path: Path) -> bool:
-        if not self._config.symlinks and path.is_symlink():
-            logger.debug(f"Skip: symlink: {path}")
-            self._stats.record_ignored()
-            self._reporter.progress.mark_ignored()
-            return True
-        return False
-
-    def _would_strip(self, top_path: Path, path: Path) -> bool:
+    def _skip_reason(
+        self, top_path: Path, path: Path, *, use_timestamps: bool = True
+    ) -> str | None:
         """
-        Silent version of ``walk_file``'s guards.
+        Return why ``path`` would be skipped, or None to process it.
 
-        Used to decide whether prefetching a lookup is worthwhile — does
-        not emit skip messages; ``walk_file`` prints those on the main pass.
+        The single source of truth for walk/prefetch/count guard logic —
+        no side effects (logging and stats stay in ``walk_file``).
+        ``use_timestamps=False`` skips the stat-based timestamp check for
+        callers that don't need it (the progress-bar count).
         """
-        if path.is_dir() or path.suffix != ".mkv":
-            return False
         if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            return False
+            return "ignored"
         if not self._config.symlinks and path.is_symlink():
-            return False
-        if self._config.after:
-            mtime: float | None = self._config.after
-        elif self._timestamps:
-            mtime = self._timestamps.get_timestamp(top_path, path)
-        else:
-            mtime = None
-        return not (mtime is not None and mtime > path.stat().st_mtime)
+            return "symlink"
+        if path.is_dir():
+            return _DIR_REASON
+        if path.suffix != ".mkv":
+            return "suffix is not 'mkv'"
+        if use_timestamps and self._is_before_timestamp(top_path, path):
+            return _TIMESTAMP_REASON
+        return None
 
     # ------------------------------------------------------------------
     # Pre-walk file count (drives a determinate progress bar)
@@ -159,16 +137,14 @@ class Walk:
         return total
 
     def _count_path(self, top_path: Path, path: Path) -> int:
-        """Count files under a single path, mirroring walk_file's guards."""
-        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            return 1  # still represents one bar advance via mark_ignored
-        if not self._config.symlinks and path.is_symlink():
-            return 1
-        if path.is_dir():
-            return self._count_dir(top_path, path)
+        """Count files under a single path, sharing walk_file's guards."""
         # Every visited non-dir entry contributes exactly one bar advance:
         # either the file is processed (stripped/dry-run/already-stripped/
-        # error) or it gets skipped (non-mkv suffix, timestamp).
+        # error) or it gets skipped (ignored, non-mkv suffix, timestamp) —
+        # so the timestamp stat is skipped here.
+        reason = self._skip_reason(top_path, path, use_timestamps=False)
+        if reason == _DIR_REASON:
+            return self._count_dir(top_path, path)
         return 1
 
     def _count_total(self) -> int:
@@ -297,7 +273,11 @@ class Walk:
         if self._langfiles.found_lang_files(top_path, dir_path):
             return
         for path in mkv_files:
-            if self._would_strip(top_path, path):
+            # Remember the verdict so walk_file doesn't repeat the
+            # stat/glob work moments later.
+            reason = self._skip_reason(top_path, path)
+            self._prefetched_skip_reasons[path] = reason
+            if reason is None:
                 self._submit_lookup(path)
 
     def walk_dir(
@@ -350,16 +330,22 @@ class Walk:
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
-        if self._is_path_ignored(path):
-            return
-        if self._is_path_skippable_symlink(path):
-            return
-        if path.is_dir():
+        if path in self._prefetched_skip_reasons:
+            reason = self._prefetched_skip_reasons.pop(path)
+        else:
+            reason = self._skip_reason(top_path, path)
+        if reason == _DIR_REASON:
             self.walk_dir(top_path, path)
             return
-        if self._is_path_suffix_not_mkv(path):
+        if reason == _TIMESTAMP_REASON:
+            logger.debug(f"Skip by timestamps {path}")
+            self._stats.record_skipped_timestamp()
+            self._reporter.progress.mark_skipped_timestamp()
             return
-        if self._is_path_before_timestamp(top_path, path):
+        if reason is not None:
+            logger.debug(f"Skip: {reason}: {path}")
+            self._stats.record_ignored()
+            self._reporter.progress.mark_ignored()
             return
         # `up_to_date` is True for both freshly-remuxed files and files
         # that were already stripped — both states mean "no need to
@@ -383,33 +369,49 @@ class Walk:
             sub_langs = ", ".join(sorted(self._config.sub_languages))
             logger.info(f"Stripping subtitle languages except {sub_langs}.")
 
+    def _read_timestamps(self) -> None:
+        """Load recorded timestamps when timestamps mode is on."""
+        if not self._config.timestamps:
+            return
+        # Force `verbose=0` so treestamps's own termcolor Printer
+        # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
+        # dots straight to stdout for each `.set()` call, bypassing
+        # rich's Live region and breaking the bar's in-place redraw.
+        grove_config = GrovestampsConfig(
+            PROGRAM_NAME,
+            paths=self._config.paths,
+            verbose=0,
+            symlinks=self._config.symlinks,
+            ignore=self._config.ignore,
+            check_config=self._config.timestamps_check_config,
+            # GrovestampsConfig wants a Mapping; convert the dataclass.
+            program_config=asdict(self._config),
+            program_config_keys=TIMESTAMPS_CONFIG_KEYS,
+        )
+        self._timestamps = Grovestamps(grove_config)
+        roots = ", ".join(sorted(str(p) for p in self._timestamps))
+        logger.info(f"Read timestamps from {roots}")
+
+    def _dump_timestamps(self) -> None:
+        """Persist timestamps at end of run; dry runs never write."""
+        if not self._timestamps or self._config.dry_run:
+            return
+        if dumped := self._timestamps.dumpf():
+            roots = ", ".join(str(p) for p in dumped)
+            logger.info(f"Dumped timestamps for {roots}")
+
     def run(self) -> Stats:
         """Run the stripper against all configured paths."""
         self._print_config()
         logger.info("Searching for MKV files to process…")
 
-        if self._config.timestamps:
-            # Force `verbose=0` so treestamps's own termcolor Printer
-            # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
-            # dots straight to stdout for each `.set()` call, bypassing
-            # rich's Live region and breaking the bar's in-place redraw.
-            grove_config = GrovestampsConfig(
-                PROGRAM_NAME,
-                paths=self._config.paths,
-                verbose=0,
-                symlinks=self._config.symlinks,
-                ignore=self._config.ignore,
-                check_config=self._config.timestamps_check_config,
-                # GrovestampsConfig wants a Mapping; convert the dataclass.
-                program_config=asdict(self._config),
-                program_config_keys=TIMESTAMPS_CONFIG_KEYS,
-            )
-            self._timestamps = Grovestamps(grove_config)
-            roots = ", ".join(sorted(str(p) for p in self._timestamps))
-            logger.info(f"Read timestamps from {roots}")
+        self._read_timestamps()
 
-        total = self._count_total()
-        progress = make_progress(total, console, enabled=self._config.verbose > 0)
+        # The counting pass traverses the whole tree just to size the
+        # bar — skip it entirely when the bar can't render.
+        progress_enabled = self._config.verbose > 0 and console.is_terminal
+        total = self._count_total() if progress_enabled else 0
+        progress = make_progress(total, console, enabled=progress_enabled)
         # Replace the no-op progress that lookup classes captured at
         # construction time so they advance the real bar.
         self._reporter.progress = progress
@@ -431,13 +433,7 @@ class Walk:
             finally:
                 self._executor = None
 
-        if (
-            self._timestamps
-            and not self._config.dry_run
-            and (dumped := self._timestamps.dumpf())
-        ):
-            roots = ", ".join(str(p) for p in dumped)
-            logger.info(f"Dumped timestamps for {roots}")
+        self._dump_timestamps()
 
         if self._config.verbose > 0:
             render_summary(self._stats, console)

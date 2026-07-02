@@ -24,7 +24,7 @@ _API_KEY_PATTERN: Final = re.compile(r"(api_key=)[^&\s'\"]+")
 _NON_WORD_PATTERN: Final = re.compile(r"[^\w]+")
 
 
-def resolve_language(result: dict) -> str | None:
+def resolve_tmdb_language(result: dict) -> str | None:
     """Extract and convert language from a TMDB result."""
     lang_2 = result.get("original_language")
     if not lang_2:

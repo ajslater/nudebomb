@@ -12,7 +12,9 @@ class Track:
     def __init__(self, track_data: Mapping[str, Any]) -> None:
         """Initialize."""
         self.type: str = track_data["type"]
-        self.id: int = track_data["id"]
+        # mkvmerge reports an int, but every consumer builds command-line
+        # strings from it.
+        self.id: str = str(track_data["id"])
         self.lang: str = track_data["properties"].get("language", "und")
         self.codec: str = track_data["codec"]
 

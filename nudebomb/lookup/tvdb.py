@@ -10,9 +10,7 @@ import tvdb_v4_official
 from loguru import logger
 
 from nudebomb.lang import lang_to_alpha3
-from nudebomb.log import LOOKUP_HIT_LEVEL
-from nudebomb.log.reporter import Reporter
-from nudebomb.lookup.cache import LookupCache
+from nudebomb.lookup.base import QUERY_ERROR, BaseLookup, QueryOutcome
 from nudebomb.lookup.parser import parse_title
 from nudebomb.lookup.util import LOOKUP_TIMEOUT_SECONDS, best_title_match
 
@@ -20,6 +18,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from nudebomb.config import NudebombSettings
+    from nudebomb.log.reporter import Reporter
+    from nudebomb.lookup.cache import LookupCache
     from nudebomb.lookup.parser import ParseResult
 
 # Loose rate-limit heuristics: TVDB surfaces errors as ``{"code": int,
@@ -49,7 +49,7 @@ def _is_tvdb_error_dict(result: object) -> bool:
     )
 
 
-class TVDBLookup:
+class TVDBLookup(BaseLookup):
     """Look up original language of TV series from TVDB."""
 
     def __init__(
@@ -71,12 +71,7 @@ class TVDBLookup:
         # tvdb_v4_official stores pagination state on the shared Request
         # object; serialize HTTP calls to keep that state consistent.
         self._tvdb_lock: Lock = Lock()
-        self._reporter: Reporter = reporter if reporter is not None else Reporter()
-        self._cache = (
-            cache
-            if cache is not None
-            else LookupCache(config.cache_expiry_days, self._reporter)
-        )
+        super().__init__(config, reporter, cache)
 
     @staticmethod
     def _resolve_language(result: dict) -> str | None:
@@ -103,21 +98,8 @@ class TVDBLookup:
             return None
         return result
 
-    @staticmethod
-    def _extract_db_id(result: dict) -> str:
-        """Extract the database ID from a TVDB result."""
-        return str(result.get("id", ""))
-
-    def _query_api(self, title: str, parsed: ParseResult) -> dict | None:
-        """
-        Query TVDB API.
-
-        Returns:
-        - a dict on hit
-        - ``None`` on no-result (cache as a miss)
-        - ``{}`` on rate-limit or error (do not cache — retry next run)
-
-        """
+    def _query_api(self, title: str, parsed: ParseResult) -> QueryOutcome:
+        """Query TVDB API."""
         try:
             result: dict | None
             if parsed.tvdb_id:
@@ -132,7 +114,7 @@ class TVDBLookup:
             logger.error(msg)
             self._reporter.progress.mark_lookup_error()
             self._reporter.stats.record_db_remote_error(msg)
-            return {}
+            return QUERY_ERROR
 
         # TVDB doesn't raise on HTTP errors — it returns a dict with
         # ``code`` and ``message`` keys. Treat those as an error just like
@@ -151,22 +133,9 @@ class TVDBLookup:
                 logger.error(msg)
                 self._reporter.progress.mark_lookup_error()
             self._reporter.stats.record_db_remote_error(msg)
-            return {}
+            return QUERY_ERROR
 
-        return result
-
-    def _record_remote_hit(self, label: str, lang: str) -> None:
-        """Record a successful remote lookup with a language."""
-        logger.log(LOOKUP_HIT_LEVEL, f"{label}: original language: {lang}")
-        self._reporter.progress.mark_lookup_hit()
-        self._reporter.stats.record_db_remote_hit()
-
-    def _record_remote_no_result(self, label: str) -> None:
-        """Record a remote lookup that returned no result."""
-        msg = f"{label}: no result found"
-        logger.warning(msg)
-        self._reporter.progress.mark_lookup_no_result()
-        self._reporter.stats.record_db_no_result(msg)
+        return QueryOutcome(result=result)
 
     def _lookup_by_id_language(self, parsed: ParseResult) -> str | None:
         """Look up language by TVDB ID, bypassing title-based caching."""
@@ -177,9 +146,10 @@ class TVDBLookup:
             if found:
                 return cached_lang
 
-        result = self._query_api("", parsed)
-        if result == {}:
+        outcome = self._query_api("", parsed)
+        if outcome.error:
             return None
+        result = outcome.result
         label = f"TVDB ID {parsed.tvdb_id}"
         if not result:
             self._record_remote_no_result(label)
@@ -207,10 +177,11 @@ class TVDBLookup:
         if found:
             return lang
 
-        result = self._query_api(title, parsed)
-        if result == {}:
+        outcome = self._query_api(title, parsed)
+        if outcome.error:
             return None
 
+        result = outcome.result
         if result is not None:
             lang = self._resolve_language(result) or ""
             self._cache.save_file(

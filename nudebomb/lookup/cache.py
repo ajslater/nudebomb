@@ -215,13 +215,13 @@ class LookupCache:
         return True, lang
 
     def check_cache(
-        self, cache_type: str, title: str, year: str
+        self, media_type: str, title: str, year: str
     ) -> tuple[bool, str | None]:
         """Check Caches."""
-        found, lang = self._check_mem_cache(cache_type, title, year)
+        found, lang = self._check_mem_cache(media_type, title, year)
         if found:
             return found, lang
-        return self._check_file_cache(cache_type, title, year)
+        return self._check_file_cache(media_type, title, year)
 
     def _id_cache_path(self, media_type: str, id_type: str, id_value: str) -> Path:
         """Return the cache file path for an ID entry."""

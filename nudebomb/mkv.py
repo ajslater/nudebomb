@@ -137,14 +137,13 @@ class MKVFile:
         track_type: str,
         command: list[str],
         num_remove_ids: int,
-    ) -> tuple[list[RenderableType], list[str], int]:
+    ) -> tuple[list[RenderableType], int]:
         """
-        Extend ``command`` with the keep/remove flags for ``track_type``.
+        Extend ``command`` in place with keep/remove flags for ``track_type``.
 
-        Returns ``(section, command, num_remove_ids)`` — a list of rich
-        renderables describing what will happen to this track type, plus
-        the augmented mkvmerge command and the running count of removed
-        tracks.
+        Returns ``(section, num_remove_ids)`` — a list of rich renderables
+        describing what will happen to this track type, plus the running
+        count of removed tracks.
         """
         keep, remove = self._filtered_tracks(track_type)
         section: list[RenderableType] = []
@@ -154,13 +153,13 @@ class MKVFile:
 
         retaining_lines: list[str] = []
         for count, track in enumerate(keep):
-            keep_ids.add(str(track.id))
+            keep_ids.add(track.id)
             retaining_lines.append(f"   {track}")
 
             # Set the first track as default
             command += [
                 "--default-track",
-                ":".join((str(track.id), "0" if count else "1")),
+                ":".join((track.id, "0" if count else "1")),
             ]
         if retaining_lines:
             section.append(Text(f"Retaining {track_type} track(s):", style="bold"))
@@ -179,7 +178,7 @@ class MKVFile:
             logger.warning(msg)
             self._reporter.stats.record_warning(self.path, msg)
             self._reporter.progress.mark_warning()
-            return section, command, num_remove_ids
+            return section, num_remove_ids
 
         # Report what tracks will be removed
         if remove:
@@ -189,7 +188,7 @@ class MKVFile:
         section.append(Rule(style="bright_black"))
         num_remove_ids += len(remove)
 
-        return section, command, num_remove_ids
+        return section, num_remove_ids
 
     @staticmethod
     def _remux_file_stdout_line(
@@ -262,18 +261,19 @@ class MKVFile:
     def _extend_und_language_command(
         self,
         command: list[str],
-    ) -> tuple[list[RenderableType], list[str], bool]:
+    ) -> tuple[list[RenderableType], bool]:
         """
-        Add ``--language`` flags to relabel ``und`` tracks.
+        Add ``--language`` flags in place to relabel ``und`` tracks.
 
-        Returns ``(section, command, relabeled)`` — a list of rich
-        renderables describing what will happen, plus the augmented
-        mkvmerge command and a flag indicating whether any track was
-        relabeled.
+        Returns ``(section, relabeled)`` — a list of rich renderables
+        describing what will happen, plus a flag indicating whether any
+        track was relabeled. All und tracks are kept tracks by
+        construction: the config layer adds "und" to both language lists
+        whenever und_language is set, and video is never filtered.
         """
         und_language = self._config.und_language
         if not und_language:
-            return [], command, False
+            return [], False
 
         section: list[RenderableType] = []
         relabel_lines: list[str] = []
@@ -289,7 +289,7 @@ class MKVFile:
             section.extend(Text(line) for line in relabel_lines)
             section.append(Rule(style="bright_black"))
 
-        return section, command, bool(relabel_lines)
+        return section, bool(relabel_lines)
 
     def _print_manifest(self, manifest: list[RenderableType]) -> None:
         """
@@ -307,30 +307,15 @@ class MKVFile:
         for renderable in manifest:
             console.print(renderable, highlight=False)
 
-    def remove_tracks(self) -> bool:
+    def _build_remux_plan(
+        self, tmp_path: Path
+    ) -> tuple[list[RenderableType], list[str], bool]:
         """
-        Remove the unwanted tracks.
+        Build the mkvmerge command and a manifest describing the work.
 
-        Returns True if the file is in the desired state — remuxed this
-        run OR already-stripped before. Walk uses this to decide whether
-        to write a timestamp; both states mean "no need to re-check this
-        file next run". Dry-run and errors return False so the timestamp
-        isn't poisoned.
+        Returns ``(manifest, command, needs_work)``; ``needs_work`` is
+        False when no track would be removed or relabeled.
         """
-        if not self._track_map:
-            msg = f"not removing tracks from mkv with no tracks: {self.path}"
-            logger.error(msg)
-            self._reporter.stats.record_error(self.path, msg)
-            self._reporter.progress.mark_error()
-            return False
-        logger.debug(f"Checking {self.path}:")
-
-        # Output the remuxed file to a temp tile, This will protect
-        # the original file from been corrupted if anything goes wrong
-        tmp_path = self.path.with_suffix(self.path.suffix + ".tmp")
-        # A hard kill mid-remux can orphan the temp file; remove any
-        # leftover so it can't outlive an already-stripped early return.
-        tmp_path.unlink(missing_ok=True)
         command = [
             self._config.mkvmerge_bin,
             "--output",
@@ -347,25 +332,25 @@ class MKVFile:
         manifest: list[RenderableType] = []
         num_remove_ids = 0
         for track_type in self.REMOVABLE_TRACK_NAMES:
-            section, command, num_remove_ids = self._extend_track_command(
+            section, num_remove_ids = self._extend_track_command(
                 track_type, command, num_remove_ids
             )
             manifest.extend(section)
 
         # Relabel und tracks if configured
-        und_section, command, und_relabeled = self._extend_und_language_command(command)
+        und_section, und_relabeled = self._extend_und_language_command(command)
         manifest.extend(und_section)
 
-        command += [(str(self.path))]
+        command.append(str(self.path))
+        return manifest, command, bool(num_remove_ids or und_relabeled)
 
-        if not num_remove_ids and not und_relabeled:
-            logger.info(f"\tAlready stripped {self.path}")
-            self._reporter.stats.record_already_stripped()
-            self._reporter.progress.mark_already_stripped()
-            # Already in the desired state — let Walk write the timestamp
-            # so subsequent runs short-circuit on the timestamp check.
-            return True
-
+    def _execute_remux_plan(
+        self,
+        manifest: list[RenderableType],
+        command: list[str],
+        tmp_path: Path,
+    ) -> bool:
+        """Run (or dry-run) the built plan. Returns True if remuxed."""
         changed = False
         try:
             self._print_manifest(manifest)
@@ -386,9 +371,48 @@ class MKVFile:
                 changed = True
                 self._reporter.stats.record_stripped(self.path)
                 self._reporter.progress.mark_stripped()
-        except Exception as exc:
+        except (OSError, subprocess.SubprocessError) as exc:
+            # Covers mkvmerge failures (CalledProcessError), a missing
+            # binary, and filesystem errors from the tmp replace.
             logger.error(str(exc))
             self._reporter.stats.record_error(self.path, str(exc))
             self._reporter.progress.mark_error()
             tmp_path.unlink(missing_ok=True)
         return changed
+
+    def remove_tracks(self) -> bool:
+        """
+        Remove the unwanted tracks.
+
+        Returns True if the file is in the desired state — remuxed this
+        run OR already-stripped before. Walk uses this to decide whether
+        to write a timestamp; both states mean "no need to re-check this
+        file next run". Dry-run and errors return False so the timestamp
+        isn't poisoned.
+        """
+        if not self._track_map:
+            msg = f"not removing tracks from mkv with no tracks: {self.path}"
+            logger.error(msg)
+            self._reporter.stats.record_error(self.path, msg)
+            self._reporter.progress.mark_error()
+            return False
+        logger.debug(f"Checking {self.path}:")
+
+        # Output the remuxed file to a temp file. This protects the
+        # original from corruption if anything goes wrong.
+        tmp_path = self.path.with_suffix(self.path.suffix + ".tmp")
+        # A hard kill mid-remux can orphan the temp file; remove any
+        # leftover so it can't outlive an already-stripped early return.
+        tmp_path.unlink(missing_ok=True)
+
+        manifest, command, needs_work = self._build_remux_plan(tmp_path)
+
+        if not needs_work:
+            logger.info(f"\tAlready stripped {self.path}")
+            self._reporter.stats.record_already_stripped()
+            self._reporter.progress.mark_already_stripped()
+            # Already in the desired state — let Walk write the timestamp
+            # so subsequent runs short-circuit on the timestamp check.
+            return True
+
+        return self._execute_remux_plan(manifest, command, tmp_path)

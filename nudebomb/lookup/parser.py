@@ -155,10 +155,3 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
             title, year = _parse_generic_title(normalized)
 
     return ParseResult(title=title, year=year, tmdb_id="", imdb_id="", tvdb_id="")
-
-
-if __name__ == "__main__":
-    import sys
-
-    title = _parse_tv_title(sys.argv[1])
-    print(title)  # noqa: T201
