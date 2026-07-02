@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from os import environ
+from pathlib import PurePath
 from platform import system
 from typing import TYPE_CHECKING, Final, TypedDict, cast
 
@@ -195,8 +197,13 @@ class NudebombConfig:
             return
 
         if system() == "Windows":
+            # Honor a relocated Program Files (non-standard install
+            # drives). NOTE: mkvmerge_bin participates in the timestamp
+            # config check, so correcting the old doubled-backslash
+            # literal invalidates existing -t records once.
+            program_files = environ.get("PROGRAMFILES", "C:\\Program Files")
             config[PROGRAM_NAME]["mkvmerge_bin"].set(
-                "C:\\\\Program Files\\MKVToolNix\\mkvmerge.exe"
+                str(PurePath(program_files) / "MKVToolNix" / "mkvmerge.exe")
             )
         else:
             config[PROGRAM_NAME]["mkvmerge_bin"].set("mkvmerge")
