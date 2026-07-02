@@ -123,6 +123,12 @@ class TestLayering:
         config = _get_config((*BASE_ARGV[:-1], "-d", "/tmp"))  # noqa: S108
         assert config.dry_run is True
 
+    def test_dry_run_keeps_timestamp_reads(self):
+        """-d -t keeps timestamps on so the preview matches a real run."""
+        config = _get_config((*BASE_ARGV[:-1], "-d", "-t", "/tmp"))  # noqa: S108
+        assert config.dry_run is True
+        assert config.timestamps is True
+
     def test_defaults_without_flags(self):
         config = _get_config()
         assert config.dry_run is False

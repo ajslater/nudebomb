@@ -1,5 +1,6 @@
 """Command line interface for nudebomb."""
 
+import sys
 from argparse import Action, ArgumentParser, Namespace
 from collections.abc import Sequence
 from typing import Any, ClassVar, Final
@@ -314,7 +315,10 @@ def main(args: tuple[str, ...] | None = None) -> None:
     setup_logging(config.verbose)
     # Iterate over all found mkv files
     walker = Walk(config)
-    walker.run()
+    stats = walker.run()
+    if stats.errors:
+        # Scripts and cron jobs rely on the exit code to detect failures.
+        sys.exit(1)
 
 
 if __name__ == "__main__":

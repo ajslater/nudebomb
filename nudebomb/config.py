@@ -249,14 +249,6 @@ class NudebombConfig:
         config[PROGRAM_NAME]["ignore"].set(tuple(sorted(set(ignore))))
 
     @staticmethod
-    def _set_timestamps(config: Configuration) -> None:
-        """Set the timestamp attribute."""
-        timestamps = config[PROGRAM_NAME]["timestamps"].get(bool) and not config[
-            PROGRAM_NAME
-        ]["dry_run"].get(bool)
-        config[PROGRAM_NAME]["timestamps"].set(timestamps)
-
-    @staticmethod
     def _to_settings(nb_attrdict: object) -> NudebombSettings:
         """
         Convert the validated nudebomb AttrDict into a typed Settings.
@@ -323,7 +315,6 @@ class NudebombConfig:
         self._set_default_mkvmerge_bin(config)
         self._set_unique_lang_list(config, "sub_languages")
         self._set_ignore(config)
-        self._set_timestamps(config)
         # confuse 2.2.0 types the result of ``config.get(TEMPLATE)``
         # precisely from the MappingTemplate, so an ``isinstance``
         # narrowing is no longer needed.

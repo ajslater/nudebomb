@@ -72,12 +72,14 @@ class LangFiles:
         path: Path,
     ) -> bool:
         """Return True if any lang files contributed languages for this path."""
+        # Check the boundary only after visiting the current dir so
+        # top_path's own lang files count for nested paths too.
         while True:
             if self._lang_roots.get(path):
                 return True
-            path = path.parent
             if path in (top_path, path.parent):
                 break
+            path = path.parent
         return False
 
     def get_langs(
@@ -87,9 +89,11 @@ class LangFiles:
     ) -> frozenset[str]:
         """Get the languages from this dir and parent dirs."""
         langs = self._languages
+        # Check the boundary only after visiting the current dir so
+        # top_path's own lang files apply to nested paths too.
         while True:
             langs |= self.read_lang_files(path)
-            path = path.parent
             if path in (top_path, path.parent):
                 break
+            path = path.parent
         return frozenset(langs)

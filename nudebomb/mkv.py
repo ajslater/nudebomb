@@ -58,17 +58,26 @@ class MKVFile:
     def _init_track_map(self) -> None:
         self._track_map: dict[str, list[Track]] = {}
 
-        # Ask mkvmerge for the json info
+        # Ask mkvmerge for the json info. Identification problems exit
+        # nonzero but still emit the JSON payload (with its "errors"
+        # array), so parse stdout regardless of the exit code and record
+        # problems per file instead of aborting the whole walk.
         command = (self._config.mkvmerge_bin, "-J", str(self.path))
-        proc = subprocess.run(  # noqa: S603
-            command,
-            capture_output=True,
-            check=True,
-            text=True,
-        )
+        try:
+            proc = subprocess.run(  # noqa: S603
+                command,
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            json_data = json.loads(proc.stdout)
+        except (OSError, json.JSONDecodeError) as exc:
+            msg = f"mkvmerge identification failed for {self.path}: {exc}"
+            logger.error(msg)
+            self._reporter.stats.record_error(self.path, msg)
+            return
 
         # Process the json response
-        json_data = json.loads(proc.stdout)
         if errors := json_data.get("errors"):
             for error in errors:
                 logger.error(error)
@@ -313,6 +322,9 @@ class MKVFile:
         # Output the remuxed file to a temp tile, This will protect
         # the original file from been corrupted if anything goes wrong
         tmp_path = self.path.with_suffix(self.path.suffix + ".tmp")
+        # A hard kill mid-remux can orphan the temp file; remove any
+        # leftover so it can't outlive an already-stripped early return.
+        tmp_path.unlink(missing_ok=True)
         command = [
             self._config.mkvmerge_bin,
             "--output",

@@ -62,9 +62,10 @@ def setup(verbose: int) -> None:
         _configured = True
 
     logger.remove()
-    if verbose > 0:
-        logger.add(
-            _sink,
-            level=_verbose_to_level(verbose),
-            format="{message}",
-        )
+    # Even -q keeps a sink registered: _verbose_to_level maps verbose<=0
+    # to ERROR so failures are never silently dropped.
+    logger.add(
+        _sink,
+        level=_verbose_to_level(verbose),
+        format="{message}",
+    )

@@ -18,6 +18,7 @@ def _make_walk(
     media_type: str = "movie",
     tmdb: MagicMock | None = None,
     tvdb: MagicMock | None = None,
+    recurse: bool = False,
 ) -> Walk:
     """Build a Walk with TMDB/TVDB clients pre-patched for offline testing."""
     # Stub out the lookup client construction so Walk.__init__ doesn't try
@@ -38,6 +39,7 @@ def _make_walk(
         timestamps=False,
         dry_run=False,
         lookup_workers=4,
+        recurse=recurse,
     )
     return Walk(cfg)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
 
@@ -159,3 +161,38 @@ class TestDoLookup:
         walk._do_lookup(Path("Dune (2021).mkv"))
         assert tvdb.lookup_language.call_count == 0
         assert tmdb.lookup_language.call_count == 1
+
+
+class TestWalkRobustness:
+    """Directory-level failures degrade gracefully instead of aborting."""
+
+    def test_unreadable_dir_records_error(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """An unreadable directory records an error and the walk continues."""
+        walk = _make_walk(monkeypatch, recurse=True)
+        bad_dir = tmp_path / "locked"
+        bad_dir.mkdir()
+
+        real_iterdir = Path.iterdir
+
+        def fake_iterdir(self: Path):
+            if self == bad_dir:
+                raise PermissionError(13, "Permission denied")
+            return real_iterdir(self)
+
+        monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+
+        walk.walk_dir(tmp_path, bad_dir)
+
+        assert walk._stats.errors
+        assert "locked" in str(walk._stats.errors[0][0])
+
+    def test_dir_without_recurse_warns(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A directory arg without -r records a warning, not a silent no-op."""
+        walk = _make_walk(monkeypatch)
+        walk.walk_dir(tmp_path, tmp_path)
+        assert walk._stats.warnings
+        assert "recurse" in walk._stats.warnings[0][1]

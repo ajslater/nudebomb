@@ -295,12 +295,29 @@ class Walk:
     ) -> None:
         """Walk a directory."""
         if not self._config.recurse:
+            msg = (
+                f"Skipping directory {dir_path}: "
+                "use -r/--recurse to process directories."
+            )
+            logger.warning(msg)
+            self._stats.record_warning(dir_path, msg)
             return
 
         mkv_files: list[Path] = []
         other_files: list[Path] = []
 
-        for filename in sorted(dir_path.iterdir()):
+        try:
+            entries = sorted(dir_path.iterdir())
+        except OSError as exc:
+            # Same guard as _count_dir: an unreadable directory (perms,
+            # dropped network mount) must not abort the whole walk.
+            msg = f"Could not read directory {dir_path}: {exc}"
+            logger.error(msg)
+            self._stats.record_error(dir_path, msg)
+            self._reporter.progress.mark_error()
+            return
+
+        for filename in entries:
             if filename.is_dir():
                 self.walk_file(top_path, filename)
             elif filename.suffix == ".mkv":
@@ -315,7 +332,7 @@ class Walk:
         for path in other_files:
             self.walk_file(top_path, path)
 
-        if self._timestamps:
+        if self._timestamps and not self._config.dry_run:
             self._timestamps.set(top_path, dir_path, compact=True)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
@@ -333,9 +350,11 @@ class Walk:
             return
         # `up_to_date` is True for both freshly-remuxed files and files
         # that were already stripped — both states mean "no need to
-        # re-check next run", so write the timestamp.
+        # re-check next run", so write the timestamp. Dry runs read
+        # timestamps (so the preview matches a real run) but never write
+        # them.
         up_to_date = self.strip_path(top_path, path)
-        if self._timestamps and up_to_date:
+        if self._timestamps and up_to_date and not self._config.dry_run:
             self._timestamps.set(top_path, path)
 
     # ------------------------------------------------------------------
@@ -351,7 +370,7 @@ class Walk:
             sub_langs = ", ".join(sorted(self._config.sub_languages))
             logger.info(f"Stripping subtitle languages except {sub_langs}.")
 
-    def run(self) -> None:
+    def run(self) -> Stats:
         """Run the stripper against all configured paths."""
         self._print_config()
         logger.info("Searching for MKV files to process…")
@@ -399,9 +418,14 @@ class Walk:
             finally:
                 self._executor = None
 
-        if self._timestamps and (dumped := self._timestamps.dumpf()):
+        if (
+            self._timestamps
+            and not self._config.dry_run
+            and (dumped := self._timestamps.dumpf())
+        ):
             roots = ", ".join(str(p) for p in dumped)
             logger.info(f"Dumped timestamps for {roots}")
 
         if self._config.verbose > 0:
             render_summary(self._stats, console)
+        return self._stats
