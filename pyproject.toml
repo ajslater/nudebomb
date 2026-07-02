@@ -34,8 +34,8 @@ name = "AJ Slater"
 email = "aj@slater.net"
 
 [project.urls]
-Documentation = "https://nudebomb.readthedocs.io/news/"
-News = "https://nudebomb.readthedocs.io/"
+Documentation = "https://nudebomb.readthedocs.io/"
+News = "https://nudebomb.readthedocs.io/NEWS/"
 Issues = "https://github.com/ajslater/nudebomb/issues"
 Source = "https://github.com/ajslater/nudebomb"
 
@@ -85,7 +85,6 @@ build-backend = "uv_build"
 module-root = ""
 source-include = [
   ".*ignore",
-  ".circlci/**",
   ".env.platforms",
   ".picopt_treestamps.yaml",
   ".readthedocs.yaml",
@@ -95,7 +94,6 @@ source-include = [
   "NEWS.md",
   "bin/**",
   "bun.lock",
-  "ci/**",
   "compose.yaml",
   "docs/DOCKER.md",
   "docs/NEWS",
@@ -108,18 +106,12 @@ source-include = [
   "docs/style.mkdocs.css",
   "docs/style.readthedocs.css",
   "eslint.config.js",
-  "frontend/**",
-  "img/**",
-  "mkdocks.yml",
   "mkdocs.yml",
-  "mock_comics/**",
-  "package-lock.json",
   "package.json",
-  "tests/**",
   "uv.lock",
   "vulture_ignorelist.py",
 ]
-source-exclude = ["**/*\\~", "**/.DS_Store", "frontend/node_modules"]
+source-exclude = ["**/*\\~", "**/.DS_Store"]
 wheel-exclude = ["**/*\\~", "**/.DS_Store"]
 
 [tool.basedpyright]
