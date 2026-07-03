@@ -1,18 +1,27 @@
 """Tests for config layering, normalization, and error handling."""
 
 from datetime import date, datetime, time, timezone
+from pathlib import Path
 
 import pytest
 from dateutil.parser import parse
+from ruamel.yaml import YAML
 
 from nudebomb.cli import get_arguments
 from nudebomb.config import NudebombConfig, NudebombSettings
+
+
+def yaml_load(path: Path) -> dict:
+    """Load a YAML file for assertions."""
+    return YAML().load(path.read_text())
+
 
 __all__ = ()
 
 BASE_ARGV = ("nudebomb", "-l", "eng", "/tmp")  # noqa: S108
 EPOCH = 1700000000.0
 VERBOSE_TWO = 2
+OWNER_ONLY_MODE = 0o600
 
 
 @pytest.fixture(autouse=True)
@@ -153,6 +162,80 @@ class TestConfigErrors:
     def test_invalid_media_type_rejected(self):
         with pytest.raises(SystemExit):
             _get_config((*BASE_ARGV[:-1], "-m", "film", "/tmp"))  # noqa: S108
+
+
+class TestWriteConfig:
+    """-w/--write-config persists invoked CLI options to the config file."""
+
+    def test_writes_invoked_options_only(self, tmp_path):
+        _get_config((*BASE_ARGV[:-1], "-w", "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
+        written = yaml_load(tmp_path / "config.yaml")
+        section = written["nudebomb"]
+        assert section["languages"] == ["eng", "fra"]
+        assert section["recurse"] is True
+        assert "paths" not in section
+        assert "write_config" not in section
+        assert "config" not in section
+        assert "dry_run" not in section  # not invoked, not persisted
+
+    def test_run_mode_flags_not_persisted(self, tmp_path):
+        """-d and -q/-v are ephemeral run modes, never written as defaults."""
+        _get_config((*BASE_ARGV[:-1], "-w", "-d", "-q", "-l", "eng", "/tmp"))  # noqa: S108
+        section = yaml_load(tmp_path / "config.yaml")["nudebomb"]
+        assert "dry_run" not in section
+        assert "verbose" not in section
+        assert section["languages"] == ["eng"]
+
+    def test_written_file_is_owner_only(self, tmp_path):
+        _get_config((*BASE_ARGV[:-1], "-w", "-l", "eng", "/tmp"))  # noqa: S108
+        mode = (tmp_path / "config.yaml").stat().st_mode & 0o777
+        assert mode == OWNER_ONLY_MODE
+
+    def test_quiet_suppresses_confirmation(self, tmp_path, capsys):
+        _get_config((*BASE_ARGV[:-1], "-w", "-q", "-l", "eng", "/tmp"))  # noqa: S108
+        assert "Wrote config" not in capsys.readouterr().out
+        # But the file was still written.
+        assert (tmp_path / "config.yaml").is_file()
+
+    def test_written_config_round_trips(self):
+        _get_config(("nudebomb", "-w", "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
+        config = _get_config(("nudebomb", "/tmp"))  # noqa: S108
+        assert config.recurse is True
+        assert {"eng", "fra"} <= config.languages
+
+    def test_merge_preserves_existing_keys_and_comments(self, tmp_path):
+        _write_config(
+            tmp_path,
+            "nudebomb:\n"
+            "  # keep this comment\n"
+            "  tmdb_api_key: abc123\n"
+            "  languages: [fra]\n",
+        )
+        _get_config((*BASE_ARGV[:-1], "-w", "-l", "eng", "/tmp"))  # noqa: S108
+        text = (tmp_path / "config.yaml").read_text()
+        assert "# keep this comment" in text
+        written = yaml_load(tmp_path / "config.yaml")
+        section = written["nudebomb"]
+        assert section["tmdb_api_key"] == "abc123"
+        assert section["languages"] == ["eng"]
+
+    def test_dash_c_may_name_a_new_file(self, tmp_path):
+        target = tmp_path / "sub" / "other.yaml"
+        _get_config((*BASE_ARGV[:-1], "-c", str(target), "-w", "/tmp"))  # noqa: S108
+        written = yaml_load(target)
+        assert written["nudebomb"]["languages"] == ["eng"]
+        # The default user config was not touched.
+        assert not (tmp_path / "config.yaml").exists()
+
+    def test_invalid_invocation_does_not_write(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("NUDEBOMB_NUDEBOMB__LANGUAGES", "eng")
+        with pytest.raises(SystemExit):
+            _get_config(("nudebomb", "-w", "/tmp"))  # noqa: S108
+        assert not (tmp_path / "config.yaml").exists()
+
+    def test_no_write_without_flag(self, tmp_path):
+        _get_config(BASE_ARGV)
+        assert not (tmp_path / "config.yaml").exists()
 
 
 class TestVerbose:

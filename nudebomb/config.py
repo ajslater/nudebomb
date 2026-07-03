@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import sys
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from os import environ
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from platform import system
 from typing import TYPE_CHECKING, Final, TypedDict, cast
 
@@ -15,8 +16,11 @@ from confuse.exceptions import ConfigError
 from confuse.templates import Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import ParserError, parse
 from loguru import logger
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from nudebomb.lang import lang_to_alpha3
+from nudebomb.log import console
 from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
@@ -65,6 +69,17 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
         "symlinks",
         "title",
     }
+)
+
+# CLI args that -w/--write-config never persists: the write-config flag
+# itself, the config path it writes to, paths (argparse requires them on
+# every invocation anyway), and the ephemeral run-mode flags dry_run /
+# verbose — persisting those turns a one-off preview or -q into a
+# permanent default (a sticky dry_run would make every future run a
+# silent no-op). Users who truly want them as defaults can hand-edit the
+# file; they are still honored on read.
+_UNPERSISTED_ARGS: Final = frozenset(
+    {"config", "paths", "write_config", "dry_run", "verbose"}
 )
 
 if system() == "Windows":
@@ -154,6 +169,55 @@ class _NudebombSchema(TypedDict):
     tvdb_api_key: str | None
     und_language: str | None
     verbose: int
+
+
+def _invoked_cli_options(nns: Namespace) -> dict:
+    """Return the options explicitly given on the command line."""
+    # Unset options are None (argparse flag defaults are None so config
+    # layering works), so non-None values are exactly what was invoked.
+    return {
+        key: value
+        for key, value in vars(nns).items()
+        if value is not None and key not in _UNPERSISTED_ARGS
+    }
+
+
+def _write_config_file(config: Configuration, nns: Namespace) -> None:
+    """Merge the invoked CLI options into the config file."""
+    target = Path(nns.config) if nns.config else Path(config.user_config_path())
+    yaml = YAML()
+    data = None
+    try:
+        if target.is_file():
+            # Round-trip load preserves existing keys and comments.
+            data = yaml.load(target.read_text())
+    except (YAMLError, OSError) as exc:
+        logger.error(f"Could not update config file {target}: {exc}")
+        sys.exit(1)
+    if not isinstance(data, dict):
+        data = {}
+    section = data.get(PROGRAM_NAME)
+    if not isinstance(section, dict):
+        section = {}
+        data[PROGRAM_NAME] = section
+    section.update(_invoked_cli_options(nns))
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("w") as stream:
+            yaml.dump(data, stream)
+        # The config can hold API keys; keep it owner-only. Best effort:
+        # filesystems without POSIX modes (e.g. FAT) just skip it.
+        with suppress(OSError):
+            target.chmod(0o600)
+    except OSError as exc:
+        logger.error(f"Could not write config file {target}: {exc}")
+        sys.exit(1)
+    # Confirm this explicitly-requested action at default verbosity, but
+    # honor -q (verbose 0) like every other user-facing message.
+    if config[PROGRAM_NAME]["verbose"].get(int) > 0:
+        console.print(
+            f"Wrote config to {target}", markup=False, highlight=False, soft_wrap=True
+        )
 
 
 class NudebombConfig:
@@ -256,6 +320,22 @@ class NudebombConfig:
         config[PROGRAM_NAME]["ignore"].set(tuple(sorted(set(ignore))))
 
     @staticmethod
+    def _load_cli_config_file(config: Configuration, nns: Namespace) -> None:
+        """Layer the -c config file; with -w it may name a new file."""
+        path_str = nns.config
+        if not path_str:
+            return
+        if getattr(nns, "write_config", None) and not Path(path_str).is_file():
+            # -w creates this file at the end of config resolution;
+            # nothing to read yet.
+            return
+        try:
+            config.set_file(path_str)
+        except ConfigError as exc:
+            logger.error(f"Could not read config file: {exc}")
+            sys.exit(1)
+
+    @staticmethod
     def _to_settings(nb_attrdict: object) -> NudebombSettings:
         """
         Convert the validated nudebomb AttrDict into a typed Settings.
@@ -307,12 +387,9 @@ class NudebombConfig:
             # unrelated NotFoundError.
             logger.error(f"Could not read the user config file: {exc}")
             config.read(user=False)
-        if args and args.nudebomb and args.nudebomb.config:
-            try:
-                config.set_file(args.nudebomb.config)
-            except ConfigError as exc:
-                logger.error(f"Could not read config file: {exc}")
-                sys.exit(1)
+        nns = args.nudebomb if args else None
+        if nns is not None:
+            self._load_cli_config_file(config, nns)
         config.set_env()
         if args:
             config.set_args(args)
@@ -326,4 +403,8 @@ class NudebombConfig:
         # precisely from the MappingTemplate, so an ``isinstance``
         # narrowing is no longer needed.
         ad = config.get(TEMPLATE)
+        # Persist only after the whole invocation validated, so a bad
+        # command line can't poison the config file.
+        if nns is not None and getattr(nns, "write_config", None):
+            _write_config_file(config, nns)
         return self._to_settings(ad.nudebomb)

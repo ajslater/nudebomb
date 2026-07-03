@@ -242,6 +242,18 @@ def get_arguments(
         "-c", "--config", action="store", help="Alternate config file path"
     )
     parser.add_argument(
+        "-w",
+        "--write-config",
+        action="store_true",
+        default=None,
+        help=(
+            "Write the invoked command line options to the config file "
+            "(the -c path if given, otherwise the user config file), "
+            "merging with its existing contents, then run normally. "
+            "Run-mode flags (--dry-run and verbosity) are not persisted."
+        ),
+    )
+    parser.add_argument(
         "--tmdb-api-key",
         action="store",
         help=(

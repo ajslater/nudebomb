@@ -90,6 +90,12 @@ nudebomb:
 All command-line options have config file equivalents. Use `-c` to specify an
 alternate config file path.
 
+Use `-w` to persist the invoked command-line options into the config file (the
+`-c` path if given, otherwise the user config file). Existing keys and comments
+are preserved; the run then proceeds normally. Run-mode flags (`--dry-run` and
+verbosity) are not persisted, and the file is written owner-readable only since
+it may hold API keys.
+
 ### Environment Variables
 
 Prefix with `NUDEBOMB_NUDEBOMB__`. List items are enumerated:
@@ -179,8 +185,9 @@ Example: `{tvdb-1234} S01E01.mkv`
 ### Caching
 
 Lookup results are cached in `~/.cache/nudebomb/` to avoid redundant API calls.
-Cache entries with a found language never expire. Entries where no language was
-found expire after `--cache-expiry-days` (default: 30) and are re-queried.
+Cache entries with a found language expire after a year. Entries where no
+language was found expire after `--cache-expiry-days` (default: 30) and are
+re-queried.
 
 ## Dot Color Key
 
