@@ -29,9 +29,17 @@ if TYPE_CHECKING:
 _RATE_LIMIT_STATUS: Final = 429
 
 
-def _result_title(result: dict) -> str:
-    """Title field for a TMDB result (movies use title, tv uses name)."""
-    return result.get("title") or result.get("name") or ""
+def _result_titles(result: dict) -> list[str]:
+    """
+    Every candidate name for a TMDB result.
+
+    Includes the original-language title so a romanized query still
+    matches media whose localized title differs from the original.
+    """
+    keys = ("title", "name", "original_title", "original_name")
+    return [
+        value for key in keys if isinstance(value := result.get(key), str) and value
+    ]
 
 
 def _result_year(result: dict) -> str:
@@ -88,7 +96,7 @@ class TMDBLookup(BaseLookup):
             return None
 
         candidates = [r for r in results if r.get("media_type") in ("movie", "tv")]
-        return best_title_match(candidates, title, year, _result_title, _result_year)
+        return best_title_match(candidates, title, year, _result_titles, _result_year)
 
     def _lookup_by_id(self, parsed: ParseResult) -> dict | None:
         """Look up a media item directly by TMDB or IMDB ID."""

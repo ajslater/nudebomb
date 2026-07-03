@@ -16,8 +16,17 @@ from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.lookup.cache import CacheEntry, LookupCache
 from nudebomb.lookup.parser import ParseResult
-from nudebomb.lookup.tmdb import TMDBLookup, _result_title, _result_year
-from nudebomb.lookup.tvdb import TVDBLookup, _is_tvdb_error_dict
+from nudebomb.lookup.tmdb import TMDBLookup, _result_titles, _result_year
+from nudebomb.lookup.tvdb import (
+    TVDBLookup,
+    _is_tvdb_error_dict,
+)
+from nudebomb.lookup.tvdb import (
+    _result_titles as tvdb_result_titles,
+)
+from nudebomb.lookup.tvdb import (
+    _result_year as tvdb_result_year,
+)
 from nudebomb.lookup.util import (
     LOOKUP_TIMEOUT_SECONDS,
     best_title_match,
@@ -456,7 +465,7 @@ class TestBestTitleMatch:
             {"title": "Totally Different", "release_date": "1999-01-01"},
             {"title": "Dune", "release_date": "2021-10-22"},
         ]
-        match = best_title_match(results, "Dune", "", _result_title, _result_year)
+        match = best_title_match(results, "Dune", "", _result_titles, _result_year)
         assert match is not None
         assert match["title"] == "Dune"
 
@@ -465,22 +474,83 @@ class TestBestTitleMatch:
             {"title": "Dune", "release_date": "2021-10-22"},
             {"title": "Dune", "release_date": "1984-12-14"},
         ]
-        match = best_title_match(results, "Dune", "1984", _result_title, _result_year)
+        match = best_title_match(results, "Dune", "1984", _result_titles, _result_year)
         assert match is not None
         assert match["release_date"] == "1984-12-14"
 
     def test_no_acceptable_match_returns_none(self) -> None:
         results = [{"title": "Unrelated Thing", "release_date": "2000-01-01"}]
         assert (
-            best_title_match(results, "Dune", "", _result_title, _result_year) is None
+            best_title_match(results, "Dune", "", _result_titles, _result_year) is None
         )
 
     def test_fuzzy_match_accepted(self) -> None:
         results = [{"name": "Battlestar Galactica (1978)", "first_air_date": "1978"}]
         match = best_title_match(
-            results, "Battlestar Galactica", "", _result_title, _result_year
+            results, "Battlestar Galactica", "", _result_titles, _result_year
         )
         assert match is not None
+
+    def test_tmdb_original_title_matches(self) -> None:
+        """A romanized query matches a TMDB result via original_title."""
+        results = [
+            {
+                "title": "Localized Name",
+                "original_title": "Real Title",
+                "release_date": "2020-01-01",
+            }
+        ]
+        match = best_title_match(
+            results, "Real Title", "", _result_titles, _result_year
+        )
+        assert match is results[0]
+
+
+class TestTVDBAliasMatch:
+    """A romanized query matches a show whose canonical TVDB name is non-Latin."""
+
+    def test_alias_matches_romanized_query(self) -> None:
+        # Colon dropped/rewritten in the on-disk name; canonical is katakana.
+        results = [
+            {
+                "name": "タイトル サブタイトル",
+                "aliases": ["Title: Subtitle"],
+                "year": "2020",
+            }
+        ]
+        for query in ("Title - Subtitle", "Title- Subtitle", "Title Subtitle"):
+            match = best_title_match(
+                [results[0]], query, "", tvdb_result_titles, tvdb_result_year
+            )
+            assert match is results[0], query
+
+    def test_translation_matches_romanized_query(self) -> None:
+        results = [
+            {
+                "name": "タイトル",
+                "translations": {"eng": "Title: Subtitle"},
+                "year": "2020",
+            }
+        ]
+        match = best_title_match(
+            results, "Title Subtitle", "", tvdb_result_titles, tvdb_result_year
+        )
+        assert match is results[0]
+
+    def test_non_matching_aliases_still_rejected(self) -> None:
+        results = [{"name": "別の番組", "aliases": ["A Different Show"]}]
+        match = best_title_match(
+            results, "Title Subtitle", "", tvdb_result_titles, tvdb_result_year
+        )
+        assert match is None
+
+    def test_missing_or_malformed_alias_fields(self) -> None:
+        """Absent/odd aliases/translations don't crash; name still matches."""
+        results = [{"name": "Title Subtitle", "aliases": None, "translations": []}]
+        match = best_title_match(
+            results, "Title Subtitle", "", tvdb_result_titles, tvdb_result_year
+        )
+        assert match is results[0]
 
 
 class TestSecretRedaction:

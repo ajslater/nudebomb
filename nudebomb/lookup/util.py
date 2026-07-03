@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Final
 from nudebomb.lang import lang_to_alpha3
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
 # Applied to every HTTP call the lookup backends make; without it a
 # stalled connection blocks a lookup thread (or startup) forever.
@@ -51,7 +51,7 @@ def best_title_match(
     results: Sequence[dict],
     query_title: str,
     query_year: str,
-    get_title: Callable[[dict], str],
+    get_titles: Callable[[dict], Iterable[str]],
     get_year: Callable[[dict], str],
 ) -> dict | None:
     """
@@ -62,11 +62,16 @@ def best_title_match(
     title matches, then fuzzy ones, disambiguating by year when the
     filename provided one. No acceptable match returns None so the
     query records as a miss instead of poisoning the cache.
+
+    ``get_titles`` yields every candidate name for a result — the
+    canonical name plus aliases/translations — so a romanized query
+    still matches a show whose canonical DB name is non-Latin (e.g.
+    katakana).
     """
     query_norm = normalize_title(query_title)
     if not query_norm:
         return None
-    exact, fuzzy = _classify_matches(results, query_norm, get_title)
+    exact, fuzzy = _classify_matches(results, query_norm, get_titles)
     for tier in (exact, fuzzy):
         if tier:
             return _pick_by_year(tier, query_year, get_year)
@@ -76,18 +81,24 @@ def best_title_match(
 def _classify_matches(
     results: Sequence[dict],
     query_norm: str,
-    get_title: Callable[[dict], str],
+    get_titles: Callable[[dict], Iterable[str]],
 ) -> tuple[list[dict], list[dict]]:
     """Split results into exact and fuzzy normalized-title matches."""
     exact: list[dict] = []
     fuzzy: list[dict] = []
     for result in results:
-        result_norm = normalize_title(get_title(result))
-        if not result_norm:
+        # A result matches on any of its candidate names.
+        norms = {
+            norm for title in get_titles(result) if (norm := normalize_title(title))
+        }
+        if not norms:
             continue
-        if result_norm == query_norm:
+        if query_norm in norms:
             exact.append(result)
-        elif SequenceMatcher(None, query_norm, result_norm).ratio() >= _MATCH_RATIO:
+        elif any(
+            SequenceMatcher(None, query_norm, norm).ratio() >= _MATCH_RATIO
+            for norm in norms
+        ):
             fuzzy.append(result)
     return exact, fuzzy
 

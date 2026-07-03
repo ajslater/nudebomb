@@ -29,9 +29,26 @@ _RATE_LIMIT_STATUS: Final = 429
 _HTTP_ERROR_MIN: Final = 400
 
 
-def _result_title(result: dict) -> str:
-    """Title field for a TVDB search result."""
-    return result.get("name") or result.get("title") or ""
+def _result_titles(result: dict) -> list[str]:
+    """
+    Every candidate name for a TVDB search result.
+
+    Includes aliases and translated names so a romanized query still
+    matches a show whose canonical TVDB name is non-Latin (e.g. a show
+    stored in katakana but named on disk in romaji).
+    """
+    titles: list[str] = []
+    for key in ("name", "title"):
+        value = result.get(key)
+        if isinstance(value, str):
+            titles.append(value)
+    aliases = result.get("aliases")
+    if isinstance(aliases, list):
+        titles.extend(alias for alias in aliases if isinstance(alias, str))
+    translations = result.get("translations")
+    if isinstance(translations, dict):
+        titles.extend(name for name in translations.values() if isinstance(name, str))
+    return titles
 
 
 def _result_year(result: dict) -> str:
@@ -88,7 +105,7 @@ class TVDBLookup(BaseLookup):
             results = self._tvdb.search(title, type="series")
         if not results:
             return None
-        return best_title_match(results, title, year, _result_title, _result_year)
+        return best_title_match(results, title, year, _result_titles, _result_year)
 
     def _lookup_by_id(self, tvdb_id: str) -> dict | None:
         """Look up a TV series directly by TVDB ID."""
