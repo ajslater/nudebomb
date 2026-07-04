@@ -130,7 +130,9 @@ class TMDBLookup(BaseLookup):
                 return results[0]
         return None
 
-    def _query_api(self, title: str, year: str, parsed: ParseResult) -> QueryOutcome:
+    def _query_api(
+        self, title: str, year: str, parsed: ParseResult, media_type: str = ""
+    ) -> QueryOutcome:
         """
         Query TMDB API.
 
@@ -140,7 +142,7 @@ class TMDBLookup(BaseLookup):
         try:
             if parsed.tmdb_id or parsed.imdb_id:
                 return QueryOutcome(result=self._lookup_by_id(parsed))
-            return QueryOutcome(result=self._search_tmdb(title, year))
+            return QueryOutcome(result=self._search_tmdb(title, year, media_type))
         except HTTPError as exc:
             response = exc.response
             title_year = format_title_year(title, year)
@@ -217,7 +219,9 @@ class TMDBLookup(BaseLookup):
             self._record_remote_no_result(label)
         return lang or None
 
-    def _check_title_caches(self, title: str, year: str) -> tuple[bool, str | None]:
+    def _check_title_caches(
+        self, title: str, year: str, media_type: str
+    ) -> tuple[bool, str | None]:
         """
         Check the title cache under every location a hit could live.
 
@@ -225,8 +229,7 @@ class TMDBLookup(BaseLookup):
         unknown), so with no configured media type a hit may live under
         any of the three locations.
         """
-        cache_type = self._media_type
-        check_types = (cache_type,) if cache_type else ("", "movie", "tv")
+        check_types = (media_type,) if media_type else ("", "movie", "tv")
         for check_type in check_types:
             found, lang = self._cache.check_cache(check_type, title, year)
             if found:
@@ -234,16 +237,18 @@ class TMDBLookup(BaseLookup):
         return False, None
 
     def _lookup_by_title_language(
-        self, title: str, year: str, parsed: ParseResult
+        self, title: str, year: str, parsed: ParseResult, media_type: str | None = None
     ) -> str | None:
         """Look up language by title search with caching."""
-        cache_type = self._media_type
-        found, lang = self._check_title_caches(title, year)
+        # ``media_type`` is the per-directory value threaded from the walk;
+        # fall back to the run-wide type only when a caller omits it.
+        cache_type = self._media_type if media_type is None else media_type
+        found, lang = self._check_title_caches(title, year, cache_type)
         if found:
             return lang
 
         # Query API
-        outcome = self._query_api(title, year, parsed)
+        outcome = self._query_api(title, year, parsed, cache_type)
         if outcome.error:
             # Rate-limited or error: do not cache.
             return None
@@ -271,14 +276,17 @@ class TMDBLookup(BaseLookup):
             self._record_remote_no_result(label)
         return lang or None
 
-    def lookup_language(self, path: Path) -> str | None:
+    def lookup_language(self, path: Path, media_type: str | None = None) -> str | None:
         """
         Look up the original language for a media file.
 
-        Returns an ISO 639-3 language code (or ``None``). All log /
-        progress / stats side effects happen inline.
+        ``media_type`` is the directory-resolved type from the walk (movie/tv,
+        or None to use the run-wide default). Returns an ISO 639-3 language
+        code (or ``None``). All log / progress / stats side effects happen
+        inline.
         """
-        parsed = parse_title(path.stem, self._media_type)
+        effective_type = self._media_type if media_type is None else media_type
+        parsed = parse_title(path.stem, effective_type)
 
         if parsed.tmdb_id or parsed.imdb_id:
             return self._lookup_by_id_language(parsed)
@@ -286,4 +294,6 @@ class TMDBLookup(BaseLookup):
         if not parsed.title:
             return None
 
-        return self._lookup_by_title_language(parsed.title, parsed.year, parsed)
+        return self._lookup_by_title_language(
+            parsed.title, parsed.year, parsed, effective_type
+        )

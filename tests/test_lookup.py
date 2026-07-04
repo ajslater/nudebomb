@@ -509,6 +509,15 @@ class TestTMDBQueryConstruction:
         lookup._search_tmdb("Margin Call", "2011")
         assert fake.calls["movie"] == ("Margin Call", "2011")
 
+    def test_per_directory_media_type_reaches_search(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_cache: LookupCache
+    ) -> None:
+        """A directory-config media_type (global unset) drives a movie search."""
+        lookup, fake = self._lookup(monkeypatch, tmp_cache, None)
+        lookup.lookup_language(Path("Limitless (2011).mkv"), "movie")
+        assert "multi" not in fake.calls  # not the year-losing multi search
+        assert fake.calls["movie"] == ("Limitless", "2011")
+
 
 class TestBestTitleMatch:
     """Search results are verified against the query title before use."""

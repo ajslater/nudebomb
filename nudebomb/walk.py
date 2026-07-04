@@ -34,6 +34,7 @@ from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
     from argparse import Namespace
+    from collections.abc import Iterator
 
     from nudebomb.config import NudebombSettings
 
@@ -105,14 +106,19 @@ class Walk:
     # Guards
     # ------------------------------------------------------------------
 
+    def _dir_timestamps(self, top_path: Path, dir_path: Path) -> bool:
+        """Return whether timestamp tracking is enabled for ``dir_path``."""
+        return self._dirconfig.get_settings(top_path, dir_path).timestamps
+
     def _is_before_timestamp(self, top_path: Path, path: Path) -> bool:
         """Return if the file was last updated before the timestamp."""
+        mtime: float | None = None
         if self._config.after:
-            mtime: float | None = self._config.after
-        elif self._timestamps:
+            mtime = self._config.after
+        elif self._timestamps is not None and self._dir_timestamps(
+            top_path, Treestamps.get_dir(path)
+        ):
             mtime = self._timestamps.get_timestamp(top_path, path)
-        else:
-            mtime = None
         return mtime is not None and mtime > path.stat().st_mtime
 
     def _skip_reason(
@@ -215,7 +221,7 @@ class Walk:
         if self._tvdb and media_type == "tv":
             lang = self._tvdb.lookup_language(path)
         if not lang and self._tmdb:
-            lang = self._tmdb.lookup_language(path)
+            lang = self._tmdb.lookup_language(path, media_type)
         return lang
 
     def _submit_lookup(
@@ -356,7 +362,11 @@ class Walk:
         for path in other_files:
             self.walk_file(top_path, path)
 
-        if self._timestamps and not self._config.dry_run:
+        if (
+            self._timestamps is not None
+            and not self._config.dry_run
+            and self._dir_timestamps(top_path, dir_path)
+        ):
             self._timestamps.set(top_path, dir_path, compact=True)
 
         # Migrate this dir's deprecated langfiles last, so children (already
@@ -390,7 +400,12 @@ class Walk:
         # timestamps (so the preview matches a real run) but never write
         # them.
         up_to_date = self.strip_path(top_path, path)
-        if self._timestamps and up_to_date and not self._config.dry_run:
+        if (
+            self._timestamps is not None
+            and up_to_date
+            and not self._config.dry_run
+            and self._dir_timestamps(top_path, Treestamps.get_dir(path))
+        ):
             self._timestamps.set(top_path, path)
 
     # ------------------------------------------------------------------
@@ -454,10 +469,30 @@ class Walk:
                     hasher.update(chunk)
         return hasher.hexdigest()
 
+    def _config_dirs(self) -> Iterator[tuple[Path, Path]]:
+        """Yield (top_path, directory) for each directory holding a config file."""
+        for path_str in self._config.paths:
+            root = Path(path_str)
+            is_dir = root.is_dir()
+            top_path = Treestamps.get_dir(root)
+            for config_file in self._config_candidates(root, is_dir=is_dir):
+                if config_file.is_file():
+                    yield top_path, config_file.parent
+
+    def _timestamps_enabled(self) -> bool:
+        """Whether timestamps are on globally or in any directory config."""
+        return self._config.timestamps or any(
+            self._dir_timestamps(top_path, dir_path)
+            for top_path, dir_path in self._config_dirs()
+        )
+
     def _read_timestamps(self) -> None:
         """Load recorded timestamps when timestamps mode is on."""
-        if not self._config.timestamps:
+        if not self._timestamps_enabled():
             return
+        # A directory config may enable timestamps even when the run-wide
+        # flag is off; reflect that in the summary's timestamp row.
+        self._stats.timestamps_active = True
         # Fold a fingerprint of the directory configs into the program config
         # so any change to a ``.nudebomb.yaml`` invalidates its tree's
         # timestamps (the single global program_config can't otherwise see

@@ -147,20 +147,21 @@ variables and command-line options, so `-c`/CLI/env always win. A deeper
 directory's config overrides a shallower one. A `.nudebomb.yaml` may set any
 config key. Keys that select which tracks to keep (`languages`, `sub_languages`,
 `subtitles`, `strip_und_language`, `und_language`, `title`, `mkvmerge_bin`), the
-lookup `media_type`, and the traversal knobs (`ignore`, `recurse`, `symlinks`)
-take effect per directory. Run-scope keys — API keys, `lookup_workers`,
-`cache_expiry_days`, `timestamps`, `after`, `--dry-run`, and verbosity — are
-read once for the whole run, so setting them in a directory config has no
+lookup `media_type`, the traversal knobs (`ignore`, `recurse`, `symlinks`), and
+`timestamps` take effect per directory — so, for example, a `Movies/` folder can
+set `media_type: movie` and enable `timestamps` for itself. Run-scope keys — API
+keys, `lookup_workers`, `cache_expiry_days`, `after`, `--dry-run`, and verbosity
+— are read once for the whole run, so setting them in a directory config has no
 per-directory effect.
 
 Unlike lang files, a directory config's `languages` **replaces** the inherited
 value (so a subtree can narrow or change the keep-set); lang files still add on
 top of whatever it resolves to.
 
-**Timestamps.** When `-t/--timestamps` is on, editing, adding, or removing a
-`.nudebomb.yaml` re-processes its directory tree on the next run, so a config
-change never leaves stale files behind. Re-checking an already-stripped file is
-a fast no-op.
+**Timestamps.** When timestamps are on (globally with `-t/--timestamps`, or for
+a directory via its config), editing, adding, or removing a `.nudebomb.yaml`
+re-processes its directory tree on the next run, so a config change never leaves
+stale files behind. Re-checking an already-stripped file is a fast no-op.
 
 ## Lang Files (deprecated)
 
