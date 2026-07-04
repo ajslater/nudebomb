@@ -4,6 +4,7 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Final
 from unittest.mock import patch
 
@@ -455,6 +456,58 @@ class TestGenericTitleCachePersistence:
             second, "_search_tmdb", side_effect=AssertionError("unexpected API call")
         ):
             assert second._lookup_by_title_language("Dune", "2021", parsed) == "eng"
+
+
+class _FakeSearch:
+    """Captures the query passed to tmdbsimple's search methods."""
+
+    def __init__(self) -> None:
+        self.results: list[dict] = []
+        self.calls: dict[str, object] = {}
+
+    def multi(self, query: str) -> None:
+        self.calls["multi"] = query
+
+    def movie(self, query: str, year: str) -> None:
+        self.calls["movie"] = (query, year)
+
+    def tv(self, query: str, first_air_date_year: str) -> None:
+        self.calls["tv"] = (query, first_air_date_year)
+
+
+class TestTMDBQueryConstruction:
+    """The generic multi search must not glue the year into the query text."""
+
+    @staticmethod
+    def _lookup(
+        monkeypatch: pytest.MonkeyPatch,
+        cache: LookupCache,
+        media_type: str | None,
+    ) -> tuple[TMDBLookup, _FakeSearch]:
+        fake = _FakeSearch()
+        monkeypatch.setattr("nudebomb.lookup.tmdb.tmdb.Search", lambda: fake)
+        cfg = SimpleNamespace(
+            tmdb_api_key="fake",
+            cache_expiry_days=30,
+            media_type=media_type,
+            verbose=0,
+        )
+        lookup = TMDBLookup(cfg, Reporter(stats=Stats()), cache)  # pyright: ignore[reportArgumentType], # ty: ignore[invalid-argument-type]
+        return lookup, fake
+
+    def test_multi_query_omits_year(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_cache: LookupCache
+    ) -> None:
+        lookup, fake = self._lookup(monkeypatch, tmp_cache, None)
+        lookup._search_tmdb("Margin Call", "2011")
+        assert fake.calls["multi"] == "Margin Call"
+
+    def test_movie_query_keeps_year_filter(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_cache: LookupCache
+    ) -> None:
+        lookup, fake = self._lookup(monkeypatch, tmp_cache, "movie")
+        lookup._search_tmdb("Margin Call", "2011")
+        assert fake.calls["movie"] == ("Margin Call", "2011")
 
 
 class TestBestTitleMatch:

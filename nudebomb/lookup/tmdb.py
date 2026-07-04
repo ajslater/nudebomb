@@ -83,8 +83,12 @@ class TMDBLookup(BaseLookup):
             case "tv":
                 search.tv(query=title, first_air_date_year=year)
             case _:
-                query_str = f"{title} {year}" if year else title
-                search.multi(query=query_str)
+                # Multi search has no year filter, so the year would be a
+                # plain search term: querying "Margin Call 2011" stops the
+                # movie titled "Margin Call" from matching. Search the
+                # title alone; best_title_match still uses the year to
+                # disambiguate same-titled results.
+                search.multi(query=title)
 
         results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
 
