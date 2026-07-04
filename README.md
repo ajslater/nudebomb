@@ -87,14 +87,18 @@ nudebomb:
     tvdb_api_key: your-api-key-here
 ```
 
-All command-line options have config file equivalents. Use `-c` to specify an
-alternate config file path.
+All command-line options have config file equivalents.
 
-Use `-w` to persist the invoked command-line options into the config file (the
-`-c` path if given, otherwise the user config file). Existing keys and comments
-are preserved; the run then proceeds normally. Run-mode flags (`--dry-run` and
-verbosity) are not persisted, and the file is written owner-readable only since
-it may hold API keys.
+Use `-c INPUT` to supply an input config file. It replaces your default user
+config for that run (the packaged defaults still apply beneath it).
+
+Use `-w OUTPUT` to write a config file, then run normally. The output is the
+`-c` input file — or, if `-c` is omitted, the existing `OUTPUT` file — merged
+with the command-line options you gave this run. So `-c base.yaml -w new.yaml`
+derives `new.yaml` from `base.yaml` plus your options, while `-w config.yaml`
+updates `config.yaml` in place. Existing keys and comments are preserved.
+Run-mode flags (`--dry-run` and verbosity) are not persisted, and the file is
+written owner-readable only since it may hold API keys.
 
 ### Environment Variables
 

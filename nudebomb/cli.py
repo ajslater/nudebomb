@@ -239,19 +239,25 @@ def get_arguments(
         help="Do not compare program config options with loaded timestamps.",
     )
     parser.add_argument(
-        "-c", "--config", action="store", help="Alternate config file path"
+        "-c",
+        "--config",
+        action="store",
+        metavar="INPUT",
+        help=(
+            "Input config file path. Replaces the default user config for "
+            "this run (the packaged defaults still apply)."
+        ),
     )
     parser.add_argument(
         "-w",
         "--write-config",
-        action="store_true",
-        default=None,
+        action="store",
+        metavar="OUTPUT",
         help=(
-            "Write the invoked command line options to the config file, "
-            "merging with its existing contents, then run normally. "
-            "-w takes no path: the target is the -c path if given, else "
-            "the user config file. Run-mode flags (--dry-run and "
-            "verbosity) are not persisted."
+            "Write the merged config to OUTPUT, then run normally. OUTPUT "
+            "is the -c input file (or the existing OUTPUT, or nothing) "
+            "merged with the invoked command line options. Run-mode flags "
+            "(--dry-run and verbosity) are not persisted."
         ),
     )
     parser.add_argument(

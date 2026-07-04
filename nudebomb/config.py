@@ -71,9 +71,9 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
     }
 )
 
-# CLI args that -w/--write-config never persists: the write-config flag
-# itself, the config path it writes to, paths (argparse requires them on
-# every invocation anyway), and the ephemeral run-mode flags dry_run /
+# CLI args that -w/--write-config never persists: the -w OUTPUT and -c
+# INPUT paths themselves, paths (argparse requires them on every
+# invocation anyway), and the ephemeral run-mode flags dry_run /
 # verbose — persisting those turns a one-off preview or -q into a
 # permanent default (a sticky dry_run would make every future run a
 # silent no-op). Users who truly want them as defaults can hand-edit the
@@ -183,16 +183,19 @@ def _invoked_cli_options(nns: Namespace) -> dict:
 
 
 def _write_config_file(config: Configuration, nns: Namespace) -> None:
-    """Merge the invoked CLI options into the config file."""
-    target = Path(nns.config) if nns.config else Path(config.user_config_path())
+    """Write the merged config to the -w OUTPUT path."""
+    target = Path(nns.write_config)
+    # Merge base: the -c input file if given, else the existing OUTPUT
+    # file (in-place update), else nothing.
+    base_path = Path(nns.config) if nns.config else target
     yaml = YAML()
     data = None
     try:
-        if target.is_file():
+        if base_path.is_file():
             # Round-trip load preserves existing keys and comments.
-            data = yaml.load(target.read_text())
+            data = yaml.load(base_path.read_text())
     except (YAMLError, OSError) as exc:
-        logger.error(f"Could not update config file {target}: {exc}")
+        logger.error(f"Could not read config file {base_path}: {exc}")
         sys.exit(1)
     if not isinstance(data, dict):
         data = {}
@@ -320,20 +323,31 @@ class NudebombConfig:
         config[PROGRAM_NAME]["ignore"].set(tuple(sorted(set(ignore))))
 
     @staticmethod
-    def _load_cli_config_file(config: Configuration, nns: Namespace) -> None:
-        """Layer the -c config file; with -w it may name a new file."""
-        path_str = nns.config
-        if not path_str:
-            return
-        if getattr(nns, "write_config", None) and not Path(path_str).is_file():
-            # -w creates this file at the end of config resolution;
-            # nothing to read yet.
+    def _read_sources(config: Configuration, nns: Namespace | None) -> None:
+        """
+        Load config file sources beneath env vars and CLI args.
+
+        With -c, that file is the input config and fully replaces the
+        user's default config; only the packaged defaults remain beneath
+        it. Without -c, the user's default config is read as usual.
+        """
+        cli_config = nns.config if nns else None
+        if cli_config:
+            config.read(user=False)
+            try:
+                config.set_file(cli_config)
+            except ConfigError as exc:
+                logger.error(f"Could not read config file {cli_config}: {exc}")
+                sys.exit(1)
             return
         try:
-            config.set_file(path_str)
-        except ConfigError as exc:
-            logger.error(f"Could not read config file: {exc}")
-            sys.exit(1)
+            config.read()
+        except Exception as exc:
+            # A broken user config must not also drop the packaged
+            # defaults, or the first template access crashes with an
+            # unrelated NotFoundError.
+            logger.error(f"Could not read the user config file: {exc}")
+            config.read(user=False)
 
     @staticmethod
     def _to_settings(nb_attrdict: object) -> NudebombSettings:
@@ -379,17 +393,8 @@ class NudebombConfig:
     ) -> NudebombSettings:
         """Get the typed config, layering env and args over defaults."""
         config = Configuration(PROGRAM_NAME, modname=modname, read=False)
-        try:
-            config.read()
-        except Exception as exc:
-            # A broken user config must not also drop the packaged
-            # defaults, or the first template access crashes with an
-            # unrelated NotFoundError.
-            logger.error(f"Could not read the user config file: {exc}")
-            config.read(user=False)
         nns = args.nudebomb if args else None
-        if nns is not None:
-            self._load_cli_config_file(config, nns)
+        self._read_sources(config, nns)
         config.set_env()
         if args:
             config.set_args(args)
@@ -405,6 +410,6 @@ class NudebombConfig:
         ad = config.get(TEMPLATE)
         # Persist only after the whole invocation validated, so a bad
         # command line can't poison the config file.
-        if nns is not None and getattr(nns, "write_config", None):
+        if nns is not None and nns.write_config:
             _write_config_file(config, nns)
         return self._to_settings(ad.nudebomb)
