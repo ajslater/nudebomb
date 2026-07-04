@@ -6,9 +6,9 @@
 
 - Per-directory `.nudebomb.yaml` config files override settings for a subtree.
 - Deprecated lang files are auto-migrated to `.nudebomb.yaml` and removed.
-- `-w`/`--write-config` now writes your user config and takes no path argument
+- `-w`/`--write-config` writes your user config; it no longer takes a path.
 - `-W`/`--write-dir-config` saves your options into each target directory.
-- `--write-config-file PATH` to write to a specific file.
+- `--write-config-file PATH` writes the config to a specific file.
 
 ## v1.4.0
 
