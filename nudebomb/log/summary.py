@@ -41,6 +41,7 @@ class Stats:
     db_cache_hits: int = 0
     db_remote_hits: int = 0
     langfile_hits: int = 0
+    migrated_langfiles: int = 0
 
     db_no_results: list[str] = field(default_factory=list)
     db_remote_errors: list[str] = field(default_factory=list)
@@ -96,6 +97,11 @@ class Stats:
         """Increment the langfile-hit counter."""
         with self._lock:
             self.langfile_hits += 1
+
+    def record_langfile_migrated(self) -> None:
+        """Increment the count of langfiles migrated to .nudebomb.yaml."""
+        with self._lock:
+            self.migrated_langfiles += 1
 
     def record_db_no_result(self, message: str) -> None:
         """Append a no-result message to the DB no-results list."""
@@ -156,6 +162,12 @@ def _counts_table(stats: Stats) -> Table:
     table.add_row(
         "Langfile hits", str(stats.langfile_hits), style=MARKS["lookup_hit"].style
     )
+    if stats.migrated_langfiles:
+        table.add_row(
+            "Langfiles migrated",
+            str(stats.migrated_langfiles),
+            style=MARKS["stripped"].style,
+        )
     return table
 
 

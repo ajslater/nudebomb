@@ -8,6 +8,7 @@ from nudebomb.config.config import (
 )
 from nudebomb.config.dirconfig import DirConfig
 from nudebomb.config.langfiles import LANGS_FNS, LangFiles, lang_to_alpha3
+from nudebomb.config.migrate import LangfileMigrator
 
 __all__ = (
     "DIR_CONFIG_FILENAME",
@@ -15,6 +16,7 @@ __all__ = (
     "TIMESTAMPS_CONFIG_KEYS",
     "DirConfig",
     "LangFiles",
+    "LangfileMigrator",
     "NudebombConfig",
     "NudebombSettings",
     "lang_to_alpha3",

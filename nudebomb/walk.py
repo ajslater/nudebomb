@@ -17,6 +17,7 @@ from nudebomb.config import (
     DIR_CONFIG_FILENAME,
     TIMESTAMPS_CONFIG_KEYS,
     DirConfig,
+    LangfileMigrator,
     LangFiles,
     NudebombConfig,
 )
@@ -67,6 +68,11 @@ class Walk:
         # run-wide config; ``args`` is re-applied so CLI options still win.
         self._dirconfig: DirConfig = DirConfig(
             NudebombConfig(), args, config, self._stats
+        )
+        # Converts deprecated langfiles to .nudebomb.yaml as directories are
+        # walked; reuses the caches above so it sees pre-migration state.
+        self._migrator: LangfileMigrator = LangfileMigrator(
+            config, self._langfiles, self._dirconfig, self._stats
         )
         self._timestamps: Grovestamps | None = None
         # One cache shared by both lookup backends so their in-memory
@@ -352,6 +358,12 @@ class Walk:
 
         if self._timestamps and not self._config.dry_run:
             self._timestamps.set(top_path, dir_path, compact=True)
+
+        # Migrate this dir's deprecated langfiles last, so children (already
+        # processed above) and this dir's own strip both used the langfiles
+        # before they're removed. Dry runs never touch the filesystem.
+        if not self._config.dry_run:
+            self._migrator.migrate_dir(top_path, dir_path)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""

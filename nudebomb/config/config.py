@@ -194,19 +194,16 @@ def _invoked_cli_options(nns: Namespace) -> dict:
     }
 
 
-def _write_merged_config(
-    config: Configuration, target: Path, base_path: Path, options: dict
-) -> None:
-    """Merge ``options`` into ``base_path``'s config and write it to ``target``."""
+def merge_config_file(target: Path, base_path: Path, options: dict) -> None:
+    """
+    Merge ``options`` into ``base_path``'s config section and write to ``target``.
+
+    Round-trip loads ``base_path`` so existing keys and comments survive, then
+    writes owner-only (the config can hold API keys). Raises ``YAMLError`` or
+    ``OSError`` on read/write failure so callers decide whether it is fatal.
+    """
     yaml = YAML()
-    data = None
-    try:
-        if base_path.is_file():
-            # Round-trip load preserves existing keys and comments.
-            data = yaml.load(base_path.read_text())
-    except (YAMLError, OSError) as exc:
-        logger.error(f"Could not read config file {base_path}: {exc}")
-        sys.exit(1)
+    data = yaml.load(base_path.read_text()) if base_path.is_file() else None
     if not isinstance(data, dict):
         data = {}
     section = data.get(PROGRAM_NAME)
@@ -214,20 +211,26 @@ def _write_merged_config(
         section = {}
         data[PROGRAM_NAME] = section
     section.update(options)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w") as stream:
+        yaml.dump(data, stream)
+    # Best effort: filesystems without POSIX modes (e.g. FAT) just skip it.
+    with suppress(OSError):
+        target.chmod(0o600)
+
+
+def _write_merged_config(
+    target: Path, base_path: Path, options: dict, verbose: int
+) -> None:
+    """Write a config for the -w/-W/--write-config-file flags; fatal on failure."""
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("w") as stream:
-            yaml.dump(data, stream)
-        # The config can hold API keys; keep it owner-only. Best effort:
-        # filesystems without POSIX modes (e.g. FAT) just skip it.
-        with suppress(OSError):
-            target.chmod(0o600)
-    except OSError as exc:
+        merge_config_file(target, base_path, options)
+    except (YAMLError, OSError) as exc:
         logger.error(f"Could not write config file {target}: {exc}")
         sys.exit(1)
     # Confirm this explicitly-requested action at default verbosity, but
     # honor -q (verbose 0) like every other user-facing message.
-    if config[PROGRAM_NAME]["verbose"].get(int) > 0:
+    if verbose > 0:
         console.print(
             f"Wrote config to {target}", markup=False, highlight=False, soft_wrap=True
         )
@@ -248,18 +251,19 @@ def _target_dir_config_paths(paths: list[str]) -> list[Path]:
 def _write_configs(config: Configuration, nns: Namespace) -> None:
     """Persist the invoked options per the write flags."""
     options = _invoked_cli_options(nns)
+    verbose = config[PROGRAM_NAME]["verbose"].get(int)
     # ``-c`` INPUT is the merge base for the user/explicit-path writes.
     base = Path(nns.config) if nns.config else None
     if nns.write_config:
         target = Path(config.user_config_path())
-        _write_merged_config(config, target, base or target, options)
+        _write_merged_config(target, base or target, options, verbose)
     if nns.write_config_file:
         target = Path(nns.write_config_file)
-        _write_merged_config(config, target, base or target, options)
+        _write_merged_config(target, base or target, options, verbose)
     if nns.write_dir_config:
         # Each directory config is updated in place; -c is not a base here.
         for target in _target_dir_config_paths(nns.paths):
-            _write_merged_config(config, target, target, options)
+            _write_merged_config(target, target, options, verbose)
 
 
 class NudebombConfig:

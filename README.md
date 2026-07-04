@@ -162,7 +162,15 @@ top of whatever it resolves to.
 change never leaves stale files behind. Re-checking an already-stripped file is
 a fast no-op.
 
-## Lang Files
+## Lang Files (deprecated)
+
+> **Deprecated.** Lang files are superseded by
+> [Directory Config Files](#directory-config-files). Nudebomb now migrates them
+> automatically: on each run it rewrites every lang file it walks into a
+> `.nudebomb.yaml` (creating one, or adding the languages to an existing one)
+> and deletes the lang file. The migrated config records the directory's full
+> effective keep-set, so results don't change. Dry runs (`--dry-run`) migrate
+> nothing.
 
 Lang files let you specify additional languages to keep on a per-directory
 basis. This is useful when your collection spans multiple languages — you want
