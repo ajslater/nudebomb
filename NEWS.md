@@ -1,8 +1,17 @@
 # 📰 Nudebomb News
 
+## v1.5.0
+
+### Features
+
+- Per-directory `.nudebomb.yaml` config files override settings for a subtree.
+- `-w`/`--write-config` now writes your user config and takes no path argument
+- `-W`/`--write-dir-config` saves your options into each target directory.
+- `--write-config-file PATH` to write to a specific file.
+
 ## v1.4.0
 
-- Use rich_argparse to format help.
+- Use rich\_argparse to format help.
 
 ## v1.3.1
 
@@ -133,7 +142,7 @@
 
 ## v0.3.1
 
-- Upstream treestamps fixes crashes and check_config option.
+- Upstream treestamps fixes crashes and check\_config option.
 
 ## v0.3.0
 
@@ -160,7 +169,7 @@
 
 - Features
     - More output about what nudebomb is doing.
-    - Renamed subs_languages config option to sub_languages.
+    - Renamed subs\_languages config option to sub\_languages.
 
 - Fixes
     - Searching for langfiles obeys symlinks preference.

@@ -174,17 +174,12 @@ class TestConfigErrors:
 
 
 class TestWriteConfig:
-    """-w OUTPUT writes (-c input or existing output) merged with CLI options."""
+    """-w writes the user config; --write-config-file writes an explicit path."""
 
-    def test_w_requires_an_argument(self):
-        # Bare -w swallows the following token as OUTPUT, leaving no paths.
-        with pytest.raises(SystemExit):
-            get_arguments(("nudebomb", "-w"))
-
-    def test_writes_invoked_options(self, tmp_path):
-        out = tmp_path / "out.yaml"
-        _get_config((*BASE_ARGV[:-1], "-w", str(out), "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
-        section = yaml_load(out)["nudebomb"]
+    def test_w_writes_user_config(self, tmp_path):
+        """Bare -w writes invoked options to the auto-located user config."""
+        _get_config(("nudebomb", "-w", "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
+        section = yaml_load(tmp_path / "config.yaml")["nudebomb"]
         assert section["languages"] == ["eng", "fra"]
         assert section["recurse"] is True
         assert "paths" not in section
@@ -194,71 +189,138 @@ class TestWriteConfig:
 
     def test_run_mode_flags_not_persisted(self, tmp_path):
         """-d and -q/-v are ephemeral run modes, never written as defaults."""
-        out = tmp_path / "out.yaml"
-        _get_config((*BASE_ARGV[:-1], "-w", str(out), "-d", "-q", "-l", "eng", "/tmp"))  # noqa: S108
-        section = yaml_load(out)["nudebomb"]
+        _get_config(("nudebomb", "-w", "-d", "-q", "-l", "eng", "/tmp"))  # noqa: S108
+        section = yaml_load(tmp_path / "config.yaml")["nudebomb"]
         assert "dry_run" not in section
         assert "verbose" not in section
         assert section["languages"] == ["eng"]
 
-    def test_output_merges_c_input_leaving_input_untouched(self, tmp_path):
+    def test_w_merges_c_input_leaving_input_untouched(self, tmp_path):
         inp = tmp_path / "in.yaml"
         inp.write_text("nudebomb:\n  tmdb_api_key: abc123\n  languages: [jpn]\n")
-        out = tmp_path / "out.yaml"
-        _get_config(("nudebomb", "-c", str(inp), "-w", str(out), "-l", "eng", "/tmp"))  # noqa: S108
-        section = yaml_load(out)["nudebomb"]
+        _get_config(("nudebomb", "-c", str(inp), "-w", "-l", "eng", "/tmp"))  # noqa: S108
+        section = yaml_load(tmp_path / "config.yaml")["nudebomb"]
         assert section["tmdb_api_key"] == "abc123"  # carried from -c input
         assert section["languages"] == ["eng"]  # CLI overrides the input
         assert yaml_load(inp)["nudebomb"]["languages"] == ["jpn"]  # input untouched
 
-    def test_in_place_update_preserves_comments(self, tmp_path):
-        cfg = tmp_path / "cfg.yaml"
+    def test_w_in_place_preserves_comments(self, tmp_path):
+        cfg = tmp_path / "config.yaml"  # the user config, pre-existing
         cfg.write_text(
             "nudebomb:\n  # keep this comment\n  tmdb_api_key: abc\n  languages: [fra]\n"
         )
-        _get_config(("nudebomb", "-c", str(cfg), "-w", str(cfg), "-l", "eng", "/tmp"))  # noqa: S108
+        _get_config(("nudebomb", "-w", "-l", "eng", "/tmp"))  # noqa: S108
         text = cfg.read_text()
         assert "# keep this comment" in text
         section = yaml_load(cfg)["nudebomb"]
         assert section["tmdb_api_key"] == "abc"
         assert section["languages"] == ["eng"]
 
-    def test_merges_into_existing_output_without_c(self, tmp_path):
-        out = tmp_path / "out.yaml"
-        out.write_text("nudebomb:\n  tmdb_api_key: keepme\n")
-        _get_config((*BASE_ARGV[:-1], "-w", str(out), "-l", "eng", "/tmp"))  # noqa: S108
-        section = yaml_load(out)["nudebomb"]
-        assert section["tmdb_api_key"] == "keepme"  # existing output preserved
-        assert section["languages"] == ["eng"]
-
     def test_written_file_is_owner_only(self, tmp_path):
-        out = tmp_path / "out.yaml"
-        _get_config((*BASE_ARGV[:-1], "-w", str(out), "-l", "eng", "/tmp"))  # noqa: S108
-        assert (out.stat().st_mode & 0o777) == OWNER_ONLY_MODE
+        _get_config(("nudebomb", "-w", "-l", "eng", "/tmp"))  # noqa: S108
+        assert ((tmp_path / "config.yaml").stat().st_mode & 0o777) == OWNER_ONLY_MODE
 
     def test_quiet_suppresses_confirmation(self, tmp_path, capsys):
-        out = tmp_path / "out.yaml"
-        _get_config((*BASE_ARGV[:-1], "-w", str(out), "-q", "-l", "eng", "/tmp"))  # noqa: S108
+        _get_config(("nudebomb", "-w", "-q", "-l", "eng", "/tmp"))  # noqa: S108
         assert "Wrote config" not in capsys.readouterr().out
-        assert out.is_file()
+        assert (tmp_path / "config.yaml").is_file()
 
     def test_written_config_round_trips_via_c(self, tmp_path):
-        out = tmp_path / "out.yaml"
-        _get_config(("nudebomb", "-w", str(out), "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
-        config = _get_config(("nudebomb", "-c", str(out), "/tmp"))  # noqa: S108
+        _get_config(("nudebomb", "-w", "-l", "eng,fra", "-r", "/tmp"))  # noqa: S108
+        config = _get_config(("nudebomb", "-c", str(tmp_path / "config.yaml"), "/tmp"))  # noqa: S108
         assert config.recurse is True
         assert {"eng", "fra"} <= config.languages
 
     def test_invalid_invocation_does_not_write(self, tmp_path, monkeypatch):
-        out = tmp_path / "out.yaml"
         monkeypatch.setenv("NUDEBOMB_NUDEBOMB__LANGUAGES", "eng")  # scalar -> rejected
         with pytest.raises(SystemExit):
-            _get_config(("nudebomb", "-w", str(out), "/tmp"))  # noqa: S108
-        assert not out.exists()
+            _get_config(("nudebomb", "-w", "/tmp"))  # noqa: S108
+        assert not (tmp_path / "config.yaml").exists()
 
     def test_no_write_without_flag(self, tmp_path):
         _get_config(BASE_ARGV)
-        assert not (tmp_path / "out.yaml").exists()
+        assert not (tmp_path / "config.yaml").exists()
+
+    def test_write_config_file_explicit_path(self, tmp_path):
+        out = tmp_path / "sub" / "custom.yaml"
+        _get_config(
+            (
+                "nudebomb",
+                "--write-config-file",
+                str(out),
+                "-l",
+                "eng,fra",
+                "-r",
+                str(tmp_path),
+            )
+        )
+        section = yaml_load(out)["nudebomb"]
+        assert section["languages"] == ["eng", "fra"]
+        assert section["recurse"] is True
+        assert (out.stat().st_mode & 0o777) == OWNER_ONLY_MODE
+
+    def test_write_config_file_merges_c_input(self, tmp_path):
+        inp = tmp_path / "in.yaml"
+        inp.write_text("nudebomb:\n  tmdb_api_key: abc123\n  languages: [jpn]\n")
+        out = tmp_path / "out.yaml"
+        _get_config(
+            (
+                "nudebomb",
+                "-c",
+                str(inp),
+                "--write-config-file",
+                str(out),
+                "-l",
+                "eng",
+                str(tmp_path),
+            )
+        )
+        section = yaml_load(out)["nudebomb"]
+        assert section["tmdb_api_key"] == "abc123"
+        assert section["languages"] == ["eng"]
+        assert yaml_load(inp)["nudebomb"]["languages"] == ["jpn"]  # input untouched
+
+    def test_write_dir_config_each_target_dir(self, tmp_path):
+        anime = tmp_path / "anime"
+        movies = tmp_path / "movies"
+        anime.mkdir()
+        movies.mkdir()
+        _get_config(
+            ("nudebomb", "-W", "-l", "eng", "-s", "jpn", str(anime), str(movies))
+        )
+        for directory in (anime, movies):
+            section = yaml_load(directory / ".nudebomb.yaml")["nudebomb"]
+            assert section["languages"] == ["eng"]
+            assert section["sub_languages"] == ["jpn"]
+
+    def test_write_dir_config_file_target_writes_parent(self, tmp_path):
+        show = tmp_path / "show"
+        show.mkdir()
+        episode = show / "ep.mkv"
+        episode.write_bytes(b"x")
+        _get_config(("nudebomb", "-W", "-l", "eng", str(episode)))
+        assert yaml_load(show / ".nudebomb.yaml")["nudebomb"]["languages"] == ["eng"]
+
+    def test_write_dir_config_and_user_config_together(self, tmp_path):
+        directory = tmp_path / "d"
+        directory.mkdir()
+        _get_config(("nudebomb", "-w", "-W", "-l", "eng", str(directory)))
+        assert (tmp_path / "config.yaml").is_file()  # user config
+        assert (directory / ".nudebomb.yaml").is_file()  # directory config
+
+
+def test_target_dir_config_paths_dedupes_and_uses_parent(tmp_path):
+    """File targets resolve to their parent dir; duplicates collapse to one."""
+    from nudebomb.config import _target_dir_config_paths
+
+    directory = tmp_path / "d"
+    directory.mkdir()
+    (directory / "a.mkv").write_bytes(b"x")
+    (directory / "b.mkv").write_bytes(b"x")
+    paths = _target_dir_config_paths(
+        [str(directory / "a.mkv"), str(directory / "b.mkv"), str(directory)]
+    )
+    assert paths == [directory / ".nudebomb.yaml"]
 
 
 class TestVerbose:

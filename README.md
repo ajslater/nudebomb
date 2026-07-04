@@ -67,11 +67,13 @@ directories.
 
 ## Configuration
 
-Nudebomb is configured through three layers, each overriding the previous:
+Nudebomb is configured through four layers, each overriding the previous:
 
-1. **YAML config file** — `~/.config/nudebomb/config.yaml`
-2. **Environment variables**
-3. **Command-line arguments**
+1. **User config file** — `~/.config/nudebomb/config.yaml`
+2. **Directory config files** — `.nudebomb.yaml` in a target directory (see
+   [Directory Config Files](#directory-config-files))
+3. **Environment variables**
+4. **Command-line arguments**
 
 ### Config File
 
@@ -92,13 +94,21 @@ All command-line options have config file equivalents.
 Use `-c INPUT` to supply an input config file. It replaces your default user
 config for that run (the packaged defaults still apply beneath it).
 
-Use `-w OUTPUT` to write a config file, then run normally. The output is the
-`-c` input file — or, if `-c` is omitted, the existing `OUTPUT` file — merged
-with the command-line options you gave this run. So `-c base.yaml -w new.yaml`
-derives `new.yaml` from `base.yaml` plus your options, while `-w config.yaml`
-updates `config.yaml` in place. Existing keys and comments are preserved.
-Run-mode flags (`--dry-run` and verbosity) are not persisted, and the file is
-written owner-readable only since it may hold API keys.
+Nudebomb can also write your invoked options back out as config, then run
+normally:
+
+- `-w`/`--write-config` writes them to your user config file, located
+  automatically — no path needed. `-c base.yaml -w` derives your user config
+  from `base.yaml` plus the options you gave.
+- `-W`/`--write-dir-config` writes or updates a `.nudebomb.yaml` in each target
+  directory (see [Directory Config Files](#directory-config-files)).
+- `--write-config-file PATH` writes to a specific file (advanced), merging
+  `-c INPUT` (or the existing `PATH`) with your options.
+
+Existing keys and comments are preserved. Run-mode flags (`--dry-run` and
+verbosity) are not persisted, and files are written owner-readable only since
+they may hold API keys. `-W` persists whatever you invoked, so omit API keys you
+don't want stored in a media tree.
 
 ### Environment Variables
 
@@ -110,6 +120,47 @@ export NUDEBOMB_NUDEBOMB__LANGUAGES__0=eng
 export NUDEBOMB_NUDEBOMB__LANGUAGES__1=fra
 export NUDEBOMB_NUDEBOMB__TMDB_API_KEY=your-api-key-here
 ```
+
+### Directory Config Files
+
+Drop a `.nudebomb.yaml` in any target directory to override settings for that
+directory and everything beneath it. Write one by hand, or run with
+`-W`/`--write-dir-config` to save your invoked options into each target
+directory. It uses the same `nudebomb:` format as the user config:
+
+```yaml
+# /mnt/anime/.nudebomb.yaml
+nudebomb:
+    sub_languages:
+        - jpn
+    title: false
+    media_type: tv
+```
+
+**Discovery.** For each MKV, nudebomb walks up the tree from the file's
+directory to the path you named on the command line (never above it, exactly
+like [lang files](#lang-files)), collecting every `.nudebomb.yaml` it finds. A
+config outside the paths you pass never affects a run.
+
+**Layering.** Directory configs sit above your user config but below environment
+variables and command-line options, so `-c`/CLI/env always win. A deeper
+directory's config overrides a shallower one. A `.nudebomb.yaml` may set any
+config key. Keys that select which tracks to keep (`languages`, `sub_languages`,
+`subtitles`, `strip_und_language`, `und_language`, `title`, `mkvmerge_bin`), the
+lookup `media_type`, and the traversal knobs (`ignore`, `recurse`, `symlinks`)
+take effect per directory. Run-scope keys — API keys, `lookup_workers`,
+`cache_expiry_days`, `timestamps`, `after`, `--dry-run`, and verbosity — are
+read once for the whole run, so setting them in a directory config has no
+per-directory effect.
+
+Unlike lang files, a directory config's `languages` **replaces** the inherited
+value (so a subtree can narrow or change the keep-set); lang files still add on
+top of whatever it resolves to.
+
+**Timestamps.** When `-t/--timestamps` is on, editing, adding, or removing a
+`.nudebomb.yaml` re-processes its directory tree on the next run, so a config
+change never leaves stale files behind. Re-checking an already-stripped file is
+a fast no-op.
 
 ## Lang Files
 

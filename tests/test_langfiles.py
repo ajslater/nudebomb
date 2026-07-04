@@ -69,3 +69,26 @@ def test_lang_file_languages_normalized_to_alpha3(tmp_path):
     langs = langfiles.get_langs(tmp_path, tmp_path)
 
     assert {"fra", "deu"} <= langs
+
+
+def test_get_extra_langs_excludes_base(tmp_path):
+    """get_extra_langs returns only lang-file langs, not the base --languages."""
+    nested = tmp_path / "a" / "b"
+    nested.mkdir(parents=True)
+    (tmp_path / "langs").write_text("fra\n")
+    (tmp_path / "a" / "lang").write_text("ja\n")
+
+    langfiles = _make_langfiles()
+    extra = langfiles.get_extra_langs(tmp_path, nested)
+
+    assert extra == frozenset({"fra", "jpn"})  # no "eng" base
+
+
+def test_get_extra_langs_empty_without_files(tmp_path):
+    """With no lang files, get_extra_langs contributes nothing."""
+    nested = tmp_path / "a"
+    nested.mkdir()
+
+    langfiles = _make_langfiles()
+
+    assert langfiles.get_extra_langs(tmp_path, nested) == frozenset()

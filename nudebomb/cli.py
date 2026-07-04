@@ -251,13 +251,32 @@ def get_arguments(
     parser.add_argument(
         "-w",
         "--write-config",
-        action="store",
-        metavar="OUTPUT",
+        action="store_true",
+        default=None,
         help=(
-            "Write the merged config to OUTPUT, then run normally. OUTPUT "
-            "is the -c input file (or the existing OUTPUT, or nothing) "
-            "merged with the invoked command line options. Run-mode flags "
-            "(--dry-run and verbosity) are not persisted."
+            "Write the merged config to your user config file, then run "
+            "normally. Run-mode flags (--dry-run and verbosity) are not "
+            "persisted."
+        ),
+    )
+    parser.add_argument(
+        "-W",
+        "--write-dir-config",
+        action="store_true",
+        default=None,
+        help=(
+            "Write or update a .nudebomb.yaml in each target directory, then "
+            "run normally. Persists the same options as --write-config."
+        ),
+    )
+    parser.add_argument(
+        "--write-config-file",
+        action="store",
+        metavar="PATH",
+        help=(
+            "Write the merged config to a specific file (advanced), then run "
+            "normally. PATH is the -c input file (or the existing PATH) merged "
+            "with the invoked options."
         ),
     )
     parser.add_argument(
@@ -334,7 +353,7 @@ def main(args: tuple[str, ...] | None = None) -> None:
     config = NudebombConfig().get_config(arguments)
     setup_logging(config.verbose)
     # Iterate over all found mkv files
-    walker = Walk(config)
+    walker = Walk(config, arguments)
     stats = walker.run()
     if stats.errors:
         # Scripts and cron jobs rely on the exit code to detect failures.

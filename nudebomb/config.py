@@ -71,15 +71,27 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
     }
 )
 
-# CLI args that -w/--write-config never persists: the -w OUTPUT and -c
-# INPUT paths themselves, paths (argparse requires them on every
-# invocation anyway), and the ephemeral run-mode flags dry_run /
-# verbose — persisting those turns a one-off preview or -q into a
-# permanent default (a sticky dry_run would make every future run a
-# silent no-op). Users who truly want them as defaults can hand-edit the
-# file; they are still honored on read.
+# Per-directory config files layer beneath env vars and CLI args but above
+# the user config. Named to match the timestamps file ``.nudebomb_treestamps.yaml``
+# without colliding with it. See :class:`nudebomb.dirconfig.DirConfig`.
+DIR_CONFIG_FILENAME: Final = ".nudebomb.yaml"
+
+# CLI args the config writers never persist: the write flags and -c INPUT
+# path themselves, paths (argparse requires them on every invocation
+# anyway), and the ephemeral run-mode flags dry_run / verbose — persisting
+# those turns a one-off preview or -q into a permanent default (a sticky
+# dry_run would make every future run a silent no-op). Users who truly want
+# them as defaults can hand-edit the file; they are still honored on read.
 _UNPERSISTED_ARGS: Final = frozenset(
-    {"config", "paths", "write_config", "dry_run", "verbose"}
+    {
+        "config",
+        "paths",
+        "write_config",
+        "write_dir_config",
+        "write_config_file",
+        "dry_run",
+        "verbose",
+    }
 )
 
 if system() == "Windows":
@@ -182,12 +194,10 @@ def _invoked_cli_options(nns: Namespace) -> dict:
     }
 
 
-def _write_config_file(config: Configuration, nns: Namespace) -> None:
-    """Write the merged config to the -w OUTPUT path."""
-    target = Path(nns.write_config)
-    # Merge base: the -c input file if given, else the existing OUTPUT
-    # file (in-place update), else nothing.
-    base_path = Path(nns.config) if nns.config else target
+def _write_merged_config(
+    config: Configuration, target: Path, base_path: Path, options: dict
+) -> None:
+    """Merge ``options`` into ``base_path``'s config and write it to ``target``."""
     yaml = YAML()
     data = None
     try:
@@ -203,7 +213,7 @@ def _write_config_file(config: Configuration, nns: Namespace) -> None:
     if not isinstance(section, dict):
         section = {}
         data[PROGRAM_NAME] = section
-    section.update(_invoked_cli_options(nns))
+    section.update(options)
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("w") as stream:
@@ -221,6 +231,35 @@ def _write_config_file(config: Configuration, nns: Namespace) -> None:
         console.print(
             f"Wrote config to {target}", markup=False, highlight=False, soft_wrap=True
         )
+
+
+def _target_dir_config_paths(paths: list[str]) -> list[Path]:
+    """Deduped, order-stable ``.nudebomb.yaml`` path for each target directory."""
+    targets: dict[Path, None] = {}
+    for path_str in paths:
+        path = Path(path_str)
+        # A file target's config lives in its parent directory (matches
+        # Walk._config_candidates).
+        directory = path if path.is_dir() else path.parent
+        targets[directory / DIR_CONFIG_FILENAME] = None
+    return list(targets)
+
+
+def _write_configs(config: Configuration, nns: Namespace) -> None:
+    """Persist the invoked options per the write flags."""
+    options = _invoked_cli_options(nns)
+    # ``-c`` INPUT is the merge base for the user/explicit-path writes.
+    base = Path(nns.config) if nns.config else None
+    if nns.write_config:
+        target = Path(config.user_config_path())
+        _write_merged_config(config, target, base or target, options)
+    if nns.write_config_file:
+        target = Path(nns.write_config_file)
+        _write_merged_config(config, target, base or target, options)
+    if nns.write_dir_config:
+        # Each directory config is updated in place; -c is not a base here.
+        for target in _target_dir_config_paths(nns.paths):
+            _write_merged_config(config, target, target, options)
 
 
 class NudebombConfig:
@@ -386,15 +425,29 @@ class NudebombConfig:
             title=nb["title"],
         )
 
-    def get_config(
+    def _build_config(
         self,
         args: Namespace | None = None,
+        dir_config_files: tuple[Path, ...] = (),
         modname: str = PROGRAM_NAME,
-    ) -> NudebombSettings:
-        """Get the typed config, layering env and args over defaults."""
+    ) -> Configuration:
+        """
+        Build a fully-layered, normalized confuse Configuration.
+
+        Sources, lowest→highest priority: packaged defaults, user config
+        (or the ``-c`` replacement), each directory ``.nudebomb.yaml``
+        (shallowest→deepest), env vars, CLI args. Each ``set_*`` call
+        appends to the confuse source stack, so the directory files sit
+        above the user config yet below env/args — deeper directories win
+        over shallower ones, and env/CLI still win over every directory
+        file. Shared by :meth:`get_config` (no directory files) and
+        :class:`nudebomb.dirconfig.DirConfig` (per-directory chain).
+        """
         config = Configuration(PROGRAM_NAME, modname=modname, read=False)
         nns = args.nudebomb if args else None
         self._read_sources(config, nns)
+        for dir_config_file in dir_config_files:
+            config.set_file(str(dir_config_file))
         config.set_env()
         if args:
             config.set_args(args)
@@ -404,12 +457,45 @@ class NudebombConfig:
         self._set_default_mkvmerge_bin(config)
         self._set_unique_lang_list(config, "sub_languages")
         self._set_ignore(config)
+        return config
+
+    def _config_to_settings(self, config: Configuration) -> NudebombSettings:
+        """Validate against the template and convert to typed settings."""
         # confuse 2.2.0 types the result of ``config.get(TEMPLATE)``
         # precisely from the MappingTemplate, so an ``isinstance``
         # narrowing is no longer needed.
         ad = config.get(TEMPLATE)
-        # Persist only after the whole invocation validated, so a bad
-        # command line can't poison the config file.
-        if nns is not None and nns.write_config:
-            _write_config_file(config, nns)
         return self._to_settings(ad.nudebomb)
+
+    def get_config(
+        self,
+        args: Namespace | None = None,
+        modname: str = PROGRAM_NAME,
+    ) -> NudebombSettings:
+        """Get the typed config, layering env and args over defaults."""
+        config = self._build_config(args, modname=modname)
+        nns = args.nudebomb if args else None
+        # Validate (via ``_config_to_settings``) before persisting so a bad
+        # command line can't poison the config file.
+        settings = self._config_to_settings(config)
+        if nns is not None and (
+            nns.write_config or nns.write_dir_config or nns.write_config_file
+        ):
+            _write_configs(config, nns)
+        return settings
+
+    def get_dir_settings(
+        self,
+        args: Namespace | None,
+        dir_config_files: tuple[Path, ...],
+    ) -> NudebombSettings:
+        """
+        Resolve settings with per-directory config files layered in.
+
+        Like :meth:`get_config` but for the per-directory chain: the
+        directory ``.nudebomb.yaml`` files layer beneath env/CLI and above
+        the user config, and ``-w`` is never triggered. Used by
+        :class:`nudebomb.dirconfig.DirConfig`.
+        """
+        config = self._build_config(args, dir_config_files)
+        return self._config_to_settings(config)

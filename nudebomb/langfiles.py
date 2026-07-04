@@ -82,13 +82,9 @@ class LangFiles:
             path = path.parent
         return False
 
-    def get_langs(
-        self,
-        top_path: Path,
-        path: Path,
-    ) -> frozenset[str]:
-        """Get the languages from this dir and parent dirs."""
-        langs = self._languages
+    def _collect_lang_files(self, top_path: Path, path: Path) -> set[str]:
+        """Union the languages from this dir up to (and including) top_path."""
+        langs: set[str] = set()
         # Check the boundary only after visiting the current dir so
         # top_path's own lang files apply to nested paths too.
         while True:
@@ -96,4 +92,27 @@ class LangFiles:
             if path in (top_path, path.parent):
                 break
             path = path.parent
-        return frozenset(langs)
+        return langs
+
+    def get_langs(
+        self,
+        top_path: Path,
+        path: Path,
+    ) -> frozenset[str]:
+        """Get the base languages plus those from this dir and parent dirs."""
+        return frozenset(self._languages | self._collect_lang_files(top_path, path))
+
+    def get_extra_langs(
+        self,
+        top_path: Path,
+        path: Path,
+    ) -> frozenset[str]:
+        """
+        Get only the languages contributed by lang files up the tree.
+
+        Unlike :meth:`get_langs`, the base ``--languages`` set is not seeded
+        in, so callers can union these purely-additive langfile languages
+        onto a per-directory resolved keep-set (see
+        :class:`nudebomb.dirconfig.DirConfig`) instead of the global one.
+        """
+        return frozenset(self._collect_lang_files(top_path, path))
