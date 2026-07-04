@@ -9,12 +9,12 @@ from confuse.exceptions import ConfigError
 from loguru import logger
 from ruamel.yaml.error import YAMLError
 
-from nudebomb.config import DIR_CONFIG_FILENAME
+from nudebomb.config.config import DIR_CONFIG_FILENAME
 
 if TYPE_CHECKING:
     from argparse import Namespace
 
-    from nudebomb.config import NudebombConfig, NudebombSettings
+    from nudebomb.config.config import NudebombConfig, NudebombSettings
     from nudebomb.log.summary import Stats
 
 
@@ -22,7 +22,7 @@ class DirConfig:
     """
     Resolve the effective settings for a directory from ``.nudebomb.yaml`` files.
 
-    Mirrors :class:`nudebomb.langfiles.LangFiles`: it walks up the tree from
+    Mirrors :class:`nudebomb.config.langfiles.LangFiles`: it walks up the tree from
     a file's directory to the CLI target root (``top_path``), collecting the
     ``.nudebomb.yaml`` files along the way, and layers them beneath env vars
     and CLI args (via :meth:`NudebombConfig.get_dir_settings`). Results are

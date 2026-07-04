@@ -2,7 +2,7 @@
 Language-code utilities.
 
 Lives in its own module so both ``nudebomb.config`` and
-``nudebomb.langfiles`` can depend on it without forming an import
+``nudebomb.config.langfiles`` can depend on it without forming an import
 cycle (``langfiles`` takes ``NudebombSettings`` for type-checking;
 ``config`` previously imported ``lang_to_alpha3`` from ``langfiles``,
 which would close the loop).

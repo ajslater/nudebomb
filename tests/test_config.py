@@ -311,7 +311,7 @@ class TestWriteConfig:
 
 def test_target_dir_config_paths_dedupes_and_uses_parent(tmp_path):
     """File targets resolve to their parent dir; duplicates collapse to one."""
-    from nudebomb.config import _target_dir_config_paths
+    from nudebomb.config.config import _target_dir_config_paths
 
     directory = tmp_path / "d"
     directory.mkdir()

@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from nudebomb.langfiles import LangFiles
+from nudebomb.config.langfiles import LangFiles
 
 __all__ = ()
 

@@ -11,7 +11,7 @@ from nudebomb.lang import lang_to_alpha3
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from nudebomb.config import NudebombSettings
+    from nudebomb.config.config import NudebombSettings
     from nudebomb.log.summary import Stats
 
 __all__ = ("LANGS_FNS", "LangFiles", "lang_to_alpha3")
@@ -113,6 +113,6 @@ class LangFiles:
         Unlike :meth:`get_langs`, the base ``--languages`` set is not seeded
         in, so callers can union these purely-additive langfile languages
         onto a per-directory resolved keep-set (see
-        :class:`nudebomb.dirconfig.DirConfig`) instead of the global one.
+        :class:`nudebomb.config.dirconfig.DirConfig`) instead of the global one.
         """
         return frozenset(self._collect_lang_files(top_path, path))

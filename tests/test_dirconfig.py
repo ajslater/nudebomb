@@ -6,8 +6,7 @@ from pathlib import Path
 import pytest
 
 from nudebomb.cli import get_arguments
-from nudebomb.config import NudebombConfig, NudebombSettings
-from nudebomb.dirconfig import DirConfig
+from nudebomb.config import DirConfig, NudebombConfig, NudebombSettings
 from nudebomb.log.summary import Stats
 
 __all__ = ()

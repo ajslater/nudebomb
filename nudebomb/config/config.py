@@ -73,7 +73,7 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
 
 # Per-directory config files layer beneath env vars and CLI args but above
 # the user config. Named to match the timestamps file ``.nudebomb_treestamps.yaml``
-# without colliding with it. See :class:`nudebomb.dirconfig.DirConfig`.
+# without colliding with it. See :class:`nudebomb.config.dirconfig.DirConfig`.
 DIR_CONFIG_FILENAME: Final = ".nudebomb.yaml"
 
 # CLI args the config writers never persist: the write flags and -c INPUT
@@ -441,7 +441,7 @@ class NudebombConfig:
         above the user config yet below env/args — deeper directories win
         over shallower ones, and env/CLI still win over every directory
         file. Shared by :meth:`get_config` (no directory files) and
-        :class:`nudebomb.dirconfig.DirConfig` (per-directory chain).
+        :class:`nudebomb.config.dirconfig.DirConfig` (per-directory chain).
         """
         config = Configuration(PROGRAM_NAME, modname=modname, read=False)
         nns = args.nudebomb if args else None
@@ -495,7 +495,7 @@ class NudebombConfig:
         Like :meth:`get_config` but for the per-directory chain: the
         directory ``.nudebomb.yaml`` files layer beneath env/CLI and above
         the user config, and ``-w`` is never triggered. Used by
-        :class:`nudebomb.dirconfig.DirConfig`.
+        :class:`nudebomb.config.dirconfig.DirConfig`.
         """
         config = self._build_config(args, dir_config_files)
         return self._config_to_settings(config)

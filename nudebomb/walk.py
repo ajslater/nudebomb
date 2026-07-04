@@ -16,10 +16,10 @@ from treestamps.tree import Treestamps
 from nudebomb.config import (
     DIR_CONFIG_FILENAME,
     TIMESTAMPS_CONFIG_KEYS,
+    DirConfig,
+    LangFiles,
     NudebombConfig,
 )
-from nudebomb.dirconfig import DirConfig
-from nudebomb.langfiles import LangFiles
 from nudebomb.log import console
 from nudebomb.log.progress import make_progress
 from nudebomb.log.reporter import Reporter
