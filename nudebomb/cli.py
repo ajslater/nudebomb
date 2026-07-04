@@ -247,10 +247,11 @@ def get_arguments(
         action="store_true",
         default=None,
         help=(
-            "Write the invoked command line options to the config file "
-            "(the -c path if given, otherwise the user config file), "
+            "Write the invoked command line options to the config file, "
             "merging with its existing contents, then run normally. "
-            "Run-mode flags (--dry-run and verbosity) are not persisted."
+            "-w takes no path: the target is the -c path if given, else "
+            "the user config file. Run-mode flags (--dry-run and "
+            "verbosity) are not persisted."
         ),
     )
     parser.add_argument(
