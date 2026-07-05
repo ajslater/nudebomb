@@ -2,13 +2,42 @@
 
 ## v1.5.0
 
+### Breaking Changes
+
+- `-c`/`--config` now fully replaces your user config for the run instead of
+  layering on top of it (packaged defaults still apply beneath).
+
 ### Features
 
 - Per-directory `.nudebomb.yaml` config files override settings for a subtree.
-- Deprecated lang files are auto-migrated to `.nudebomb.yaml` and removed.
-- `-w`/`--write-config` writes your user config
-- `-W`/`--write-dir-config` saves your options into each target directory.
+- Deprecated `.lang` files are auto-migrated to `.nudebomb.yaml` and removed.
+- `-w`/`--write-config` saves the invoked options to your user config.
+- `-W`/`--write-dir-config` saves them into each target directory.
 - `--write-config-file PATH` writes the config to a specific file.
+
+### Fixes
+
+- Online lookups no longer fail on standard `Title (Year)` filenames.
+- One unreadable or corrupt MKV no longer aborts the whole run.
+- Nudebomb exits nonzero when any file errors, so scripts and cron can detect it.
+- Stalled network lookups now time out instead of freezing the run.
+- Release tags like `[x265]` in filenames no longer break the progress display
+  or the end-of-run summary.
+- Shows with non-Latin titles now match via their aliases and translations.
+- `--after` no longer crashes on every use.
+- Language codes match more reliably: 2-letter codes are normalized to match
+  tracks, and `-l "eng, fra"` tolerates spaces.
+- API keys are redacted from logs and the summary.
+- Corrupt lookup-cache entries self-heal instead of crashing, and stale wrong
+  matches expire after a year.
+- Windows finds the default mkvmerge via `%ProgramFiles%`.
+- Passing a directory without `-r` now warns instead of silently doing nothing.
+- Per-directory `media_type` and `timestamps` settings now take effect.
+
+### Performance
+
+- Per-file checks run once during the walk, and the file-counting pass is
+  skipped in quiet mode or without a TTY.
 
 ## v1.4.0
 
