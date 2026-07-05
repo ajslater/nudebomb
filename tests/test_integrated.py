@@ -3,6 +3,8 @@
 import shutil
 from pathlib import Path
 
+import pytest
+
 from nudebomb.cli import main
 from nudebomb.mkv import MKVFile
 from tests.test_mkv import assert_eng_und_only
@@ -48,6 +50,16 @@ class TestIntegrated(DiffTracksTest):
         main(("nudebomb", "-l", "eng", str(TEST_DIR)))
         out_tracks = mkv_tracks(self.dest_path)
         self._diff_tracks(out_tracks)
+
+    def test_batch_continues_past_bad_file(self: "TestIntegrated") -> None:
+        """A bad mkv records an error and exits nonzero; the rest still runs."""
+        garbage = TEST_DIR / "a_garbage.mkv"
+        garbage.write_bytes(b"not a matroska file")
+        with pytest.raises(SystemExit):
+            main(("nudebomb", "-l", "eng,und", "-r", str(TEST_DIR)))
+        # The valid file sorted after the bad one was still processed.
+        out_tracks = mkv_tracks(self.dest_path)
+        assert_eng_und_only(out_tracks)
 
     def test_strip_all_subs(self: "TestIntegrated") -> None:
         """Test strib all subs."""

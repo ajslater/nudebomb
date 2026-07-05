@@ -4,8 +4,11 @@ import os
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 from nudebomb.config import NudebombConfig
+from nudebomb.log.reporter import Reporter
+from nudebomb.log.summary import Stats
 from nudebomb.mkv import MKVFile
 from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
 
@@ -92,3 +95,38 @@ class TestMkv(DiffTracksTest):
         mkvfile.remove_tracks()
         out_tracks = mkv_tracks(TEST_MKV)
         self._diff_tracks(out_tracks)
+
+    def test_missing_file_records_error(self) -> None:
+        """A file mkvmerge cannot identify records an error, not a crash."""
+        stats = Stats()
+        reporter = Reporter(stats=stats)
+        mkvfile = MKVFile(self._config, TEST_DIR / "missing.mkv", reporter)
+        assert not mkvfile.remove_tracks()
+        assert stats.errors
+
+    def test_garbage_file_records_and_continues(self) -> None:
+        """A non-matroska file is recorded and skipped, not fatal."""
+        garbage = TEST_DIR / "garbage.mkv"
+        garbage.write_bytes(b"not a matroska file")
+        stats = Stats()
+        reporter = Reporter(stats=stats)
+        mkvfile = MKVFile(self._config, garbage, reporter)
+        assert not mkvfile.remove_tracks()
+        assert stats.errors or stats.warnings
+
+    def test_warning_marks_progress(self) -> None:
+        """Warnings push the documented '!' mark onto the progress bar."""
+        garbage = TEST_DIR / "warn.mkv"
+        garbage.write_bytes(b"not a matroska file")
+        reporter = Reporter(stats=Stats(), progress=MagicMock())  # pyright: ignore[reportArgumentType]
+        MKVFile(self._config, garbage, reporter)
+        assert reporter.progress.mark_warning.called  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+
+    def test_stale_tmp_removed(self) -> None:
+        """A leftover .tmp from a killed run is cleaned up on the next pass."""
+        tmp = TEST_MKV.with_suffix(TEST_MKV.suffix + ".tmp")
+        tmp.write_bytes(b"stale")
+        self._config.dry_run = True
+        mkvfile = MKVFile(self._config, TEST_MKV)
+        mkvfile.remove_tracks()
+        assert not tmp.exists()

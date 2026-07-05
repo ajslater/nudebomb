@@ -27,13 +27,13 @@ class TestStats:
         stats.record_already_stripped()
         stats.record_db_cache_hit()
         stats.record_db_remote_hit()
-        stats.record_langfile_hit()
+        stats.record_config_lang_hit()
         assert stats.ignored == 1
         assert stats.skipped_timestamp == 1
         assert stats.already_stripped == 1
         assert stats.db_cache_hits == 1
         assert stats.db_remote_hits == 1
-        assert stats.langfile_hits == 1
+        assert stats.config_lang_hits == 1
 
     def test_record_lists(self) -> None:
         stats = Stats()
@@ -143,7 +143,7 @@ class TestConditionalRows:
             "Already stripped",
             "Stripped",
             "DB cache hits",
-            "Langfile hits",
+            "Config file langs",
         ],
     )
     def test_default_shows_always_visible_row(self, row: str) -> None:
@@ -173,3 +173,19 @@ class TestConditionalRows:
         stats.record_error(Path("/x.mkv"), "boom")
         output = _render(stats)
         assert "Errors" in output
+
+
+class TestMarkupSafety:
+    """Raw paths and messages render literally instead of as Rich markup."""
+
+    def test_bracket_tags_render_literally(self) -> None:
+        stats = Stats()
+        stats.record_stripped(Path("/m/Movie.[x265]-GRP.mkv"))
+        output = _render(stats)
+        assert "[x265]" in output
+
+    def test_closing_tag_like_text_does_not_crash(self) -> None:
+        stats = Stats()
+        stats.record_error(Path("/m/dir[/sub"), "cmd failed: [/bad] tag")
+        output = _render(stats)
+        assert "[/bad]" in output

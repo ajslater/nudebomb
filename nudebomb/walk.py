@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import asdict
+from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -12,19 +13,29 @@ from loguru import logger
 from treestamps import Grovestamps, GrovestampsConfig
 from treestamps.tree import Treestamps
 
-from nudebomb.config import TIMESTAMPS_CONFIG_KEYS
-from nudebomb.langfiles import LangFiles
+from nudebomb.config import (
+    DIR_CONFIG_FILENAME,
+    TIMESTAMPS_CONFIG_KEYS,
+    DirConfig,
+    LangfileMigrator,
+    LangFiles,
+    NudebombConfig,
+)
 from nudebomb.log import console
 from nudebomb.log.progress import make_progress
 from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.log.summary import render as render_summary
 from nudebomb.lookup import TMDBLookup, TVDBLookup
+from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import parse_title
 from nudebomb.mkv import MKVFile
 from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
+    from argparse import Namespace
+    from collections.abc import Iterator
+
     from nudebomb.config import NudebombSettings
 
 # Canonical key shape: (namespace, key_a, key_b). Namespaces are cheap
@@ -34,11 +45,16 @@ _LookupKey = tuple[str, str, str]
 # Hard cap to protect TMDB/TVDB rate limits even if the user cranks the knob.
 _MAX_LOOKUP_WORKERS: Final = 8
 
+# Skip reasons with special handling in walk_file/_count_path; all other
+# reasons are logged and counted as ignored.
+_DIR_REASON: Final = "directory"
+_TIMESTAMP_REASON: Final = "timestamp"
+
 
 class Walk:
     """Directory traversal class."""
 
-    def __init__(self, config: NudebombSettings) -> None:
+    def __init__(self, config: NudebombSettings, args: Namespace | None = None) -> None:
         """Initialize."""
         self._config: NudebombSettings = config
         self._stats: Stats = Stats(
@@ -48,86 +64,86 @@ class Walk:
         )
         # Progress is built later (in run()) once we know the total count.
         self._reporter: Reporter = Reporter(stats=self._stats)
-        self._langfiles: LangFiles = LangFiles(config, stats=self._stats)
+        self._langfiles: LangFiles = LangFiles(config)
+        # Resolves per-directory ``.nudebomb.yaml`` overrides on top of the
+        # run-wide config; ``args`` is re-applied so CLI options still win.
+        self._dirconfig: DirConfig = DirConfig(
+            NudebombConfig(), args, config, self._stats
+        )
+        # Converts deprecated langfiles to .nudebomb.yaml as directories are
+        # walked; reuses the caches above so it sees pre-migration state.
+        self._migrator: LangfileMigrator = LangfileMigrator(
+            config, self._langfiles, self._dirconfig, self._stats
+        )
         self._timestamps: Grovestamps | None = None
+        # One cache shared by both lookup backends so their in-memory
+        # layers cooperate instead of duplicating disk reads.
+        lookup_cache = (
+            LookupCache(config.cache_expiry_days, self._reporter)
+            if config.tmdb_api_key or config.tvdb_api_key
+            else None
+        )
         self._tmdb: TMDBLookup | None = (
-            TMDBLookup(config, self._reporter) if config.tmdb_api_key else None
+            TMDBLookup(config, self._reporter, lookup_cache)
+            if config.tmdb_api_key
+            else None
         )
         self._tvdb: TVDBLookup | None = (
-            TVDBLookup(config, self._reporter) if config.tvdb_api_key else None
+            TVDBLookup(config, self._reporter, lookup_cache)
+            if config.tvdb_api_key
+            else None
         )
         self._executor: ThreadPoolExecutor | None = None
         # Walk-wide future map keyed by canonical cache key.
         # The first file in a (title, year) / (id_type, id_value) group
         # submits the lookup; later files reuse the same future.
         self._pending: dict[_LookupKey, Future[str | None]] = {}
+        # Skip verdicts computed by the prefetch pass, consumed (popped)
+        # by walk_file so the guard work runs once per file.
+        self._prefetched_skip_reasons: dict[Path, str | None] = {}
 
     # ------------------------------------------------------------------
     # Guards
     # ------------------------------------------------------------------
 
-    def _is_path_suffix_not_mkv(self, path: Path) -> bool:
-        """Return if the suffix should skipped."""
-        if path.suffix == ".mkv":
-            return False
-        logger.debug(f"Skip: Suffix is not 'mkv': {path}")
-        self._stats.record_ignored()
-        self._reporter.progress.mark_ignored()
-        return True
+    def _dir_timestamps(self, top_path: Path, dir_path: Path) -> bool:
+        """Return whether timestamp tracking is enabled for ``dir_path``."""
+        return self._dirconfig.get_settings(top_path, dir_path).timestamps
 
-    def _is_path_ignored(self, path: Path) -> bool:
-        """Return if path should be ignored."""
-        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            logger.debug(f"Skip: ignored: {path}")
-            self._stats.record_ignored()
-            self._reporter.progress.mark_ignored()
-            return True
-        return False
-
-    def _is_path_before_timestamp(self, top_path: Path, path: Path) -> bool:
+    def _is_before_timestamp(self, top_path: Path, path: Path) -> bool:
         """Return if the file was last updated before the timestamp."""
+        mtime: float | None = None
         if self._config.after:
-            mtime: float | None = self._config.after
-        elif self._timestamps:
+            mtime = self._config.after
+        elif self._timestamps is not None and self._dir_timestamps(
+            top_path, Treestamps.get_dir(path)
+        ):
             mtime = self._timestamps.get_timestamp(top_path, path)
-        else:
-            mtime = None
+        return mtime is not None and mtime > path.stat().st_mtime
 
-        if mtime is not None and mtime > path.stat().st_mtime:
-            logger.debug(f"Skip by timestamps {path}")
-            self._stats.record_skipped_timestamp()
-            self._reporter.progress.mark_skipped_timestamp()
-            return True
-        return False
-
-    def _is_path_skippable_symlink(self, path: Path) -> bool:
-        if not self._config.symlinks and path.is_symlink():
-            logger.debug(f"Skip: symlink: {path}")
-            self._stats.record_ignored()
-            self._reporter.progress.mark_ignored()
-            return True
-        return False
-
-    def _would_strip(self, top_path: Path, path: Path) -> bool:
+    def _skip_reason(
+        self, top_path: Path, path: Path, *, use_timestamps: bool = True
+    ) -> str | None:
         """
-        Silent version of ``walk_file``'s guards.
+        Return why ``path`` would be skipped, or None to process it.
 
-        Used to decide whether prefetching a lookup is worthwhile — does
-        not emit skip messages; ``walk_file`` prints those on the main pass.
+        The single source of truth for walk/prefetch/count guard logic —
+        no side effects (logging and stats stay in ``walk_file``).
+        ``use_timestamps=False`` skips the stat-based timestamp check for
+        callers that don't need it (the progress-bar count).
         """
-        if path.is_dir() or path.suffix != ".mkv":
-            return False
-        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            return False
-        if not self._config.symlinks and path.is_symlink():
-            return False
-        if self._config.after:
-            mtime: float | None = self._config.after
-        elif self._timestamps:
-            mtime = self._timestamps.get_timestamp(top_path, path)
-        else:
-            mtime = None
-        return not (mtime is not None and mtime > path.stat().st_mtime)
+        settings = self._dirconfig.get_settings(top_path, Treestamps.get_dir(path))
+        if any(path.match(ignore_glob) for ignore_glob in settings.ignore):
+            return "ignored"
+        if not settings.symlinks and path.is_symlink():
+            return "symlink"
+        if path.is_dir():
+            return _DIR_REASON
+        if path.suffix != ".mkv":
+            return "suffix is not 'mkv'"
+        if use_timestamps and self._is_before_timestamp(top_path, path):
+            return _TIMESTAMP_REASON
+        return None
 
     # ------------------------------------------------------------------
     # Pre-walk file count (drives a determinate progress bar)
@@ -135,7 +151,7 @@ class Walk:
 
     def _count_dir(self, top_path: Path, dir_path: Path) -> int:
         """Recurse a directory mirroring walk_file/walk_dir's guards."""
-        if not self._config.recurse:
+        if not self._dirconfig.get_settings(top_path, dir_path).recurse:
             return 0
         total = 0
         try:
@@ -147,16 +163,14 @@ class Walk:
         return total
 
     def _count_path(self, top_path: Path, path: Path) -> int:
-        """Count files under a single path, mirroring walk_file's guards."""
-        if any(path.match(ignore_glob) for ignore_glob in self._config.ignore):
-            return 1  # still represents one bar advance via mark_ignored
-        if not self._config.symlinks and path.is_symlink():
-            return 1
-        if path.is_dir():
-            return self._count_dir(top_path, path)
+        """Count files under a single path, sharing walk_file's guards."""
         # Every visited non-dir entry contributes exactly one bar advance:
         # either the file is processed (stripped/dry-run/already-stripped/
-        # error) or it gets skipped (non-mkv suffix, timestamp).
+        # error) or it gets skipped (ignored, non-mkv suffix, timestamp) —
+        # so the timestamp stat is skipped here.
+        reason = self._skip_reason(top_path, path, use_timestamps=False)
+        if reason == _DIR_REASON:
+            return self._count_dir(top_path, path)
         return 1
 
     def _count_total(self) -> int:
@@ -175,14 +189,16 @@ class Walk:
     def _has_lookup_backend(self) -> bool:
         return self._tmdb is not None or self._tvdb is not None
 
-    def _lookup_key(self, path: Path) -> _LookupKey | None:
+    def _lookup_key(self, path: Path, media_type: str | None) -> _LookupKey | None:
         """
         Canonical cache key for de-dup across files in a walk.
 
         Matches the cache keys used by :class:`LookupCache` so two files
-        that would hit the same cache entry share a single future.
+        that would hit the same cache entry share a single future. The
+        ``media_type`` is the directory-resolved value, so files in a ``tv``
+        subtree and a ``movie`` subtree key (and cache) independently.
         """
-        parsed = parse_title(path.stem, self._config.media_type or "")
+        parsed = parse_title(path.stem, media_type or "")
         if parsed.tvdb_id:
             return ("tv", "tvdb", parsed.tvdb_id)
         if parsed.tmdb_id:
@@ -190,10 +206,10 @@ class Walk:
         if parsed.imdb_id:
             return ("", "imdb", parsed.imdb_id)
         if parsed.title:
-            return (self._config.media_type or "", parsed.title, parsed.year)
+            return (media_type or "", parsed.title, parsed.year)
         return None
 
-    def _do_lookup(self, path: Path) -> str | None:
+    def _do_lookup(self, path: Path, media_type: str | None) -> str | None:
         """
         Run the configured lookups in TVDB-first-then-TMDB order.
 
@@ -202,22 +218,24 @@ class Walk:
         thread-safe, and Stats has its own lock).
         """
         lang: str | None = None
-        if self._tvdb and self._config.media_type == "tv":
+        if self._tvdb and media_type == "tv":
             lang = self._tvdb.lookup_language(path)
         if not lang and self._tmdb:
-            lang = self._tmdb.lookup_language(path)
+            lang = self._tmdb.lookup_language(path, media_type)
         return lang
 
-    def _submit_lookup(self, path: Path) -> Future[str | None] | None:
+    def _submit_lookup(
+        self, path: Path, media_type: str | None
+    ) -> Future[str | None] | None:
         """Submit (or reuse) a lookup future for ``path``."""
         if self._executor is None or not self._has_lookup_backend():
             return None
-        key = self._lookup_key(path)
+        key = self._lookup_key(path, media_type)
         if key is None:
             return None
         if (future := self._pending.get(key)) is not None:
             return future
-        future = self._executor.submit(self._do_lookup, path)
+        future = self._executor.submit(self._do_lookup, path, media_type)
         self._pending[key] = future
         return future
 
@@ -234,7 +252,8 @@ class Walk:
             return None
         if self._langfiles.found_lang_files(top_path, dir_path):
             return None
-        return self._submit_lookup(path)
+        media_type = self._dirconfig.get_settings(top_path, dir_path).media_type
+        return self._submit_lookup(path, media_type)
 
     # ------------------------------------------------------------------
     # Core per-file processing
@@ -247,8 +266,21 @@ class Walk:
     ) -> bool:
         """Strip a single mkv file."""
         dir_path = Treestamps.get_dir(path)
-        config = deepcopy(self._config)
-        config.languages = self._langfiles.get_langs(top_path, dir_path)
+        # Directory config sets the base (a deepcopy so per-file language
+        # mutations never leak into the cached directory settings); lang
+        # files stay purely additive on top of that resolved keep-set.
+        dir_settings = self._dirconfig.get_settings(top_path, dir_path)
+        # A difference from the run-wide keep-set is exactly the contribution
+        # of a directory ``.nudebomb.yaml`` (its only extra source).
+        if (
+            dir_settings.languages != self._config.languages
+            or dir_settings.sub_languages != self._config.sub_languages
+        ):
+            self._stats.record_config_lang_hit()
+        config = deepcopy(dir_settings)
+        config.languages = config.languages | self._langfiles.get_extra_langs(
+            top_path, dir_path
+        )
 
         lookup_future = self._get_or_submit_lookup(top_path, dir_path, path)
 
@@ -284,9 +316,14 @@ class Walk:
         self._langfiles.get_langs(top_path, dir_path)
         if self._langfiles.found_lang_files(top_path, dir_path):
             return
+        media_type = self._dirconfig.get_settings(top_path, dir_path).media_type
         for path in mkv_files:
-            if self._would_strip(top_path, path):
-                self._submit_lookup(path)
+            # Remember the verdict so walk_file doesn't repeat the
+            # stat/glob work moments later.
+            reason = self._skip_reason(top_path, path)
+            self._prefetched_skip_reasons[path] = reason
+            if reason is None:
+                self._submit_lookup(path, media_type)
 
     def walk_dir(
         self,
@@ -294,13 +331,31 @@ class Walk:
         dir_path: Path,
     ) -> None:
         """Walk a directory."""
-        if not self._config.recurse:
+        if not self._dirconfig.get_settings(top_path, dir_path).recurse:
+            msg = (
+                f"Skipping directory {dir_path}: "
+                "use -r/--recurse to process directories."
+            )
+            logger.warning(msg)
+            self._stats.record_warning(dir_path, msg)
+            self._reporter.progress.mark_warning()
             return
 
         mkv_files: list[Path] = []
         other_files: list[Path] = []
 
-        for filename in sorted(dir_path.iterdir()):
+        try:
+            entries = sorted(dir_path.iterdir())
+        except OSError as exc:
+            # Same guard as _count_dir: an unreadable directory (perms,
+            # dropped network mount) must not abort the whole walk.
+            msg = f"Could not read directory {dir_path}: {exc}"
+            logger.error(msg)
+            self._stats.record_error(dir_path, msg)
+            self._reporter.progress.mark_error()
+            return
+
+        for filename in entries:
             if filename.is_dir():
                 self.walk_file(top_path, filename)
             elif filename.suffix == ".mkv":
@@ -315,27 +370,50 @@ class Walk:
         for path in other_files:
             self.walk_file(top_path, path)
 
-        if self._timestamps:
+        if (
+            self._timestamps is not None
+            and not self._config.dry_run
+            and self._dir_timestamps(top_path, dir_path)
+        ):
             self._timestamps.set(top_path, dir_path, compact=True)
+
+        # Migrate this dir's deprecated langfiles last, so children (already
+        # processed above) and this dir's own strip both used the langfiles
+        # before they're removed. Dry runs never touch the filesystem.
+        if not self._config.dry_run:
+            self._migrator.migrate_dir(top_path, dir_path)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
-        if self._is_path_ignored(path):
-            return
-        if self._is_path_skippable_symlink(path):
-            return
-        if path.is_dir():
+        if path in self._prefetched_skip_reasons:
+            reason = self._prefetched_skip_reasons.pop(path)
+        else:
+            reason = self._skip_reason(top_path, path)
+        if reason == _DIR_REASON:
             self.walk_dir(top_path, path)
             return
-        if self._is_path_suffix_not_mkv(path):
+        if reason == _TIMESTAMP_REASON:
+            logger.debug(f"Skip by timestamps {path}")
+            self._stats.record_skipped_timestamp()
+            self._reporter.progress.mark_skipped_timestamp()
             return
-        if self._is_path_before_timestamp(top_path, path):
+        if reason is not None:
+            logger.debug(f"Skip: {reason}: {path}")
+            self._stats.record_ignored()
+            self._reporter.progress.mark_ignored()
             return
         # `up_to_date` is True for both freshly-remuxed files and files
         # that were already stripped — both states mean "no need to
-        # re-check next run", so write the timestamp.
+        # re-check next run", so write the timestamp. Dry runs read
+        # timestamps (so the preview matches a real run) but never write
+        # them.
         up_to_date = self.strip_path(top_path, path)
-        if self._timestamps and up_to_date:
+        if (
+            self._timestamps is not None
+            and up_to_date
+            and not self._config.dry_run
+            and self._dir_timestamps(top_path, Treestamps.get_dir(path))
+        ):
             self._timestamps.set(top_path, path)
 
     # ------------------------------------------------------------------
@@ -351,33 +429,123 @@ class Walk:
             sub_langs = ", ".join(sorted(self._config.sub_languages))
             logger.info(f"Stripping subtitle languages except {sub_langs}.")
 
-    def run(self) -> None:
+    @staticmethod
+    def _config_candidates(root: Path, *, is_dir: bool) -> list[Path]:
+        """List candidate ``.nudebomb.yaml`` files for one target path."""
+        # A single-file target only sees its own directory's config.
+        if not is_dir:
+            return [root.parent / DIR_CONFIG_FILENAME]
+        try:
+            return sorted(root.rglob(DIR_CONFIG_FILENAME))
+        except OSError:
+            return []
+
+    @staticmethod
+    def _config_chunk(root: Path, config_file: Path, *, is_dir: bool) -> bytes | None:
+        """Return one config file's fingerprint contribution, or None."""
+        try:
+            data = config_file.read_bytes()
+        except OSError:
+            # Covers missing files and directories named like the config.
+            return None
+        # A path relative to the target keeps the digest stable across
+        # cwd/mount changes; add/remove/rename still flips it.
+        rel = config_file.relative_to(root) if is_dir else config_file.name
+        return str(rel).encode() + b"\0" + data + b"\0"
+
+    def _dir_config_fingerprint(self) -> str:
+        """
+        Hash every ``.nudebomb.yaml`` under the target paths.
+
+        Folded into the treestamps ``program_config`` so that editing,
+        adding, or removing any directory config flips the digest and the
+        affected tree re-strips on the next run — over-invalidation that is
+        always safe (re-checking an already-stripped file is a cheap no-op)
+        and never wrong-skips a file whose effective config changed.
+        """
+        hasher = sha256()
+        seen: set[Path] = set()
+        for path_str in self._config.paths:
+            root = Path(path_str)
+            is_dir = root.is_dir()
+            for config_file in self._config_candidates(root, is_dir=is_dir):
+                if config_file in seen:
+                    continue
+                seen.add(config_file)
+                chunk = self._config_chunk(root, config_file, is_dir=is_dir)
+                if chunk is not None:
+                    hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _config_dirs(self) -> Iterator[tuple[Path, Path]]:
+        """Yield (top_path, directory) for each directory holding a config file."""
+        for path_str in self._config.paths:
+            root = Path(path_str)
+            is_dir = root.is_dir()
+            top_path = Treestamps.get_dir(root)
+            for config_file in self._config_candidates(root, is_dir=is_dir):
+                if config_file.is_file():
+                    yield top_path, config_file.parent
+
+    def _timestamps_enabled(self) -> bool:
+        """Whether timestamps are on globally or in any directory config."""
+        return self._config.timestamps or any(
+            self._dir_timestamps(top_path, dir_path)
+            for top_path, dir_path in self._config_dirs()
+        )
+
+    def _read_timestamps(self) -> None:
+        """Load recorded timestamps when timestamps mode is on."""
+        if not self._timestamps_enabled():
+            return
+        # A directory config may enable timestamps even when the run-wide
+        # flag is off; reflect that in the summary's timestamp row.
+        self._stats.timestamps_active = True
+        # Fold a fingerprint of the directory configs into the program config
+        # so any change to a ``.nudebomb.yaml`` invalidates its tree's
+        # timestamps (the single global program_config can't otherwise see
+        # per-directory config changes).
+        program_config = asdict(self._config)
+        program_config["_dir_config_fingerprint"] = self._dir_config_fingerprint()
+        # Force `verbose=0` so treestamps's own termcolor Printer
+        # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
+        # dots straight to stdout for each `.set()` call, bypassing
+        # rich's Live region and breaking the bar's in-place redraw.
+        grove_config = GrovestampsConfig(
+            PROGRAM_NAME,
+            paths=self._config.paths,
+            verbose=0,
+            symlinks=self._config.symlinks,
+            ignore=self._config.ignore,
+            check_config=self._config.timestamps_check_config,
+            # GrovestampsConfig wants a Mapping; convert the dataclass.
+            program_config=program_config,
+            program_config_keys=TIMESTAMPS_CONFIG_KEYS | {"_dir_config_fingerprint"},
+        )
+        self._timestamps = Grovestamps(grove_config)
+        roots = ", ".join(sorted(str(p) for p in self._timestamps))
+        logger.info(f"Read timestamps from {roots}")
+
+    def _dump_timestamps(self) -> None:
+        """Persist timestamps at end of run; dry runs never write."""
+        if not self._timestamps or self._config.dry_run:
+            return
+        if dumped := self._timestamps.dumpf():
+            roots = ", ".join(str(p) for p in dumped)
+            logger.info(f"Dumped timestamps for {roots}")
+
+    def run(self) -> Stats:
         """Run the stripper against all configured paths."""
         self._print_config()
         logger.info("Searching for MKV files to process…")
 
-        if self._config.timestamps:
-            # Force `verbose=0` so treestamps's own termcolor Printer
-            # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
-            # dots straight to stdout for each `.set()` call, bypassing
-            # rich's Live region and breaking the bar's in-place redraw.
-            grove_config = GrovestampsConfig(
-                PROGRAM_NAME,
-                paths=self._config.paths,
-                verbose=0,
-                symlinks=self._config.symlinks,
-                ignore=self._config.ignore,
-                check_config=self._config.timestamps_check_config,
-                # GrovestampsConfig wants a Mapping; convert the dataclass.
-                program_config=asdict(self._config),
-                program_config_keys=TIMESTAMPS_CONFIG_KEYS,
-            )
-            self._timestamps = Grovestamps(grove_config)
-            roots = ", ".join(sorted(str(p) for p in self._timestamps))
-            logger.info(f"Read timestamps from {roots}")
+        self._read_timestamps()
 
-        total = self._count_total()
-        progress = make_progress(total, console, enabled=self._config.verbose > 0)
+        # The counting pass traverses the whole tree just to size the
+        # bar — skip it entirely when the bar can't render.
+        progress_enabled = self._config.verbose > 0 and console.is_terminal
+        total = self._count_total() if progress_enabled else 0
+        progress = make_progress(total, console, enabled=progress_enabled)
         # Replace the no-op progress that lookup classes captured at
         # construction time so they advance the real bar.
         self._reporter.progress = progress
@@ -399,9 +567,8 @@ class Walk:
             finally:
                 self._executor = None
 
-        if self._timestamps and (dumped := self._timestamps.dumpf()):
-            roots = ", ".join(str(p) for p in dumped)
-            logger.info(f"Dumped timestamps for {roots}")
+        self._dump_timestamps()
 
         if self._config.verbose > 0:
             render_summary(self._stats, console)
+        return self._stats

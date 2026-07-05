@@ -13,11 +13,12 @@ dependencies = [
   "platformdirs>=4.9.6",
   "pycountry~=26.2",
   "python-dateutil~=2.8",
-  "rich~=15.0",
   "rich-argparse~=1.8",
+  "requests~=2.32",
+  "rich~=15.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
-  "treestamps~=4.0.2",
+  "treestamps~=4.1.0",
   "tvdb_v4_official~=1.1",
   "typing-extensions~=4.13",
 ]
@@ -33,8 +34,8 @@ name = "AJ Slater"
 email = "aj@slater.net"
 
 [project.urls]
-Documentation = "https://nudebomb.readthedocs.io/news/"
-News = "https://nudebomb.readthedocs.io/"
+Documentation = "https://nudebomb.readthedocs.io/"
+News = "https://nudebomb.readthedocs.io/NEWS/"
 Issues = "https://github.com/ajslater/nudebomb/issues"
 Source = "https://github.com/ajslater/nudebomb"
 
@@ -56,7 +57,7 @@ build = []
 lint = [
   "basedpyright~=1.38",
   "codespell~=2.4",
-  "complexipy~=5.1",
+  "complexipy~=6.0",
   "djlint~=1.3.dev0",
   "icecream~=2.1",
   "mbake~=1.4.5",
@@ -70,9 +71,8 @@ lint = [
 test = [
   "coverage[toml]~=7.0",
   "deepdiff~=9.0",
-  "pytest-asyncio~=1.0",
+  "pytest~=9.0",
   "pytest-cov~=7.0",
-  "pytest-gitignore~=1.3",
 ]
 docs = ["mkapi~=4.4", "mkdocs-minify-plugin~=0.8", "mkdocs~=1.6"]
 ci = ["requests~=2.32"]
@@ -85,7 +85,6 @@ build-backend = "uv_build"
 module-root = ""
 source-include = [
   ".*ignore",
-  ".circlci/**",
   ".env.platforms",
   ".picopt_treestamps.yaml",
   ".readthedocs.yaml",
@@ -95,7 +94,6 @@ source-include = [
   "NEWS.md",
   "bin/**",
   "bun.lock",
-  "ci/**",
   "compose.yaml",
   "docs/DOCKER.md",
   "docs/NEWS",
@@ -108,17 +106,12 @@ source-include = [
   "docs/style.mkdocs.css",
   "docs/style.readthedocs.css",
   "eslint.config.js",
-  "frontend/**",
-  "img/**",
-  "mkdocks.yml",
-  "mock_comics/**",
-  "package-lock.json",
+  "mkdocs.yml",
   "package.json",
-  "tests/**",
   "uv.lock",
   "vulture_ignorelist.py",
 ]
-source-exclude = ["**/*\\~", "**/.DS_Store", "frontend/node_modules"]
+source-exclude = ["**/*\\~", "**/.DS_Store"]
 wheel-exclude = ["**/*\\~", "**/.DS_Store"]
 
 [tool.basedpyright]
@@ -128,7 +121,6 @@ exclude = [
   "**/node_modules",
   "dist",
   "frontend",
-  "site",
   "site",
   "test-results",
   "typings",
@@ -156,14 +148,19 @@ reportUnusedParameter = false
 [tool.codespell]
 builtin = "clear,code,rare"
 check-hidden = true
-ignore-words-list = "coverd,falsy,ro,searchd,thead,versio,ws"
-skip = "*~,.*,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock"
+ignore-words-list = "coverd,crate,falsy,iff,ro,searchd,thead,versio,wan,warmup,ws"
+skip = "*.svg,*~,.*,.*/*,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,test-results,typings,uv.lock"
 
 [tool.complexipy]
 failed = true
 paths = ["nudebomb", "tests"]
 exclude = [
+  "**/__pycache__",
   "*/.*",
+  ".cache",
+  ".git",
+  ".github",
+  ".venv",
   "frontend",
   "node_modules",
   "site",
@@ -209,7 +206,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.radon]
-exclude = "*~,.*,.*/*,__pycache__/*,config/*,dist/*,frontend/*,node_modules/*,site/*,test-results/*,typings/*"
+exclude = "*~,.*,.*/*,__pycache__/*,config/*,dist/*,frontend/*,node_modules/*,site/*,test-results/*,typings/*,vulture_ignorelist.py"
 
 [tool.ruff]
 builtins = ["ic"]
@@ -332,13 +329,11 @@ exclude = [
   "vulture_ignorelist.py",
 ]
 
-[tool.typos.default.extend-words]
-bookmarkd = "bookmarkd"
-coverd = "coverd"
-versio = "versio"
-
 [tool.vulture]
 exclude = [
+  "**/.*",
+  "**/__pycache__",
+  "**/node_modules",
   "*/.*",
   "*/__pycache__*",
   "*/node_modules*",
@@ -351,3 +346,8 @@ exclude = [
 ]
 min_confidence = 61
 sort_by_size = true
+
+[tool.typos.default.extend-words]
+bookmarkd = "bookmarkd"
+coverd = "coverd"
+versio = "versio"

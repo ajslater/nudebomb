@@ -2,7 +2,7 @@
 Language-code utilities.
 
 Lives in its own module so both ``nudebomb.config`` and
-``nudebomb.langfiles`` can depend on it without forming an import
+``nudebomb.config.langfiles`` can depend on it without forming an import
 cycle (``langfiles`` takes ``NudebombSettings`` for type-checking;
 ``config`` previously imported ``lang_to_alpha3`` from ``langfiles``,
 which would close the loop).
@@ -27,6 +27,7 @@ def lang_to_alpha3(lang: str) -> str:
             with suppress(Exception):
                 if lo := pycountry.languages.get(alpha_2=lang):
                     return lo.alpha_3
+            logger.warning(f"Unrecognized two letter language code: {lang}")
         case _:
             logger.warning(f"Languages should be in two or three letter format: {lang}")
     return lang

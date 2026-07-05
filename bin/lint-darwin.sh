@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Lint checks
+# Lint shell scripts when the tools are installed
 set -euxo pipefail
 
-if [ "$(uname)" != "Darwin" ]; then
-  # subdirs aren't copied into docker builder
-  # .env files aren't copied into docker
-  exit 0
-fi
+for tool in shellcheck shellharden shfmt; do
+  if ! command -v "$tool" >/dev/null; then
+    echo "$tool not installed; skipping shell lint"
+    exit 0
+  fi
+done
+
 bin/lint-sh.sh

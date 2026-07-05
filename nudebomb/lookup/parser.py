@@ -93,9 +93,15 @@ def _parse_title_without_noise(normalized: str) -> tuple[str, str]:
 
 def _parse_tv_episode_matched_title(normalized: str) -> str:
     if episode_match := _EPISODE_PATTERN.search(normalized):
-        # Series name is everything before the " - S01E02" segment.
-        # Walk backwards from the episode match to find the separator.
-        return normalized[: episode_match.start()].strip()
+        # Truncate at the leftmost of the episode marker and any noise
+        # token: resolutions like 1920x1080 also match the episode
+        # pattern, so noise preceding a false-positive match must still
+        # be stripped (e.g. "Movie BluRay 1920x1080 x264" -> "Movie").
+        cut = episode_match.start()
+        noise_match = _NOISE_CUTOFF.search(normalized)
+        if noise_match and noise_match.start() < cut:
+            cut = noise_match.start()
+        return normalized[:cut].strip()
     return ""
 
 
@@ -149,10 +155,3 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
             title, year = _parse_generic_title(normalized)
 
     return ParseResult(title=title, year=year, tmdb_id="", imdb_id="", tvdb_id="")
-
-
-if __name__ == "__main__":
-    import sys
-
-    title = _parse_tv_title(sys.argv[1])
-    print(title)  # noqa: T201
