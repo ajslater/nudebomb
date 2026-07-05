@@ -35,7 +35,7 @@ def _migrator(media: Path, *extra_argv: str, stats: Stats | None = None):
     args = get_arguments(argv)
     nudebomb_config = NudebombConfig()
     config = nudebomb_config.get_config(args)
-    langfiles = LangFiles(config, stats=stats)
+    langfiles = LangFiles(config)
     dirconfig = DirConfig(nudebomb_config, args, config, stats)
     return LangfileMigrator(config, langfiles, dirconfig, stats)
 

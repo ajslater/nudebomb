@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from nudebomb.config.config import NudebombSettings
-    from nudebomb.log.summary import Stats
 
 __all__ = ("LANGS_FNS", "LangFiles", "lang_to_alpha3")
 
@@ -22,14 +21,13 @@ LANGS_FNS: Final = frozenset({"lang", "langs", ".lang", ".langs"})
 class LangFiles:
     """Process nudebomb langfiles."""
 
-    def __init__(self, config: NudebombSettings, stats: Stats | None = None) -> None:
+    def __init__(self, config: NudebombSettings) -> None:
         """Initialize."""
         self._config: NudebombSettings = config
         self._lang_roots: dict[Path, set[str]] = {}
         self._languages: frozenset[str] = frozenset(
             lang_to_alpha3(lang) for lang in self._config.languages
         )
-        self._stats: Stats | None = stats
 
     def _read_lang_file(self, path: Path, fn: str) -> None:
         langpath = path / fn
@@ -48,8 +46,6 @@ class LangFiles:
         }
         newlangs_str = ", ".join(sorted(newlangs))
         logger.info(f"Also keeping {newlangs_str} for {path}")
-        if self._stats is not None and newlangs:
-            self._stats.record_langfile_hit()
         self._lang_roots[path] |= newlangs
 
     def read_lang_files(self, path: Path) -> set[str]:

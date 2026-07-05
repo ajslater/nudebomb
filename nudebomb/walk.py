@@ -64,7 +64,7 @@ class Walk:
         )
         # Progress is built later (in run()) once we know the total count.
         self._reporter: Reporter = Reporter(stats=self._stats)
-        self._langfiles: LangFiles = LangFiles(config, stats=self._stats)
+        self._langfiles: LangFiles = LangFiles(config)
         # Resolves per-directory ``.nudebomb.yaml`` overrides on top of the
         # run-wide config; ``args`` is re-applied so CLI options still win.
         self._dirconfig: DirConfig = DirConfig(
@@ -269,7 +269,15 @@ class Walk:
         # Directory config sets the base (a deepcopy so per-file language
         # mutations never leak into the cached directory settings); lang
         # files stay purely additive on top of that resolved keep-set.
-        config = deepcopy(self._dirconfig.get_settings(top_path, dir_path))
+        dir_settings = self._dirconfig.get_settings(top_path, dir_path)
+        # A difference from the run-wide keep-set is exactly the contribution
+        # of a directory ``.nudebomb.yaml`` (its only extra source).
+        if (
+            dir_settings.languages != self._config.languages
+            or dir_settings.sub_languages != self._config.sub_languages
+        ):
+            self._stats.record_config_lang_hit()
+        config = deepcopy(dir_settings)
         config.languages = config.languages | self._langfiles.get_extra_langs(
             top_path, dir_path
         )

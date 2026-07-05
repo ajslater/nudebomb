@@ -40,7 +40,7 @@ class Stats:
 
     db_cache_hits: int = 0
     db_remote_hits: int = 0
-    langfile_hits: int = 0
+    config_lang_hits: int = 0
     migrated_langfiles: int = 0
 
     db_no_results: list[str] = field(default_factory=list)
@@ -93,10 +93,10 @@ class Stats:
         with self._lock:
             self.db_remote_hits += 1
 
-    def record_langfile_hit(self) -> None:
-        """Increment the langfile-hit counter."""
+    def record_config_lang_hit(self) -> None:
+        """Increment the count of files whose languages came from a config."""
         with self._lock:
-            self.langfile_hits += 1
+            self.config_lang_hits += 1
 
     def record_langfile_migrated(self) -> None:
         """Increment the count of langfiles migrated to .nudebomb.yaml."""
@@ -160,7 +160,9 @@ def _counts_table(stats: Stats) -> Table:
             style=MARKS["lookup_hit"].style,
         )
     table.add_row(
-        "Langfile hits", str(stats.langfile_hits), style=MARKS["lookup_hit"].style
+        "Config file langs",
+        str(stats.config_lang_hits),
+        style=MARKS["lookup_hit"].style,
     )
     if stats.migrated_langfiles:
         table.add_row(
