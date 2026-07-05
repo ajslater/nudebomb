@@ -19,7 +19,8 @@
 
 - Online lookups no longer fail on standard `Title (Year)` filenames.
 - One unreadable or corrupt MKV no longer aborts the whole run.
-- Nudebomb exits nonzero when any file errors, so scripts and cron can detect it.
+- Nudebomb exits nonzero when any file errors, so scripts and cron can detect
+  it.
 - Stalled network lookups now time out instead of freezing the run.
 - Release tags like `[x265]` in filenames no longer break the progress display
   or the end-of-run summary.
