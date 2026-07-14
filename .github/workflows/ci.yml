@@ -23,10 +23,6 @@ jobs:
   test:
     name: Lint, Test & Build
     runs-on: ubuntu-24.04
-    # Cost-saving policy: ordinary feature PRs into develop are
-    # intentionally NOT gated (their checks show as skipped). CI runs
-    # only for pushes to main, PRs targeting main, and the
-    # pre-release -> develop PR.
     if: |
       github.ref_name == 'main' && github.event_name == 'push' ||
       github.base_ref == 'main' ||
@@ -71,9 +67,7 @@ jobs:
           load: true
           tags: ${{ env.CI_IMAGE_TAG }}
           cache-from: type=registry,ref=${{ env.CI_IMAGE}}:cache
-          # Fork PRs get a read-only GITHUB_TOKEN, so pushing the cache
-          # would fail the job — skip cache-to for them.
-          cache-to: ${{ github.event.pull_request.head.repo.fork != true && format('type=registry,ref={0}:cache,mode=max', env.CI_IMAGE) || '' }}
+          cache-to: type=registry,ref=${{ env.CI_IMAGE}}:cache,mode=max
 
       - name: Start Services
         if: steps.gate.outputs.dist_found != 'true'
