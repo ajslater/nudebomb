@@ -118,7 +118,7 @@ class TestMkv(DiffTracksTest):
         """Warnings push the documented '!' mark onto the progress bar."""
         garbage = TEST_DIR / "warn.mkv"
         garbage.write_bytes(b"not a matroska file")
-        reporter = Reporter(stats=Stats(), progress=MagicMock())  # pyright: ignore[reportArgumentType]
+        reporter = Reporter(stats=Stats(), progress=MagicMock())
         MKVFile(self._config, garbage, reporter)
         assert reporter.progress.mark_warning.called  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
 

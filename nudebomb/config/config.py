@@ -75,6 +75,9 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
 # the user config. Named to match the timestamps file ``.nudebomb_treestamps.yaml``
 # without colliding with it. See :class:`nudebomb.config.dirconfig.DirConfig`.
 DIR_CONFIG_FILENAME: Final = ".nudebomb.yaml"
+_LANG_LIST_ERROR: Final = """{key} must be a list of language codes, got {value!r}. \
+Use a comma separated option like '-l eng,fra', a YAML list, or enumerated \
+environment variables like NUDEBOMB_NUDEBOMB__{key_upper}__0=eng."""
 
 # CLI args the config writers never persist: the write flags and -c INPUT
 # path themselves, paths (argparse requires them on every invocation
@@ -328,10 +331,7 @@ class NudebombConfig:
             # ``NUDEBOMB_NUDEBOMB__LANGUAGES=eng``) would otherwise be
             # iterated character by character.
             logger.error(
-                f"{key} must be a list of language codes, got {value!r}. "
-                f"Use a comma separated option like '-l eng,fra', a YAML "
-                f"list, or enumerated environment variables like "
-                f"NUDEBOMB_NUDEBOMB__{key.upper()}__0=eng."
+                _LANG_LIST_ERROR.format(key=key, key_upper=key.upper(), value=value)
             )
             sys.exit(1)
         items = {
