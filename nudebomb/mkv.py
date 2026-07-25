@@ -200,7 +200,7 @@ class MKVFile:
         """Route one mkvmerge output line to either the sub-task or the console."""
         if line.startswith("#GUI#progress"):
             try:
-                pct = int(line.split()[-1].rstrip("%"))
+                pct = int(line.rsplit(maxsplit=1)[-1].rstrip("%"))
             except (IndexError, ValueError):
                 return
             update_pct(pct)
