@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 import time
-import uuid
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -15,6 +14,7 @@ from typing import Final
 from loguru import logger
 from platformdirs import user_cache_dir
 
+from nudebomb.atomic import atomic_write_text
 from nudebomb.log.reporter import Reporter
 from nudebomb.lookup.util import format_title_year
 from nudebomb.version import PROGRAM_NAME
@@ -82,30 +82,12 @@ def _load_entry_file(path: Path, expiry_days: int) -> CacheEntry | None:
     return entry
 
 
-def _atomic_write_text(path: Path, content: str) -> None:
-    """
-    Write ``content`` to ``path`` via a tmp file + rename.
-
-    Each write is all-or-nothing — readers never see a half-written file.
-    A uuid4 suffix keeps concurrent writers to the same target from
-    clobbering each other's tmp files; the final ``replace`` is atomic so
-    last-writer-wins is the worst case.
-    """
-    tmp_path = path.with_suffix(f"{path.suffix}.{uuid.uuid4().hex}.tmp")
-    try:
-        tmp_path.write_text(content)
-        tmp_path.replace(path)
-    except OSError:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
-
 class LookupCache:
     """
     File and memory cache for lookups, separated by media type.
 
     Thread-safe: a single lock guards all in-memory cache mutations. File
-    writes go through :func:`_atomic_write_text` so readers never see a
+    writes go through :func:`~nudebomb.atomic.atomic_write_text` so readers never see a
     torn JSON file.
     """
 
@@ -164,7 +146,7 @@ class LookupCache:
         )
         path = self._cache_path(media_type, title, year)
         try:
-            _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
+            atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
             logger.warning(f"Could not write cache: {exc}")
 
@@ -258,7 +240,7 @@ class LookupCache:
         )
         path = self._id_cache_path(media_type, id_type, id_value)
         try:
-            _atomic_write_text(path, json.dumps(asdict(entry), indent=2))
+            atomic_write_text(path, json.dumps(asdict(entry), indent=2))
         except OSError as exc:
             logger.warning(f"Could not write cache: {exc}")
 

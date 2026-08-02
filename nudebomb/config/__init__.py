@@ -2,6 +2,8 @@
 
 from nudebomb.config.config import (
     DIR_CONFIG_FILENAME,
+    RETIRED_TIMESTAMPS_CONFIG_DEFAULTS,
+    TIMESTAMPS_CONFIG_DEFAULTS,
     TIMESTAMPS_CONFIG_KEYS,
     NudebombConfig,
     NudebombSettings,
@@ -13,6 +15,8 @@ from nudebomb.config.migrate import LangfileMigrator
 __all__ = (
     "DIR_CONFIG_FILENAME",
     "LANGS_FNS",
+    "RETIRED_TIMESTAMPS_CONFIG_DEFAULTS",
+    "TIMESTAMPS_CONFIG_DEFAULTS",
     "TIMESTAMPS_CONFIG_KEYS",
     "DirConfig",
     "LangFiles",

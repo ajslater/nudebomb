@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import sys
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from importlib.resources import files
 from os import environ
 from pathlib import Path, PurePath
 from platform import system
-from typing import TYPE_CHECKING, Final, TypedDict, cast
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Final, TypedDict, cast
 
 from confuse import Configuration
 from confuse.exceptions import ConfigError
@@ -17,8 +18,10 @@ from confuse.templates import Integer, MappingTemplate, Optional, Sequence
 from dateutil.parser import ParserError, parse
 from loguru import logger
 from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
 from ruamel.yaml.error import YAMLError
 
+from nudebomb.atomic import atomic_write_text
 from nudebomb.lang import lang_to_alpha3
 from nudebomb.log import console
 from nudebomb.version import PROGRAM_NAME
@@ -59,7 +62,13 @@ TEMPLATE: Final = MappingTemplate(
 )
 TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
     {
+        # Selects which files are walked at all. Treestamps stopped
+        # recording it separately in 5.0.0, so it must be recorded here.
+        "ignore",
         "languages",
+        # Chooses the lookup namespace, which decides which languages are
+        # kept, so it changes which tracks survive.
+        "media_type",
         "mkvmerge_bin",
         "recurse",
         "strip_und_language",
@@ -69,6 +78,30 @@ TIMESTAMPS_CONFIG_KEYS: Final = frozenset(
         "symlinks",
         "title",
     }
+)
+
+
+def _packaged_defaults() -> dict[str, Any]:
+    """Load the packaged default config values."""
+    text = (files(PROGRAM_NAME) / "config_default.yaml").read_text()
+    return YAML(typ="safe").load(text)[PROGRAM_NAME]
+
+
+# Treestamps fills keys missing from either side of a config comparison
+# from these before diffing, so adding or retiring a recorded key does not
+# invalidate stamp files written before the change. A KeyError here is a
+# deliberate import-time guard: every recorded key needs a packaged default.
+TIMESTAMPS_CONFIG_DEFAULTS: Final[MappingProxyType[str, Any]] = MappingProxyType(
+    {key: _packaged_defaults()[key] for key in TIMESTAMPS_CONFIG_KEYS}
+)
+
+# When a key leaves TIMESTAMPS_CONFIG_KEYS, move its last packaged default
+# here: stamp files that recorded it at its default stay valid, while ones
+# that recorded another value still invalidate. Keys *added* to
+# TIMESTAMPS_CONFIG_KEYS must default to behavior-preserving values,
+# because a key missing from an old stamp file reads as the current default.
+RETIRED_TIMESTAMPS_CONFIG_DEFAULTS: Final[MappingProxyType[str, Any]] = (
+    MappingProxyType({})
 )
 
 # Per-directory config files layer beneath env vars and CLI args but above
@@ -202,8 +235,9 @@ def merge_config_file(target: Path, base_path: Path, options: dict) -> None:
     Merge ``options`` into ``base_path``'s config section and write to ``target``.
 
     Round-trip loads ``base_path`` so existing keys and comments survive, then
-    writes owner-only (the config can hold API keys). Raises ``YAMLError`` or
-    ``OSError`` on read/write failure so callers decide whether it is fatal.
+    writes owner-only (the config can hold API keys). The write is atomic, so
+    a crash cannot leave a hand-authored config truncated. Raises ``YAMLError``
+    or ``OSError`` on read/write failure so callers decide whether it is fatal.
     """
     yaml = YAML()
     data = yaml.load(base_path.read_text()) if base_path.is_file() else None
@@ -215,11 +249,10 @@ def merge_config_file(target: Path, base_path: Path, options: dict) -> None:
         data[PROGRAM_NAME] = section
     section.update(options)
     target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("w") as stream:
-        yaml.dump(data, stream)
-    # Best effort: filesystems without POSIX modes (e.g. FAT) just skip it.
-    with suppress(OSError):
-        target.chmod(0o600)
+    with StringIO() as buf:
+        yaml.dump(data, buf)
+        content = buf.getvalue()
+    atomic_write_text(target, content, 0o600)
 
 
 def _write_merged_config(
