@@ -7,6 +7,10 @@
 - Warnings from the timestamps library, like the one for discarding timestamps
   after a `.nudebomb.yaml` change, print in warning yellow with the rest of the
   output instead of as uncolored text on stderr.
+- A timestamps file discarded for a config mismatch is now rewritten by the run
+  that discards it, even when that run changes no files. Previously the rejected
+  file survived unchanged and warned about the same mismatch on every subsequent
+  run. Requires treestamps 5.0.1.
 
 ## v1.6.0
 

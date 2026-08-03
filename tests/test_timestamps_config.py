@@ -151,6 +151,22 @@ class TestInvalidation:
         self._stamp(media, _walk(media))
         assert self._loaded_timestamp(media, _walk(media, "--no-title")) is None
 
+    def test_discarded_stamps_rewritten_without_sets(self, tmp_path) -> None:
+        """A discarded stamp file is rewritten even if the run stamps nothing."""
+        media = tmp_path / "media"
+        self._stamp(media, _walk(media))
+
+        # The run that discards the stamps sets none of its own.
+        stamps = _stamps(_walk(media, "--no-title"))
+        assert stamps.get_timestamp(media, media / "a.mkv") is None
+        assert stamps.dumpf() == (media,)
+        assert "title: false" in (media / TS_FN).read_text()
+
+        # So the same config now loads its own file instead of discarding it.
+        self._stamp(media, _walk(media, "--no-title"))
+        loaded = self._loaded_timestamp(media, _walk(media, "--no-title"))
+        assert loaded == self.STAMP_TS
+
     def test_added_key_at_default_keeps_timestamps(self, tmp_path) -> None:
         """A stamp file predating a recorded key is valid at that key's default."""
         media = tmp_path / "media"
