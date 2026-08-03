@@ -1,5 +1,13 @@
 # 📰 Nudebomb News
 
+## v1.6.1
+
+### Fixes
+
+- Warnings from the timestamps library, like the one for discarding timestamps
+  after a `.nudebomb.yaml` change, print in warning yellow with the rest of the
+  output instead of as uncolored text on stderr.
+
 ## v1.6.0
 
 ### Fixes

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING, Final
 
 from loguru import logger
 from rich.console import Console
+from typing_extensions import override
 
 from nudebomb.log.styles import LEVEL_STYLES, LOOKUP_HIT_LEVEL
 
@@ -52,7 +54,40 @@ def _sink(message: object) -> None:
     console.print(text, style=style, markup=False, highlight=False, soft_wrap=True)
 
 
+class _InterceptHandler(logging.Handler):
+    """Forward stdlib `logging` records into loguru."""
+
+    @override
+    def emit(self, record: logging.LogRecord) -> None:
+        """Re-log the record through loguru at the equivalent level."""
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            # A stdlib level with no loguru equivalent; the numeric
+            # value still routes to the right sink threshold.
+            level = record.levelno
+        logger.log(level, record.getMessage())
+
+
+# Libraries that log through stdlib `logging` (treestamps, urllib3, …)
+# would otherwise fall through to `logging.lastResort`, which prints
+# uncolored text straight to stderr — bypassing the level styles and
+# the shared console the progress bar redraws into.
+_stdlib_handler: Final = _InterceptHandler()
+
 _configured = False
+
+
+def _intercept_stdlib(level: str) -> None:
+    """Route stdlib `logging` through the loguru sink at ``level``."""
+    root = logging.getLogger()
+    # Add rather than replace: pytest's caplog and friends install their
+    # own root handlers and must keep working.
+    if _stdlib_handler not in root.handlers:
+        root.addHandler(_stdlib_handler)
+    # Root defaults to WARNING, which would drop INFO/DEBUG before the
+    # sink ever sees them; the sink does the real verbosity filtering.
+    root.setLevel(level)
 
 
 def setup(verbose: int) -> None:
@@ -67,8 +102,10 @@ def setup(verbose: int) -> None:
     logger.remove()
     # Even -q keeps a sink registered: _verbose_to_level maps verbose<=0
     # to ERROR so failures are never silently dropped.
+    level = _verbose_to_level(verbose)
     logger.add(
         _sink,
-        level=_verbose_to_level(verbose),
+        level=level,
         format="{message}",
     )
+    _intercept_stdlib(level)
