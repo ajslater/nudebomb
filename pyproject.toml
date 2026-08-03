@@ -13,12 +13,12 @@ dependencies = [
   "platformdirs>=4.9.6",
   "pycountry~=26.2",
   "python-dateutil~=2.8",
-  "rich-argparse~=1.8",
   "requests~=2.32",
+  "rich-argparse~=1.8",
   "rich~=15.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
-  "treestamps~=4.1.0",
+  "treestamps~=5.0.0",
   "tvdb_v4_official~=1.1",
   "typing-extensions~=4.13",
 ]
@@ -28,7 +28,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 name = "nudebomb"
-version = "1.5.0"
+version = "1.6.0"
 [[project.authors]]
 name = "AJ Slater"
 email = "aj@slater.net"
@@ -63,7 +63,7 @@ lint = [
   "mbake~=1.4.5",
   "pathspec~=1.1.0",
   "radon[toml]~=6.0",
-  "ruff~=0.15",
+  "ruff~=0.16",
   "types-python-dateutil~=2.9",
   "ty~=0.0.17",
   "vulture~=2.3",
@@ -71,8 +71,9 @@ lint = [
 test = [
   "coverage[toml]~=7.0",
   "deepdiff~=9.0",
-  "pytest~=9.0",
+  "pytest-asyncio~=1.0",
   "pytest-cov~=7.0",
+  "pytest~=9.0",
 ]
 docs = ["mkapi~=4.4", "mkdocs-minify-plugin~=0.8", "mkdocs~=1.6"]
 ci = ["requests~=2.32"]
@@ -86,7 +87,7 @@ module-root = ""
 source-include = [
   ".*ignore",
   ".env.platforms",
-  ".picopt_treestamps.yaml",
+  ".nudebomb_treestamps.yaml",
   ".readthedocs.yaml",
   ".remarkignore",
   ".shellcheckrc",
@@ -106,12 +107,16 @@ source-include = [
   "docs/style.mkdocs.css",
   "docs/style.readthedocs.css",
   "eslint.config.js",
+  "frontend/**",
+  "img/**",
   "mkdocs.yml",
+  "mock_comics/**",
   "package.json",
+  "tests/**",
   "uv.lock",
   "vulture_ignorelist.py",
 ]
-source-exclude = ["**/*\\~", "**/.DS_Store"]
+source-exclude = ["**/*\\~", "**/.DS_Store", "frontend/node_modules"]
 wheel-exclude = ["**/*\\~", "**/.DS_Store"]
 
 [tool.basedpyright]
@@ -237,11 +242,13 @@ extend-ignore = [
   "E501",
   "ISC001",
   "PERF203",
+  "PLC0415",
   "S101",
   "W191",
 ]
 extend-select = [
   "A",
+  "AIR",
   "ARG",
   "ASYNC",
   "B",
@@ -258,6 +265,7 @@ extend-select = [
   "EXE",
   "F",
   "FA",
+  "FAST",
   "FBT",
   "FIX",
   "FLY",
@@ -269,9 +277,12 @@ extend-select = [
   "ISC",
   "LOG",
   "N",
+  "NPY",
+  "PD",
   "PERF",
   "PGH",
   "PIE",
+  "PLC",
   "PLE",
   "PLR",
   "PLW",

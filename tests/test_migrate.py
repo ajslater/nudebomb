@@ -20,7 +20,7 @@ def yaml_load(path: Path) -> dict:
 
 
 @pytest.fixture(autouse=True)
-def _isolate_config(monkeypatch, tmp_path):
+def isolate_config(monkeypatch, tmp_path):
     """Point confuse at an empty config dir and scrub nudebomb env vars."""
     for key in list(os.environ):
         if key.startswith("NUDEBOMB"):

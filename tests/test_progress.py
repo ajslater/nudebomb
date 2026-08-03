@@ -3,7 +3,7 @@
 import io
 
 from rich.console import Console
-from rich.progress import Progress, Task
+from rich.progress import Progress, Task, TaskID
 
 from nudebomb.log.progress import CharStreamColumn, ProgressContext, make_progress
 
@@ -21,7 +21,7 @@ class TestCharStreamColumn:
 
         # Build a stub Task — only `id` is read by render().
         task = object.__new__(Task)
-        task.id = 0  # pyright: ignore[reportAttributeAccessIssue]
+        task.id = TaskID(0)
         text = column.render(task)
         assert str(text) == ".*X"
 
@@ -30,7 +30,7 @@ class TestCharStreamColumn:
         for char in "abcdefg":
             column.push(0, char, "white")
         task = object.__new__(Task)
-        task.id = 0  # pyright: ignore[reportAttributeAccessIssue]
+        task.id = TaskID(0)
         # Only the last 3 chars survive.
         assert str(column.render(task)) == "efg"
 

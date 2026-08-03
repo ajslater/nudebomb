@@ -51,6 +51,7 @@ _FILE_MARKS: Final = frozenset(
 # The main bar's description; also the floor for sub-task description
 # width so the description column never shrinks below the main row.
 _MAIN_DESCRIPTION: Final = "Stripping MKVs"
+_MAIN_DESCRIPTION_LEN: Final = len(_MAIN_DESCRIPTION)
 
 # Width of the fixed columns besides the description: spinner(~2) +
 # counts(~12) + time(~12) + inter-column spaces.
@@ -101,7 +102,7 @@ class ProgressContext:
         task_id: TaskID | None = None,
         *,
         enabled: bool = False,
-        max_description: int = len(_MAIN_DESCRIPTION),
+        max_description: int = _MAIN_DESCRIPTION_LEN,
     ) -> None:
         """Initialize."""
         self._progress = progress

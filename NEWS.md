@@ -1,5 +1,36 @@
 # 📰 Nudebomb News
 
+## v1.6.0
+
+### Fixes
+
+- Config files are written atomically. A crash or full disk during `-w`, `-W`,
+  or the automatic langfile migration can no longer truncate a hand-written
+  config.
+- Comment and formatting edits to a `.nudebomb.yaml` no longer re-examine its
+  tree on timestamped runs; only option value edits do.
+- `ignore` globs are recorded again, so changing them re-examines the tree.
+
+### Features
+
+- Timestamps survive upgrades that record new options. Only a changed option
+  value invalidates them, so stamp files written before an option joined the
+  recorded set stay valid at its default.
+- Timestamp files now open with a comment explaining what they are, that they
+  are machine-written, and that deleting one just re-examines that tree.
+- `media_type` is recorded, so switching between movie and tv lookups
+  re-examines the tree instead of reusing the other type's results.
+- Discarding timestamps because a `.nudebomb.yaml` changed now says so, instead
+  of naming an internal key.
+
+### Changes
+
+- Requires treestamps 5.0.0.
+- Timestamp files no longer record run-scoped options or API keys; only the
+  options that decide which files and tracks are affected.
+- Trees holding `.nudebomb.yaml` files are re-examined once after upgrading,
+  because the directory config fingerprint changed.
+
 ## v1.5.0
 
 ### Breaking Changes

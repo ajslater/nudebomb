@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
-from dataclasses import asdict
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Final
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Final
 
 from loguru import logger
-from treestamps import Grovestamps, GrovestampsConfig
+from treestamps import Grovestamps, GrovestampsConfig, dir_config_fingerprint
 from treestamps.tree import Treestamps
 
 from nudebomb.config import (
     DIR_CONFIG_FILENAME,
+    RETIRED_TIMESTAMPS_CONFIG_DEFAULTS,
+    TIMESTAMPS_CONFIG_DEFAULTS,
     TIMESTAMPS_CONFIG_KEYS,
     DirConfig,
     LangfileMigrator,
@@ -49,6 +51,23 @@ _MAX_LOOKUP_WORKERS: Final = 8
 # reasons are logged and counted as ignored.
 _DIR_REASON: Final = "directory"
 _TIMESTAMP_REASON: Final = "timestamp"
+
+_FINGERPRINT_KEY: Final = "_dir_config_fingerprint"
+_PROGRAM_CONFIG_KEYS: Final = TIMESTAMPS_CONFIG_KEYS | {_FINGERPRINT_KEY}
+# A run whose targets hold no config files hashes to the empty digest, so
+# that is the default for stamp files written before the key existed.
+_EMPTY_FINGERPRINT: Final = sha256(b"").hexdigest()
+_PROGRAM_CONFIG_DEFAULTS: Final[MappingProxyType[str, Any]] = MappingProxyType(
+    {
+        **TIMESTAMPS_CONFIG_DEFAULTS,
+        **RETIRED_TIMESTAMPS_CONFIG_DEFAULTS,
+        _FINGERPRINT_KEY: _EMPTY_FINGERPRINT,
+    }
+)
+_KEY_LABELS: Final[MappingProxyType[str, str]] = MappingProxyType(
+    {_FINGERPRINT_KEY: f"{DIR_CONFIG_FILENAME} contents"}
+)
+_NOTE: Final = ("Safe to delete: nudebomb will re-examine this tree on the next run.",)
 
 
 class Walk:
@@ -440,41 +459,31 @@ class Walk:
         except OSError:
             return []
 
-    @staticmethod
-    def _config_chunk(root: Path, config_file: Path, *, is_dir: bool) -> bytes | None:
-        """Return one config file's fingerprint contribution, or None."""
-        try:
-            data = config_file.read_bytes()
-        except OSError:
-            # Covers missing files and directories named like the config.
-            return None
-        # A path relative to the target keeps the digest stable across
-        # cwd/mount changes; add/remove/rename still flips it.
-        rel = config_file.relative_to(root) if is_dir else config_file.name
-        return str(rel).encode() + b"\0" + data + b"\0"
-
     def _dir_config_fingerprint(self) -> str:
         """
-        Hash every ``.nudebomb.yaml`` under the target paths.
+        Hash the option values of every ``.nudebomb.yaml`` under the targets.
 
         Folded into the treestamps ``program_config`` so that editing,
         adding, or removing any directory config flips the digest and the
         affected tree re-strips on the next run — over-invalidation that is
         always safe (re-checking an already-stripped file is a cheap no-op)
-        and never wrong-skips a file whose effective config changed.
+        and never wrong-skips a file whose effective config changed. Comment
+        and formatting edits do not change it, only option values do.
+
+        Root configs are included because the recorded program config holds
+        the run-wide settings, not each tree root's resolved ones.
         """
         hasher = sha256()
         seen: set[Path] = set()
         for path_str in self._config.paths:
-            root = Path(path_str)
-            is_dir = root.is_dir()
-            for config_file in self._config_candidates(root, is_dir=is_dir):
-                if config_file in seen:
-                    continue
-                seen.add(config_file)
-                chunk = self._config_chunk(root, config_file, is_dir=is_dir)
-                if chunk is not None:
-                    hasher.update(chunk)
+            root = Treestamps.get_dir(Path(path_str))
+            if root in seen:
+                continue
+            seen.add(root)
+            digest = dir_config_fingerprint(
+                root, DIR_CONFIG_FILENAME, PROGRAM_NAME, exclude_root=False
+            )
+            hasher.update(str(root).encode() + b"\0" + bytes.fromhex(digest))
         return hasher.hexdigest()
 
     def _config_dirs(self) -> Iterator[tuple[Path, Path]]:
@@ -505,8 +514,11 @@ class Walk:
         # so any change to a ``.nudebomb.yaml`` invalidates its tree's
         # timestamps (the single global program_config can't otherwise see
         # per-directory config changes).
-        program_config = asdict(self._config)
-        program_config["_dir_config_fingerprint"] = self._dir_config_fingerprint()
+        program_config: dict[str, Any] = {
+            config_key: getattr(self._config, config_key)
+            for config_key in TIMESTAMPS_CONFIG_KEYS
+        }
+        program_config[_FINGERPRINT_KEY] = self._dir_config_fingerprint()
         # Force `verbose=0` so treestamps's own termcolor Printer
         # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
         # dots straight to stdout for each `.set()` call, bypassing
@@ -518,9 +530,12 @@ class Walk:
             symlinks=self._config.symlinks,
             ignore=self._config.ignore,
             check_config=self._config.timestamps_check_config,
-            # GrovestampsConfig wants a Mapping; convert the dataclass.
+            # Plain dicts so CommonConfig.__post_init__ filters & normalizes.
             program_config=program_config,
-            program_config_keys=TIMESTAMPS_CONFIG_KEYS | {"_dir_config_fingerprint"},
+            program_config_keys=_PROGRAM_CONFIG_KEYS,
+            program_config_defaults=dict(_PROGRAM_CONFIG_DEFAULTS),
+            program_config_key_labels=_KEY_LABELS,
+            note=_NOTE,
         )
         self._timestamps = Grovestamps(grove_config)
         roots = ", ".join(sorted(str(p) for p in self._timestamps))

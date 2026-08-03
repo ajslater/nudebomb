@@ -25,7 +25,7 @@ OWNER_ONLY_MODE = 0o600
 
 
 @pytest.fixture(autouse=True)
-def _isolate_config(monkeypatch, tmp_path):
+def isolate_config(monkeypatch, tmp_path):
     """Point confuse at an empty config dir and scrub nudebomb env vars."""
     import os
 
@@ -108,12 +108,14 @@ class TestLayering:
     def test_config_file_flags_apply(self, tmp_path):
         _write_config(
             tmp_path,
-            "nudebomb:\n"
-            "  dry_run: true\n"
-            "  recurse: true\n"
-            "  media_type: movie\n"
-            "  verbose: 2\n"
-            "  subtitles: false\n",
+            """\
+nudebomb:
+  dry_run: true
+  recurse: true
+  media_type: movie
+  verbose: 2
+  subtitles: false
+""",
         )
         config = _get_config()
         assert config.dry_run is True

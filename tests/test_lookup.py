@@ -375,18 +375,18 @@ class TestAtomicWriteHelper:
 
     def test_write_and_read_roundtrip(self, tmp_path: Path) -> None:
         """Basic smoke test using the module-level helper."""
-        from nudebomb.lookup.cache import _atomic_write_text
+        from nudebomb.atomic import atomic_write_text
 
         target = tmp_path / "target.json"
-        _atomic_write_text(target, '{"hello": "world"}')
+        atomic_write_text(target, '{"hello": "world"}')
         assert target.read_text() == '{"hello": "world"}'
 
     def test_overwrite(self, tmp_path: Path) -> None:
-        from nudebomb.lookup.cache import _atomic_write_text
+        from nudebomb.atomic import atomic_write_text
 
         target = tmp_path / "target.json"
-        _atomic_write_text(target, "first")
-        _atomic_write_text(target, "second")
+        atomic_write_text(target, "first")
+        atomic_write_text(target, "second")
         assert target.read_text() == "second"
 
 

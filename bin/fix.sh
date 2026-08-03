@@ -5,7 +5,7 @@ set -euxo pipefail
 #####################
 ###### Makefile #####
 #####################
-uv run --group lint mbake format Makefile cfg/*.mk
+uv run mbake format Makefile cfg/*.mk
 
 ################
 # Ignore files #

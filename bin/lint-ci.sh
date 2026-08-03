@@ -2,8 +2,7 @@
 # Lint checks for ci
 set -euxo pipefail
 
-if ! command -v actionlint >/dev/null; then
-  echo "actionlint not installed; skipping workflow lint"
+if [ "$(uname)" != "Darwin" ]; then
   exit 0
 fi
 
