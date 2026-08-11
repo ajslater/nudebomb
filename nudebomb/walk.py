@@ -389,18 +389,23 @@ class Walk:
         for path in other_files:
             self.walk_file(top_path, path)
 
-        if (
-            self._timestamps is not None
-            and not self._config.dry_run
-            and self._dir_timestamps(top_path, dir_path)
-        ):
+        self._finish_dir(top_path, dir_path)
+
+    def _finish_dir(self, top_path: Path, dir_path: Path) -> None:
+        """
+        Record the directory's timestamp and retire its deprecated langfiles.
+
+        Runs after every entry below ``dir_path`` is processed, so children
+        and this dir's own strip both used the langfiles before they're
+        removed. Dry runs never touch the filesystem.
+        """
+        if self._config.dry_run:
+            return
+
+        if self._timestamps is not None and self._dir_timestamps(top_path, dir_path):
             self._timestamps.set(top_path, dir_path, compact=True)
 
-        # Migrate this dir's deprecated langfiles last, so children (already
-        # processed above) and this dir's own strip both used the langfiles
-        # before they're removed. Dry runs never touch the filesystem.
-        if not self._config.dry_run:
-            self._migrator.migrate_dir(top_path, dir_path)
+        self._migrator.migrate_dir(top_path, dir_path)
 
     def walk_file(self, top_path: Path, path: Path) -> None:
         """Walk a file."""
