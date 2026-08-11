@@ -1,3 +1,5 @@
+<!--lint disable no-duplicate-headings-->
+
 # 📰 Nudebomb News
 
 ## v1.6.1
