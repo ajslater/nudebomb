@@ -88,6 +88,7 @@ profile_default/
 sdist/
 share/python-wheels/
 target/
+tasks
 test-results
 tests/**/*.json
 tests/**/*.xml
