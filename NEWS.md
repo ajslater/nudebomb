@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+## v1.6.2
+
+- Dep
+    - Update confuse dependency
+
 ## v1.6.1
 
 - Fixes
