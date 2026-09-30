@@ -1,87 +1,88 @@
 # 📰 Nudebomb News
 
+## v1.6.2
+
+- Dep
+    - Update confuse dependency
+
 ## v1.6.1
 
-### Fixes
-
-- Warnings from the timestamps library, like the one for discarding timestamps
-  after a `.nudebomb.yaml` change, print in warning yellow with the rest of the
-  output instead of as uncolored text on stderr.
-- A timestamps file discarded for a config mismatch is now rewritten by the run
-  that discards it, even when that run changes no files. Previously the rejected
-  file survived unchanged and warned about the same mismatch on every subsequent
-  run. Requires treestamps 5.0.1.
+- Fixes
+    - Warnings from the timestamps library, like the one for discarding
+      timestamps after a `.nudebomb.yaml` change, print in warning yellow with
+      the rest of the output instead of as uncolored text on stderr.
+    - A timestamps file discarded for a config mismatch is now rewritten by the
+      run that discards it, even when that run changes no files. Previously the
+      rejected file survived unchanged and warned about the same mismatch on
+      every subsequent run. Requires treestamps 5.0.1.
 
 ## v1.6.0
 
-### Fixes
+- Fixes
+    - Config files are written atomically. A crash or full disk during `-w`,
+      `-W`, or the automatic langfile migration can no longer truncate a
+      hand-written config.
+    - Comment and formatting edits to a `.nudebomb.yaml` no longer re-examine
+      its tree on timestamped runs; only option value edits do.
+    - `ignore` globs are recorded again, so changing them re-examines the tree.
 
-- Config files are written atomically. A crash or full disk during `-w`, `-W`,
-  or the automatic langfile migration can no longer truncate a hand-written
-  config.
-- Comment and formatting edits to a `.nudebomb.yaml` no longer re-examine its
-  tree on timestamped runs; only option value edits do.
-- `ignore` globs are recorded again, so changing them re-examines the tree.
+- Features
+    - Timestamps survive upgrades that record new options. Only a changed option
+      value invalidates them, so stamp files written before an option joined the
+      recorded set stay valid at its default.
+    - Timestamp files now open with a comment explaining what they are, that
+      they are machine-written, and that deleting one just re-examines that
+      tree.
+    - `media_type` is recorded, so switching between movie and tv lookups
+      re-examines the tree instead of reusing the other type's results.
+    - Discarding timestamps because a `.nudebomb.yaml` changed now says so,
+      instead of naming an internal key.
 
-### Features
-
-- Timestamps survive upgrades that record new options. Only a changed option
-  value invalidates them, so stamp files written before an option joined the
-  recorded set stay valid at its default.
-- Timestamp files now open with a comment explaining what they are, that they
-  are machine-written, and that deleting one just re-examines that tree.
-- `media_type` is recorded, so switching between movie and tv lookups
-  re-examines the tree instead of reusing the other type's results.
-- Discarding timestamps because a `.nudebomb.yaml` changed now says so, instead
-  of naming an internal key.
-
-### Changes
-
-- Requires treestamps 5.0.0.
-- Timestamp files no longer record run-scoped options or API keys; only the
-  options that decide which files and tracks are affected.
-- Trees holding `.nudebomb.yaml` files are re-examined once after upgrading,
-  because the directory config fingerprint changed.
+- Changes
+    - Requires treestamps 5.0.0.
+    - Timestamp files no longer record run-scoped options or API keys; only the
+      options that decide which files and tracks are affected.
+    - Trees holding `.nudebomb.yaml` files are re-examined once after upgrading,
+      because the directory config fingerprint changed.
 
 ## v1.5.0
 
-### Breaking Changes
+- Breaking Changes
+    - `-c`/`--config` now fully replaces your user config for the run instead of
+      layering on top of it (packaged defaults still apply beneath).
 
-- `-c`/`--config` now fully replaces your user config for the run instead of
-  layering on top of it (packaged defaults still apply beneath).
+- Features
+    - Per-directory `.nudebomb.yaml` config files override settings for a
+      subtree.
+    - Deprecated `.lang` files are auto-migrated to `.nudebomb.yaml` and
+      removed.
+    - `-w`/`--write-config` saves the invoked options to your user config.
+    - `-W`/`--write-dir-config` saves them into each target directory.
+    - `--write-config-file PATH` writes the config to a specific file.
 
-### Features
+- Fixes
+    - Online lookups no longer fail on standard `Title (Year)` filenames.
+    - One unreadable or corrupt MKV no longer aborts the whole run.
+    - Nudebomb exits nonzero when any file errors, so scripts and cron can
+      detect it.
+    - Stalled network lookups now time out instead of freezing the run.
+    - Release tags like `[x265]` in filenames no longer break the progress
+      display or the end-of-run summary.
+    - Shows with non-Latin titles now match via their aliases and translations.
+    - `--after` no longer crashes on every use.
+    - Language codes match more reliably: 2-letter codes are normalized to match
+      tracks, and `-l "eng, fra"` tolerates spaces.
+    - API keys are redacted from logs and the summary.
+    - Corrupt lookup-cache entries self-heal instead of crashing, and stale
+      wrong matches expire after a year.
+    - Windows finds the default mkvmerge via `%ProgramFiles%`.
+    - Passing a directory without `-r` now warns instead of silently doing
+      nothing.
+    - Per-directory `media_type` and `timestamps` settings now take effect.
 
-- Per-directory `.nudebomb.yaml` config files override settings for a subtree.
-- Deprecated `.lang` files are auto-migrated to `.nudebomb.yaml` and removed.
-- `-w`/`--write-config` saves the invoked options to your user config.
-- `-W`/`--write-dir-config` saves them into each target directory.
-- `--write-config-file PATH` writes the config to a specific file.
-
-### Fixes
-
-- Online lookups no longer fail on standard `Title (Year)` filenames.
-- One unreadable or corrupt MKV no longer aborts the whole run.
-- Nudebomb exits nonzero when any file errors, so scripts and cron can detect
-  it.
-- Stalled network lookups now time out instead of freezing the run.
-- Release tags like `[x265]` in filenames no longer break the progress display
-  or the end-of-run summary.
-- Shows with non-Latin titles now match via their aliases and translations.
-- `--after` no longer crashes on every use.
-- Language codes match more reliably: 2-letter codes are normalized to match
-  tracks, and `-l "eng, fra"` tolerates spaces.
-- API keys are redacted from logs and the summary.
-- Corrupt lookup-cache entries self-heal instead of crashing, and stale wrong
-  matches expire after a year.
-- Windows finds the default mkvmerge via `%ProgramFiles%`.
-- Passing a directory without `-r` now warns instead of silently doing nothing.
-- Per-directory `media_type` and `timestamps` settings now take effect.
-
-### Performance
-
-- Per-file checks run once during the walk, and the file-counting pass is
-  skipped in quiet mode or without a TTY.
+- Performance
+    - Per-file checks run once during the walk, and the file-counting pass is
+      skipped in quiet mode or without a TTY.
 
 ## v1.4.0
 

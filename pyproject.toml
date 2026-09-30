@@ -8,7 +8,7 @@ classifiers = [
   "Topic :: Multimedia :: Video :: Conversion",
 ]
 dependencies = [
-  "confuse~=2.2.0",
+  "confuse~=2.3",
   "loguru~=0.7",
   "platformdirs>=4.9.6",
   "pycountry~=26.2",
@@ -28,7 +28,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 name = "nudebomb"
-version = "1.6.1"
+version = "1.6.2"
+
 [[project.authors]]
 name = "AJ Slater"
 email = "aj@slater.net"
@@ -49,7 +50,7 @@ dev = [
   "neovim~=0.3",
   "pyclean~=3.1",
   "pypi-cleanup~=0.1.10",
-  "semver~=3.0.4",
+  "semver~=3.1.0",
   "toml-cli~=0.7",
   "tomlkit~=0.14",
 ]
@@ -57,7 +58,7 @@ build = []
 lint = [
   "basedpyright~=1.38",
   "codespell~=2.4",
-  "complexipy~=6.0",
+  "complexipy~=8.0.1",
   "djlint~=1.3.dev0",
   "icecream~=2.1",
   "mbake~=1.4.5",
@@ -79,7 +80,7 @@ docs = ["mkapi~=4.4", "mkdocs-minify-plugin~=0.8", "mkdocs~=1.6"]
 ci = ["requests~=2.32"]
 
 [build-system]
-requires = ["uv_build~=0.11.2"]
+requires = ["uv_build~=0.12.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
@@ -88,8 +89,8 @@ source-include = [
   ".*ignore",
   ".env.platforms",
   ".nudebomb_treestamps.yaml",
+  ".picopt_treestamps.yaml",
   ".readthedocs.yaml",
-  ".remarkignore",
   ".shellcheckrc",
   "Makefile",
   "NEWS.md",
@@ -152,27 +153,12 @@ reportUnusedParameter = false
 
 [tool.codespell]
 builtin = "clear,code,rare"
-check-hidden = true
-ignore-words-list = "coverd,crate,falsy,iff,ro,searchd,thead,versio,wan,warmup,ws"
-skip = "*.svg,*~,.*,.*/*,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,test-results,typings,uv.lock"
+ignore-words-list = "coverd,crate,deque,falsy,iff,ro,searchd,thead,versio,wan,warmup,ws"
+skip = "*.pdf,*.svg,*~,./bun.lock,./dist,./node_modules,./package-lock.json,./package.json,./test-results,./uv.lock,/uv.lock,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,test-results,typings,uv.lock"
 
 [tool.complexipy]
 failed = true
 paths = ["nudebomb", "tests"]
-exclude = [
-  "**/__pycache__",
-  "*/.*",
-  ".cache",
-  ".git",
-  ".github",
-  ".venv",
-  "frontend",
-  "node_modules",
-  "site",
-  "test-results",
-  "typings",
-  "vulture_ignorelist.py",
-]
 
 [tool.coverage.html]
 directory = "test-results/coverage"
@@ -319,6 +305,9 @@ ignore-overlong-task-comments = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D101", "D102", "SLF001", "T201", "T203"]
+"bin/hub_prune_stale.py" = ["T201", "UP017"]
+"bin/release_info.py" = ["T201"]
+"bin/roman.py" = ["T201"]
 
 [tool.ruff.lint.pylint]
 max-args = 8
@@ -342,18 +331,14 @@ exclude = [
 
 [tool.vulture]
 exclude = [
-  "**/.*",
-  "**/__pycache__",
-  "**/node_modules",
-  "*/.*",
-  "*/__pycache__*",
-  "*/node_modules*",
-  "dist/",
-  "frontend/",
-  "site",
-  "test-results/",
-  "test_results/",
-  "typings/",
+  "*/.venv/*",
+  "*/__pycache__/*",
+  "*/dist/*",
+  "*/frontend/*",
+  "*/node_modules/*",
+  "*/site/*",
+  "*/test-results/*",
+  "*/typings/*",
 ]
 min_confidence = 61
 sort_by_size = true
