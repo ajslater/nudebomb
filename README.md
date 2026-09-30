@@ -139,8 +139,8 @@ nudebomb:
 
 **Discovery.** For each MKV, nudebomb walks up the tree from the file's
 directory to the path you named on the command line (never above it, exactly
-like [lang files](#lang-files)), collecting every `.nudebomb.yaml` it finds. A
-config outside the paths you pass never affects a run.
+like [lang files](#lang-files-deprecated)), collecting every `.nudebomb.yaml` it
+finds. A config outside the paths you pass never affects a run.
 
 **Layering.** Directory configs sit above your user config but below environment
 variables and command-line options, so `-c`/CLI/env always win. A deeper
