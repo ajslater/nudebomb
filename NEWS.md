@@ -3,8 +3,7 @@
 ## v1.7.0
 
 - Changes
-    - Requires Python 3.11.
-    - Requires treestamps 5.1.0.
+    - Requires Python 3.11 and treestamps 5.1.1.
 
 ## v1.6.2
 
