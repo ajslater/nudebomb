@@ -15,7 +15,7 @@ from rich.text import Text
 from nudebomb.lang import lang_to_alpha3
 from nudebomb.log import console
 from nudebomb.log.reporter import Reporter
-from nudebomb.track import Track
+from nudebomb.track import Track, TrackType
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,10 +28,7 @@ if TYPE_CHECKING:
 class MKVFile:
     """Strips matroska files of unwanted audio and subtitles."""
 
-    VIDEO_TRACK_NAME: Final = "video"
-    AUDIO_TRACK_NAME: Final = "audio"
-    SUBTITLE_TRACK_NAME: Final = "subtitles"
-    REMOVABLE_TRACK_NAMES: Final = (AUDIO_TRACK_NAME, SUBTITLE_TRACK_NAME)
+    REMOVABLE_TRACK_TYPES: Final = (TrackType.AUDIO, TrackType.SUBTITLES)
 
     def __init__(
         self,
@@ -102,9 +99,11 @@ class MKVFile:
             track_map[track_obj.type].append(track_obj)
         self._track_map = track_map
 
-    def _filtered_tracks(self, track_type: str) -> tuple[list[Track], list[Track]]:
+    def _filtered_tracks(
+        self, track_type: TrackType
+    ) -> tuple[list[Track], list[Track]]:
         """Return a tuple consisting of tracks to keep and tracks to remove."""
-        if track_type == self.SUBTITLE_TRACK_NAME and self._config.sub_languages:
+        if track_type == TrackType.SUBTITLES and self._config.sub_languages:
             languages_to_keep = self._config.sub_languages
         else:
             languages_to_keep = self._config.languages
@@ -124,7 +123,7 @@ class MKVFile:
                 # Tracks we want to remove
                 remove.append(track)
 
-        if not keep and (track_type == self.AUDIO_TRACK_NAME or self._config.subtitles):
+        if not keep and (track_type == TrackType.AUDIO or self._config.subtitles):
             # Never remove all audio
             # Do not remove all subtitles without option set.
             keep = remove
@@ -134,7 +133,7 @@ class MKVFile:
 
     def _extend_track_command(
         self,
-        track_type: str,
+        track_type: TrackType,
         command: list[str],
         num_remove_ids: int,
     ) -> tuple[list[RenderableType], int]:
@@ -167,11 +166,11 @@ class MKVFile:
 
         # Set which tracks are to be kept
         if keep_ids:
-            prefix = track_type
-            if track_type == self.SUBTITLE_TRACK_NAME:
+            prefix: str = track_type
+            if track_type == TrackType.SUBTITLES:
                 prefix = prefix[:-1]
             command += [f"--{prefix}-tracks", ",".join(sorted(keep_ids))]
-        elif track_type == self.SUBTITLE_TRACK_NAME:
+        elif track_type == TrackType.SUBTITLES:
             command += ["--no-subtitles"]
         else:
             msg = f"No tracks to remove from {self.path}"
@@ -331,7 +330,7 @@ class MKVFile:
         # accumulating a list of rich renderables describing the plan.
         manifest: list[RenderableType] = []
         num_remove_ids = 0
-        for track_type in self.REMOVABLE_TRACK_NAMES:
+        for track_type in self.REMOVABLE_TRACK_TYPES:
             section, num_remove_ids = self._extend_track_command(
                 track_type, command, num_remove_ids
             )

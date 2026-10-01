@@ -14,6 +14,7 @@ place.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum, auto
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
 
@@ -25,6 +26,7 @@ __all__ = (
     "LOOKUP_HIT_LEVEL",
     "MARKS",
     "Mark",
+    "MarkKind",
 )
 
 
@@ -36,49 +38,65 @@ class Mark:
     style: str
 
 
+class MarkKind(StrEnum):
+    """Per-event progress mark kinds, the keys of :data:`MARKS`."""
+
+    # Per-file marks (all but WARNING advance the bar)
+    IGNORED = auto()
+    SKIPPED_TIMESTAMP = auto()
+    ALREADY_STRIPPED = auto()
+    STRIPPED = auto()
+    DRY_RUN = auto()
+    WARNING = auto()
+    ERROR = auto()
+    # Lookup marks (do not advance the bar)
+    LOOKUP_HIT = auto()
+    LOOKUP_NO_RESULT = auto()
+    LOOKUP_RATE_LIMITED = auto()
+    LOOKUP_ERROR = auto()
+
+
 # Custom loguru level for remote DB hits — sits at INFO numeric level
 # but gets its own color so it pops next to neutral INFO lines.
 LOOKUP_HIT_LEVEL: Final = "DBHIT"
 
 
-# Per-event marks. Keys mirror the names used by `Stats` / `mark_*`
+# Per-event marks. Kinds mirror the names used by `Stats` / `mark_*`
 # helpers and the summary table rows.
 #
 # Style notes:
 #  - `bold` is used as emphasis where the original termcolor scheme had
 #    `[bold]` (e.g. dry-run, timestamp-skipped).
-MARKS: Final[Mapping[str, Mark]] = MappingProxyType(
+MARKS: Final[Mapping[MarkKind, Mark]] = MappingProxyType(
     {
-        # Per-file marks (advance the bar)
-        "ignored": Mark(".", "dim"),
-        "skipped_timestamp": Mark(".", "dim green"),
-        "already_stripped": Mark(".", "green"),
-        "stripped": Mark("*", "white"),
-        "dry_run": Mark("*", "bold grey50"),
-        "warning": Mark("!", "yellow"),
-        "error": Mark("X", "bold red"),
-        # Lookup marks (do not advance the bar)
-        "lookup_hit": Mark("O", "cyan"),
-        "lookup_no_result": Mark("x", "yellow"),
-        "lookup_rate_limited": Mark("X", "yellow"),
-        "lookup_error": Mark("X", "bold red"),
+        MarkKind.IGNORED: Mark(".", "dim"),
+        MarkKind.SKIPPED_TIMESTAMP: Mark(".", "dim green"),
+        MarkKind.ALREADY_STRIPPED: Mark(".", "green"),
+        MarkKind.STRIPPED: Mark("*", "white"),
+        MarkKind.DRY_RUN: Mark("*", "bold grey50"),
+        MarkKind.WARNING: Mark("!", "yellow"),
+        MarkKind.ERROR: Mark("X", "bold red"),
+        MarkKind.LOOKUP_HIT: Mark("O", "cyan"),
+        MarkKind.LOOKUP_NO_RESULT: Mark("x", "yellow"),
+        MarkKind.LOOKUP_RATE_LIMITED: Mark("X", "yellow"),
+        MarkKind.LOOKUP_ERROR: Mark("X", "bold red"),
     }
 )
 
 
-def _style(key: str) -> str:
-    return MARKS[key].style
+def _style(kind: MarkKind) -> str:
+    return MARKS[kind].style
 
 
 # Loguru level → Rich style. Levels that correspond to a per-event mark
 # share that mark's style so log lines and progress chars match.
 LEVEL_STYLES: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "DEBUG": _style("ignored"),
-        "INFO": _style("stripped"),
-        LOOKUP_HIT_LEVEL: _style("lookup_hit"),
-        "SUCCESS": _style("already_stripped"),
-        "WARNING": _style("warning"),
-        "ERROR": _style("error"),
+        "DEBUG": _style(MarkKind.IGNORED),
+        "INFO": _style(MarkKind.STRIPPED),
+        LOOKUP_HIT_LEVEL: _style(MarkKind.LOOKUP_HIT),
+        "SUCCESS": _style(MarkKind.ALREADY_STRIPPED),
+        "WARNING": _style(MarkKind.WARNING),
+        "ERROR": _style(MarkKind.ERROR),
     }
 )

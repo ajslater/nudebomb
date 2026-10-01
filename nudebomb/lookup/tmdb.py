@@ -9,6 +9,7 @@ from loguru import logger
 from requests.exceptions import HTTPError
 
 from nudebomb.lookup.base import QUERY_ERROR, BaseLookup, QueryOutcome
+from nudebomb.lookup.media_type import MEDIA_TYPES, MediaType
 from nudebomb.lookup.parser import parse_title
 from nudebomb.lookup.util import (
     LOOKUP_TIMEOUT_SECONDS,
@@ -78,9 +79,9 @@ class TMDBLookup(BaseLookup):
         effective_type = media_type or self._media_type
 
         match effective_type:
-            case "movie":
+            case MediaType.MOVIE:
                 search.movie(query=title, year=year)
-            case "tv":
+            case MediaType.TV:
                 search.tv(query=title, first_air_date_year=year)
             case _:
                 # Multi search has no year filter, so the year would be a
@@ -99,7 +100,7 @@ class TMDBLookup(BaseLookup):
         if not results:
             return None
 
-        candidates = [r for r in results if r.get("media_type") in ("movie", "tv")]
+        candidates = [r for r in results if r.get("media_type") in MEDIA_TYPES]
         return best_title_match(candidates, title, year, _result_titles, _result_year)
 
     def _lookup_by_id(self, parsed: ParseResult) -> dict | None:
@@ -107,8 +108,8 @@ class TMDBLookup(BaseLookup):
         if parsed.tmdb_id:
             # Try movie first, then TV
             for get_fn, media_type in (
-                (tmdb.Movies, "movie"),
-                (tmdb.TV, "tv"),
+                (tmdb.Movies, MediaType.MOVIE),
+                (tmdb.TV, MediaType.TV),
             ):
                 try:
                     result = get_fn(int(parsed.tmdb_id)).info()
@@ -122,11 +123,11 @@ class TMDBLookup(BaseLookup):
             find.info(external_source="imdb_id")
             results = find.movie_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
             if results:
-                results[0]["media_type"] = "movie"
+                results[0]["media_type"] = MediaType.MOVIE
                 return results[0]
             results = find.tv_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
             if results:
-                results[0]["media_type"] = "tv"
+                results[0]["media_type"] = MediaType.TV
                 return results[0]
         return None
 
@@ -180,7 +181,7 @@ class TMDBLookup(BaseLookup):
     def _check_id_caches(self, parsed: ParseResult) -> tuple[bool, str | None]:
         """Check caches for any known ID across both media types."""
         for id_type, id_value in self._id_lookup_keys(parsed):
-            for media_type in ("movie", "tv"):
+            for media_type in MediaType:
                 found, lang = self._cache.check_id_cache(media_type, id_type, id_value)
                 if found:
                     return True, lang
@@ -229,7 +230,7 @@ class TMDBLookup(BaseLookup):
         unknown), so with no configured media type a hit may live under
         any of the three locations.
         """
-        check_types = (media_type,) if media_type else ("", "movie", "tv")
+        check_types = (media_type,) if media_type else ("", *MediaType)
         for check_type in check_types:
             found, lang = self._cache.check_cache(check_type, title, year)
             if found:

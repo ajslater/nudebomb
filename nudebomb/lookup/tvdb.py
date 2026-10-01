@@ -11,6 +11,7 @@ from loguru import logger
 
 from nudebomb.lang import lang_to_alpha3
 from nudebomb.lookup.base import QUERY_ERROR, BaseLookup, QueryOutcome
+from nudebomb.lookup.media_type import MediaType
 from nudebomb.lookup.parser import parse_title
 from nudebomb.lookup.util import LOOKUP_TIMEOUT_SECONDS, best_title_match
 
@@ -158,7 +159,7 @@ class TVDBLookup(BaseLookup):
         """Look up language by TVDB ID, bypassing title-based caching."""
         if parsed.tvdb_id:
             found, cached_lang = self._cache.check_id_cache(
-                "tv", "tvdb", parsed.tvdb_id
+                MediaType.TV, "tvdb", parsed.tvdb_id
             )
             if found:
                 return cached_lang
@@ -175,7 +176,7 @@ class TVDBLookup(BaseLookup):
         lang = self._resolve_language(result) or ""
         if parsed.tvdb_id:
             self._cache.save_id(
-                "tv",
+                MediaType.TV,
                 "tvdb",
                 parsed.tvdb_id,
                 db_id=self._extract_db_id(result),
@@ -190,7 +191,7 @@ class TVDBLookup(BaseLookup):
 
     def _lookup_by_title_language(self, title: str, parsed: ParseResult) -> str | None:
         """Look up language by title search with caching."""
-        found, lang = self._cache.check_cache("tv", title, "")
+        found, lang = self._cache.check_cache(MediaType.TV, title, "")
         if found:
             return lang
 
@@ -202,17 +203,17 @@ class TVDBLookup(BaseLookup):
         if result is not None:
             lang = self._resolve_language(result) or ""
             self._cache.save_file(
-                "tv",
+                MediaType.TV,
                 title,
                 "",
                 db_id=self._extract_db_id(result),
                 language=lang,
             )
         else:
-            self._cache.save_file("tv", title, "")
+            self._cache.save_file(MediaType.TV, title, "")
             lang = ""
 
-        self._cache.set_mem("tv", title, "", lang or None)
+        self._cache.set_mem(MediaType.TV, title, "", lang or None)
         label = f"TVDB: '{title}'"
         if lang:
             self._record_remote_hit(label, lang)
@@ -227,7 +228,7 @@ class TVDBLookup(BaseLookup):
         Returns an ISO 639-3 language code (or ``None``). All log /
         progress / stats side effects happen inline.
         """
-        parsed = parse_title(path.stem, "tv")
+        parsed = parse_title(path.stem, MediaType.TV)
 
         if parsed.tvdb_id:
             return self._lookup_by_id_language(parsed)

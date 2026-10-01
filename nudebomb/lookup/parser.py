@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from typing import Final
 
+from nudebomb.lookup.media_type import MediaType
+
 # Looks for a 4-digit year (1900-2099) in parentheses
 _YEAR_PATTERN: Final = re.compile(r"\(((?:1[89]|20)\d{2})\)")
 
@@ -147,9 +149,9 @@ def parse_title(filename: str, media_type: str = "") -> ParseResult:
         return ParseResult(title="", year="", tmdb_id="", imdb_id="", tvdb_id="")
 
     match media_type:
-        case "tv":
+        case MediaType.TV:
             title, year = _parse_tv_title(normalized)
-        case "movie":
+        case MediaType.MOVIE:
             title, year = _parse_movie_title(normalized)
         case _:
             title, year = _parse_generic_title(normalized)

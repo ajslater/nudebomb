@@ -16,10 +16,10 @@ from platformdirs import user_cache_dir
 
 from nudebomb.atomic import atomic_write_text
 from nudebomb.log.reporter import Reporter
+from nudebomb.lookup.media_type import MEDIA_TYPES
 from nudebomb.lookup.util import format_title_year
 from nudebomb.version import PROGRAM_NAME
 
-_MEDIA_TYPES: Final = frozenset({"movie", "tv"})
 _SECONDS_PER_DAY: Final = 86400
 _IDS_SUBDIR: Final = "ids"
 # Entries WITH a language expire on this long horizon so a wrong search
@@ -104,14 +104,14 @@ class LookupCache:
         self._lock: Lock = Lock()
         # File cache root
         self._cache_root: Path = Path(user_cache_dir(PROGRAM_NAME))
-        for media_type in _MEDIA_TYPES:
+        for media_type in MEDIA_TYPES:
             (self._cache_root / media_type / _IDS_SUBDIR).mkdir(
                 parents=True, exist_ok=True
             )
 
     def _cache_dir(self, media_type: str) -> Path:
         """Return the cache directory for a given media type."""
-        if media_type in _MEDIA_TYPES:
+        if media_type in MEDIA_TYPES:
             return self._cache_root / media_type
         return self._cache_root
 
