@@ -1,6 +1,6 @@
 """Tests for config layering, normalization, and error handling."""
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 import pytest
@@ -58,7 +58,7 @@ class TestAfter:
         config = _get_config(
             (*BASE_ARGV[:-1], "-A", "2026-01-01T12:00:00+00:00", "/tmp")  # noqa: S108
         )
-        expected = datetime(2026, 1, 1, 12, tzinfo=timezone.utc).timestamp()
+        expected = datetime(2026, 1, 1, 12, tzinfo=UTC).timestamp()
         assert config.after == expected
 
     def test_yaml_date_object(self, tmp_path):

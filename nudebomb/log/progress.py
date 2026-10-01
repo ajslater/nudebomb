@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from collections import defaultdict, deque
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, Self
 
 from rich.markup import escape
 from rich.progress import (
@@ -18,7 +18,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from rich.text import Text
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from nudebomb.log.styles import MARKS
 
