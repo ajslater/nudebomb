@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v1.7.0
+
+- Changes
+    - Requires Python 3.11.
+    - Requires treestamps 5.1.0.
+
 ## v1.6.2
 
 - Dep

@@ -10,7 +10,8 @@ from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
 from nudebomb.log import setup as setup_logging
-from nudebomb.log.styles import MARKS
+from nudebomb.log.styles import MARKS, MarkKind
+from nudebomb.lookup import MediaType
 from nudebomb.version import VERSION
 from nudebomb.walk import Walk
 
@@ -64,18 +65,18 @@ class NudebombHelpFormatter(RawDescriptionRichHelpFormatter):
 # Order + label for each mark in the help epilogue legend. The char and
 # style are pulled from the centralized MARKS table so the legend can
 # never drift from what the bar actually renders.
-CHAR_KEY_LABELS: Final[tuple[tuple[str, str], ...]] = (
-    ("ignored", "MKV ignored/skipped"),
-    ("skipped_timestamp", "MKV skipped (timestamp unchanged)"),
-    ("already_stripped", "MKV already stripped"),
-    ("stripped", "MKV stripped tracks"),
-    ("dry_run", "MKV not remuxed (dry run)"),
-    ("warning", "Warning"),
-    ("error", "Error"),
-    ("lookup_hit", "Remote DB lookup succeeded"),
-    ("lookup_no_result", "Remote DB lookup no result"),
-    ("lookup_rate_limited", "Remote DB rate limited"),
-    ("lookup_error", "Remote DB error"),
+CHAR_KEY_LABELS: Final[tuple[tuple[MarkKind, str], ...]] = (
+    (MarkKind.IGNORED, "MKV ignored/skipped"),
+    (MarkKind.SKIPPED_TIMESTAMP, "MKV skipped (timestamp unchanged)"),
+    (MarkKind.ALREADY_STRIPPED, "MKV already stripped"),
+    (MarkKind.STRIPPED, "MKV stripped tracks"),
+    (MarkKind.DRY_RUN, "MKV not remuxed (dry run)"),
+    (MarkKind.WARNING, "Warning"),
+    (MarkKind.ERROR, "Error"),
+    (MarkKind.LOOKUP_HIT, "Remote DB lookup succeeded"),
+    (MarkKind.LOOKUP_NO_RESULT, "Remote DB lookup no result"),
+    (MarkKind.LOOKUP_RATE_LIMITED, "Remote DB rate limited"),
+    (MarkKind.LOOKUP_ERROR, "Remote DB error"),
 )
 
 
@@ -129,7 +130,8 @@ def get_arguments(
         "-m",
         "--media-type",
         action="store",
-        choices=("movie", "tv"),
+        # Plain values: Python 3.11's invalid-choice error repr()s choices.
+        choices=tuple(media_type.value for media_type in MediaType),
         help=(
             "TMDB media type. Specify 'movie' or 'tv' to target TMDB lookups. "
             "The 'tv' type also enables TVDB lookups when --tvdb-api-key is set."

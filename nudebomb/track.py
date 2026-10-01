@@ -1,9 +1,18 @@
 """MKV Track metadata."""
 
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import Any
 
 from typing_extensions import override
+
+
+class TrackType(StrEnum):
+    """mkvmerge track types."""
+
+    VIDEO = "video"
+    AUDIO = "audio"
+    SUBTITLES = "subtitles"
 
 
 class Track:

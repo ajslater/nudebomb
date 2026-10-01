@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
+from enum import StrEnum
 from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
@@ -28,7 +29,7 @@ from nudebomb.log.progress import make_progress
 from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.log.summary import render as render_summary
-from nudebomb.lookup import TMDBLookup, TVDBLookup
+from nudebomb.lookup import MediaType, TMDBLookup, TVDBLookup
 from nudebomb.lookup.cache import LookupCache
 from nudebomb.lookup.parser import parse_title
 from nudebomb.mkv import MKVFile
@@ -47,10 +48,21 @@ _LookupKey = tuple[str, str, str]
 # Hard cap to protect TMDB/TVDB rate limits even if the user cranks the knob.
 _MAX_LOOKUP_WORKERS: Final = 8
 
-# Skip reasons with special handling in walk_file/_count_path; all other
-# reasons are logged and counted as ignored.
-_DIR_REASON: Final = "directory"
-_TIMESTAMP_REASON: Final = "timestamp"
+
+class _SkipReason(StrEnum):
+    """
+    Why the walk passes over a path; the value is its log text.
+
+    DIRECTORY and TIMESTAMP get special handling in walk_file/_count_path;
+    all other reasons are logged and counted as ignored.
+    """
+
+    IGNORED = "ignored"
+    SYMLINK = "symlink"
+    DIRECTORY = "directory"
+    SUFFIX = "suffix is not 'mkv'"
+    TIMESTAMP = "timestamp"
+
 
 _FINGERPRINT_KEY: Final = "_dir_config_fingerprint"
 _PROGRAM_CONFIG_KEYS: Final = TIMESTAMPS_CONFIG_KEYS | {_FINGERPRINT_KEY}
@@ -119,7 +131,7 @@ class Walk:
         self._pending: dict[_LookupKey, Future[str | None]] = {}
         # Skip verdicts computed by the prefetch pass, consumed (popped)
         # by walk_file so the guard work runs once per file.
-        self._prefetched_skip_reasons: dict[Path, str | None] = {}
+        self._prefetched_skip_reasons: dict[Path, _SkipReason | None] = {}
 
     # ------------------------------------------------------------------
     # Guards
@@ -142,7 +154,7 @@ class Walk:
 
     def _skip_reason(
         self, top_path: Path, path: Path, *, use_timestamps: bool = True
-    ) -> str | None:
+    ) -> _SkipReason | None:
         """
         Return why ``path`` would be skipped, or None to process it.
 
@@ -153,15 +165,15 @@ class Walk:
         """
         settings = self._dirconfig.get_settings(top_path, Treestamps.get_dir(path))
         if any(path.match(ignore_glob) for ignore_glob in settings.ignore):
-            return "ignored"
+            return _SkipReason.IGNORED
         if not settings.symlinks and path.is_symlink():
-            return "symlink"
+            return _SkipReason.SYMLINK
         if path.is_dir():
-            return _DIR_REASON
+            return _SkipReason.DIRECTORY
         if path.suffix != ".mkv":
-            return "suffix is not 'mkv'"
+            return _SkipReason.SUFFIX
         if use_timestamps and self._is_before_timestamp(top_path, path):
-            return _TIMESTAMP_REASON
+            return _SkipReason.TIMESTAMP
         return None
 
     # ------------------------------------------------------------------
@@ -188,7 +200,7 @@ class Walk:
         # error) or it gets skipped (ignored, non-mkv suffix, timestamp) —
         # so the timestamp stat is skipped here.
         reason = self._skip_reason(top_path, path, use_timestamps=False)
-        if reason == _DIR_REASON:
+        if reason == _SkipReason.DIRECTORY:
             return self._count_dir(top_path, path)
         return 1
 
@@ -219,7 +231,7 @@ class Walk:
         """
         parsed = parse_title(path.stem, media_type or "")
         if parsed.tvdb_id:
-            return ("tv", "tvdb", parsed.tvdb_id)
+            return (MediaType.TV, "tvdb", parsed.tvdb_id)
         if parsed.tmdb_id:
             return ("", "tmdb", parsed.tmdb_id)
         if parsed.imdb_id:
@@ -237,7 +249,7 @@ class Walk:
         thread-safe, and Stats has its own lock).
         """
         lang: str | None = None
-        if self._tvdb and media_type == "tv":
+        if self._tvdb and media_type == MediaType.TV:
             lang = self._tvdb.lookup_language(path)
         if not lang and self._tmdb:
             lang = self._tmdb.lookup_language(path, media_type)
@@ -413,10 +425,10 @@ class Walk:
             reason = self._prefetched_skip_reasons.pop(path)
         else:
             reason = self._skip_reason(top_path, path)
-        if reason == _DIR_REASON:
+        if reason == _SkipReason.DIRECTORY:
             self.walk_dir(top_path, path)
             return
-        if reason == _TIMESTAMP_REASON:
+        if reason == _SkipReason.TIMESTAMP:
             logger.debug(f"Skip by timestamps {path}")
             self._stats.record_skipped_timestamp()
             self._reporter.progress.mark_skipped_timestamp()

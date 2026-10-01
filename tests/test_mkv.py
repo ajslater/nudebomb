@@ -10,6 +10,7 @@ from nudebomb.config import NudebombConfig
 from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.mkv import MKVFile
+from nudebomb.track import TrackType
 from tests.util import SRC_PATH, TEST_FN, DiffTracksTest, mkv_tracks
 
 if TYPE_CHECKING:
@@ -27,14 +28,14 @@ def assert_eng_und_only(out_tracks: list[dict[str, str | dict[str, str]]]) -> No
     subs_count = 0
     for track in out_tracks:
         track_type = track.get("type")
-        if track_type not in MKVFile.REMOVABLE_TRACK_NAMES:
+        if track_type not in MKVFile.REMOVABLE_TRACK_TYPES:
             continue
         lang = track["properties"]["language"]  # pyright: ignore[reportArgumentType], # ty: ignore[invalid-argument-type]
         print(track_type, lang)
         assert lang in ["und", "eng"]
-        if track_type == MKVFile.SUBTITLE_TRACK_NAME:
+        if track_type == TrackType.SUBTITLES:
             subs_count += 1
-        elif track_type == MKVFile.AUDIO_TRACK_NAME:
+        elif track_type == TrackType.AUDIO:
             audio_count += 1
         else:
             msg = f"Bad track type: {track_type}"

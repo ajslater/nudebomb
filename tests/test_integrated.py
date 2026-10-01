@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from nudebomb.cli import main
-from nudebomb.mkv import MKVFile
+from nudebomb.track import TrackType
 from tests.test_mkv import assert_eng_und_only
 from tests.util import SRC_DIR, TEST_FN, DiffTracksTest, mkv_tracks
 
@@ -67,6 +67,6 @@ class TestIntegrated(DiffTracksTest):
         out_tracks = mkv_tracks(self.dest_path)
         for track in out_tracks:
             track_type = track.get("type")
-            if track_type == MKVFile.SUBTITLE_TRACK_NAME:
+            if track_type == TrackType.SUBTITLES:
                 msg = f"subtitle track should not exist: {track}"
                 raise AssertionError(msg)

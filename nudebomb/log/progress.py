@@ -20,7 +20,7 @@ from rich.progress import (
 from rich.text import Text
 from typing_extensions import override
 
-from nudebomb.log.styles import MARKS
+from nudebomb.log.styles import MARKS, MarkKind
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -39,12 +39,12 @@ __all__ = (
 # Marks that count as a finished file and advance the bar.
 _FILE_MARKS: Final = frozenset(
     {
-        "ignored",
-        "skipped_timestamp",
-        "already_stripped",
-        "stripped",
-        "dry_run",
-        "error",
+        MarkKind.IGNORED,
+        MarkKind.SKIPPED_TIMESTAMP,
+        MarkKind.ALREADY_STRIPPED,
+        MarkKind.STRIPPED,
+        MarkKind.DRY_RUN,
+        MarkKind.ERROR,
     }
 )
 
@@ -127,7 +127,7 @@ class ProgressContext:
         if self._enabled and self._progress is not None:
             self._progress.__exit__(exc_type, exc_val, exc_tb)
 
-    def _mark(self, kind: str) -> None:
+    def _mark(self, kind: MarkKind) -> None:
         if (
             not self._enabled
             or self._progress is None
@@ -142,47 +142,47 @@ class ProgressContext:
 
     def mark_ignored(self) -> None:
         """Mark a file as ignored / skipped."""
-        self._mark("ignored")
+        self._mark(MarkKind.IGNORED)
 
     def mark_skipped_timestamp(self) -> None:
         """Mark a file as skipped by timestamp."""
-        self._mark("skipped_timestamp")
+        self._mark(MarkKind.SKIPPED_TIMESTAMP)
 
     def mark_already_stripped(self) -> None:
         """Mark a file as already stripped (no work needed)."""
-        self._mark("already_stripped")
+        self._mark(MarkKind.ALREADY_STRIPPED)
 
     def mark_stripped(self) -> None:
         """Mark a file as successfully stripped."""
-        self._mark("stripped")
+        self._mark(MarkKind.STRIPPED)
 
     def mark_dry_run(self) -> None:
         """Mark a file as would-have-been-stripped (dry-run)."""
-        self._mark("dry_run")
+        self._mark(MarkKind.DRY_RUN)
 
     def mark_warning(self) -> None:
         """Mark a non-fatal issue (no bar advance)."""
-        self._mark("warning")
+        self._mark(MarkKind.WARNING)
 
     def mark_error(self) -> None:
         """Mark a fatal error processing a file."""
-        self._mark("error")
+        self._mark(MarkKind.ERROR)
 
     def mark_lookup_hit(self) -> None:
         """Mark a remote DB lookup hit (no bar advance)."""
-        self._mark("lookup_hit")
+        self._mark(MarkKind.LOOKUP_HIT)
 
     def mark_lookup_no_result(self) -> None:
         """Mark a remote DB lookup with no result (no bar advance)."""
-        self._mark("lookup_no_result")
+        self._mark(MarkKind.LOOKUP_NO_RESULT)
 
     def mark_lookup_rate_limited(self) -> None:
         """Mark a remote DB lookup that was rate-limited (no bar advance)."""
-        self._mark("lookup_rate_limited")
+        self._mark(MarkKind.LOOKUP_RATE_LIMITED)
 
     def mark_lookup_error(self) -> None:
         """Mark a remote DB lookup error (no bar advance)."""
-        self._mark("lookup_error")
+        self._mark(MarkKind.LOOKUP_ERROR)
 
     @contextmanager
     def file_subtask(
