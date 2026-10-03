@@ -1,5 +1,12 @@
 # 📰 Nudebomb News
 
+## v1.7.1
+
+- Fixes
+    - A rejected TVDB API key or unreachable TVDB no longer crashes the run.
+      TVDB lookups are skipped with one error and the run continues. Runs that
+      don't need TVDB, like movie runs, no longer contact it.
+
 ## v1.7.0
 
 - Changes

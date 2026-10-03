@@ -1,9 +1,11 @@
 """Tests for the lookup backends: error handling, queries, title matching."""
 
 import socket
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.error import URLError
 
 import pytest
 from requests.exceptions import HTTPError
@@ -12,11 +14,13 @@ from requests.models import Response
 from nudebomb.log.reporter import Reporter
 from nudebomb.log.summary import Stats
 from nudebomb.lookup.cache import LookupCache
+from nudebomb.lookup.media_type import MediaType
 from nudebomb.lookup.parser import ParseResult
 from nudebomb.lookup.tmdb import TMDBLookup, _result_titles, _result_year
 from nudebomb.lookup.tvdb import (
     TVDBLookup,
     _is_tvdb_error_dict,
+    connect_tvdb,
 )
 from nudebomb.lookup.tvdb import (
     _result_titles as tvdb_result_titles,
@@ -145,14 +149,15 @@ class TestTVDBErrorHandling:
     @pytest.fixture
     def tvdb(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> tuple[TVDBLookup, Reporter]:
+    ) -> Iterator[tuple[TVDBLookup, Reporter]]:
         monkeypatch.setattr(
             "nudebomb.lookup.cache.user_cache_dir",
             lambda _prog: str(tmp_path),
         )
 
-        # tvdb_v4_official.TVDB.__init__ makes a live HTTP call to log in.
-        # Patch it to a no-op so we can construct the lookup offline.
+        # tvdb_v4_official.TVDB.__init__ makes a live HTTP call to log in,
+        # which the lookup does on its first query. Patch it to a no-op for
+        # the whole test so queries run offline.
         with patch("tvdb_v4_official.TVDB") as mock_tvdb:
             mock_tvdb.return_value = object()  # placeholder
 
@@ -162,7 +167,7 @@ class TestTVDBErrorHandling:
                 verbose = 0
 
             reporter = Reporter(stats=Stats())
-            return TVDBLookup(_Cfg(), reporter), reporter  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+            yield TVDBLookup(_Cfg(), reporter), reporter  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
 
     def test_rate_limit_dict_does_not_cache(
         self, tvdb: tuple[TVDBLookup, Reporter]
@@ -191,6 +196,67 @@ class TestTVDBErrorHandling:
         found, _lang = tvdb_lookup._cache.check_cache("tv", "Foo", "")
         assert not found
         assert reporter.stats.db_remote_errors
+
+
+_TVDB_KEY = "SECRET-TVDB-KEY"
+# What tvdb_v4_official's login raises for a rejected key and for no network.
+TVDB_LOGIN_ERRORS = (
+    pytest.param(
+        Exception("Code:HTTP Error 401: Unauthorized, InvalidAPIKey"), id="bad-key"
+    ),
+    pytest.param(URLError("no network"), id="no-network"),
+)
+
+
+class TestTVDBLogin:
+    """TVDB logs in on the first remote query; a failed login disables only TVDB."""
+
+    @staticmethod
+    def _lookup(cache: LookupCache) -> tuple[TVDBLookup, Reporter]:
+        class _Cfg:
+            tvdb_api_key = _TVDB_KEY
+            cache_expiry_days = 30
+            verbose = 0
+
+        reporter = Reporter(stats=Stats())
+        return TVDBLookup(_Cfg(), reporter, cache), reporter  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
+
+    def test_construction_does_not_log_in(self, tmp_cache: LookupCache) -> None:
+        with patch("tvdb_v4_official.TVDB") as mock_tvdb:
+            self._lookup(tmp_cache)
+        mock_tvdb.assert_not_called()
+
+    def test_cache_hit_needs_no_login(self, tmp_cache: LookupCache) -> None:
+        tmp_cache.save_file(MediaType.TV, "Cowboy Bebop", "", language="jpn")
+        tvdb_lookup, _reporter = self._lookup(tmp_cache)
+        with patch(
+            "tvdb_v4_official.TVDB", side_effect=URLError("no network")
+        ) as mock_tvdb:
+            lang = tvdb_lookup.lookup_language(Path("Cowboy Bebop - S01E01.mkv"))
+        assert lang == "jpn"
+        mock_tvdb.assert_not_called()
+
+    @pytest.mark.parametrize("login_error", TVDB_LOGIN_ERRORS)
+    def test_login_failure_reported_once(
+        self, tmp_cache: LookupCache, login_error: Exception
+    ) -> None:
+        tvdb_lookup, reporter = self._lookup(tmp_cache)
+        with patch("tvdb_v4_official.TVDB", side_effect=login_error) as mock_tvdb:
+            langs = [
+                tvdb_lookup.lookup_language(Path(name))
+                for name in ("Cowboy Bebop - S01E01.mkv", "Trigun - S01E01.mkv")
+            ]
+
+        assert langs == [None, None]
+        # No retry per file: one failed login disables TVDB for the run.
+        mock_tvdb.assert_called_once()
+        (msg,) = reporter.stats.db_remote_errors
+        assert msg.startswith("TVDB login failed")
+        assert str(login_error) in msg
+        assert _TVDB_KEY not in msg
+        # Not a miss: nothing is cached, so the next run tries again.
+        found, _lang = tmp_cache.check_cache(MediaType.TV, "Cowboy Bebop", "")
+        assert not found
 
 
 class _FakeSearch:
@@ -379,13 +445,14 @@ class TestTimeouts:
         TMDBLookup(_Cfg(), Reporter(stats=Stats()), tmp_cache)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
         assert tmdbsimple.REQUESTS_TIMEOUT == LOOKUP_TIMEOUT_SECONDS
 
-    def test_tvdb_socket_timeout_configured(self, tmp_cache: LookupCache) -> None:
-        class _Cfg:
-            tvdb_api_key = "fake"
-            cache_expiry_days = 30
-            verbose = 0
-
-        with patch("tvdb_v4_official.TVDB") as mock_tvdb:
-            mock_tvdb.return_value = object()
-            TVDBLookup(_Cfg(), Reporter(stats=Stats()), tmp_cache)  # pyright: ignore[reportArgumentType], #ty: ignore[invalid-argument-type]
-        assert socket.getdefaulttimeout() == LOOKUP_TIMEOUT_SECONDS
+    def test_tvdb_socket_timeout_configured(self) -> None:
+        # The default is process-wide, so clear it first or an earlier
+        # test's login would make this pass on its own.
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(None)
+        try:
+            with patch("tvdb_v4_official.TVDB"):
+                connect_tvdb("fake")
+            assert socket.getdefaulttimeout() == LOOKUP_TIMEOUT_SECONDS
+        finally:
+            socket.setdefaulttimeout(old_timeout)
