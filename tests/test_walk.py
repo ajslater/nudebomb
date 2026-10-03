@@ -1,13 +1,20 @@
 """Tests for Walk-level lookup dispatch and dedupe."""
 
+import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from nudebomb.cli import get_arguments
+from nudebomb.config import NudebombConfig
+from nudebomb.lookup import TMDBLookup
 from nudebomb.walk import Walk
+from tests.test_lookup import TVDB_LOGIN_ERRORS
+from tests.util import SRC_PATH
 
 __all__ = ()
 
@@ -181,6 +188,57 @@ class TestDoLookup:
         walk._do_lookup(Path("Dune (2021).mkv"), walk._config.media_type)
         assert tvdb.lookup_language.call_count == 0
         assert tmdb.lookup_language.call_count == 1
+
+
+class TestTVDBLoginFailure:
+    """A TVDB login failure costs only TVDB; TMDB and stripping still run."""
+
+    _KEY = "SECRET-TVDB-KEY"
+
+    @pytest.fixture(autouse=True)
+    def isolate(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Point confuse and the lookup cache at temp dirs; scrub env vars."""
+        for key in list(os.environ):
+            if key.startswith("NUDEBOMB"):
+                monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("NUDEBOMBDIR", str(tmp_path / "config"))
+        monkeypatch.setattr(
+            "nudebomb.lookup.cache.user_cache_dir",
+            lambda _prog: str(tmp_path / "cache"),
+        )
+
+    @pytest.mark.parametrize("login_error", TVDB_LOGIN_ERRORS)
+    def test_walk_proceeds(self, tmp_path: Path, login_error: Exception) -> None:
+        media = tmp_path / "media"
+        media.mkdir()
+        episode = media / "Cowboy Bebop - S01E01.mkv"
+        shutil.copy(SRC_PATH, episode)
+        argv = (
+            "nudebomb",
+            *("-q", "-d", "-r", "-l", "eng,und", "--media-type", "tv"),
+            *("--tvdb-api-key", self._KEY, "--tmdb-api-key", "fake"),
+            str(media),
+        )
+        args = get_arguments(argv)
+        config = NudebombConfig().get_config(args)
+
+        with (
+            patch("tvdb_v4_official.TVDB", side_effect=login_error) as mock_tvdb,
+            patch.object(
+                TMDBLookup, "lookup_language", return_value="jpn"
+            ) as mock_tmdb_lookup,
+        ):
+            stats = Walk(config, args).run()
+
+        mock_tvdb.assert_called_once()
+        # TV media falls through from the disabled TVDB to TMDB...
+        mock_tmdb_lookup.assert_called_once_with(episode, "tv")
+        # ...and the file is still processed.
+        assert stats.dry_run == [episode]
+        assert not stats.errors
+        (msg,) = stats.db_remote_errors
+        assert msg.startswith("TVDB login failed")
+        assert self._KEY not in msg
 
 
 class TestWalkRobustness:
