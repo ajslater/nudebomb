@@ -385,12 +385,19 @@ class NudebombConfig:
         if und_language:
             config[PROGRAM_NAME]["und_language"].set(lang_to_alpha3(und_language))
 
-    def _set_languages(self, config: Configuration) -> None:
+    def _set_languages(
+        self, config: Configuration, *, require_languages: bool = True
+    ) -> None:
         self._set_unique_lang_list(config, "languages")
-        if not config[PROGRAM_NAME]["languages"].get():
-            error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."
-            logger.error(error)
-            sys.exit(1)
+        if config[PROGRAM_NAME]["languages"].get():
+            return
+        if not require_languages:
+            # The template's Sequence(str) rejects the packaged null.
+            config[PROGRAM_NAME]["languages"].set([])
+            return
+        error = "Nudebomb will not run unless you set languages to keep on the command line, environment variables or config files."
+        logger.error(error)
+        sys.exit(1)
 
     @staticmethod
     def _set_ignore(config: Configuration) -> None:
@@ -467,6 +474,8 @@ class NudebombConfig:
         args: Namespace | None = None,
         dir_config_files: tuple[Path, ...] = (),
         modname: str = PROGRAM_NAME,
+        *,
+        require_languages: bool = True,
     ) -> Configuration:
         """
         Build a fully-layered, normalized confuse Configuration.
@@ -489,7 +498,7 @@ class NudebombConfig:
         if args:
             config.set_args(args)
         self._set_und_language(config)
-        self._set_languages(config)
+        self._set_languages(config, require_languages=require_languages)
         self._set_after(config)
         self._set_default_mkvmerge_bin(config)
         self._set_unique_lang_list(config, "sub_languages")
@@ -520,6 +529,17 @@ class NudebombConfig:
         ):
             _write_configs(config, nns)
         return settings
+
+    def get_doctor_config(self, args: Namespace) -> NudebombSettings:
+        """
+        Get the typed config a run with ``args`` would see, for the doctor.
+
+        Layered and validated like :meth:`get_config`, but languages are not
+        required (unset ones resolve to empty) and the write flags are never
+        acted on: the doctor writes no files.
+        """
+        config = self._build_config(args, require_languages=False)
+        return self._config_to_settings(config)
 
     def get_dir_settings(
         self,

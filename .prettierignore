@@ -1,8 +1,6 @@
 __pycache__
-.*cache/
 .claude
 .git
-.venv
 *.sh
 *Dockerfile
 bun.lock
