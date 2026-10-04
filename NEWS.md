@@ -1,6 +1,6 @@
 # 📰 Nudebomb News
 
-## v1.7.1
+## v1.8.0
 
 - Features
     - `nudebomb doctor` checks mkvmerge, the TMDB and TVDB API keys, and the
