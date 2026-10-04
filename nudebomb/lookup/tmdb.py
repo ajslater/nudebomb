@@ -49,6 +49,20 @@ def _result_year(result: dict) -> str:
     return date[:4]
 
 
+def configure_tmdb(api_key: str | None) -> None:
+    """
+    Set tmdbsimple's API key and request timeout.
+
+    tmdbsimple holds its configuration as module globals by design, and its
+    API objects read them in their constructors, so call this before
+    constructing one.
+    """
+    tmdb.API_KEY = api_key
+    # tmdbsimple types this from its env-var default, but it goes
+    # straight to requests, which wants a number.
+    tmdb.REQUESTS_TIMEOUT = LOOKUP_TIMEOUT_SECONDS  # ty: ignore[invalid-assignment]
+
+
 class TMDBLookup(BaseLookup):
     """Look up original language of media from TMDB."""
 
@@ -59,14 +73,10 @@ class TMDBLookup(BaseLookup):
         cache: LookupCache | None = None,
     ) -> None:
         """Initialize."""
-        # tmdbsimple holds its configuration as module globals by design.
         # No lock is needed around calls: API objects are constructed
         # fresh per request and REQUESTS_SESSION stays unset, so each
         # call uses its own requests.Session.
-        tmdb.API_KEY = config.tmdb_api_key
-        # tmdbsimple types this from its env-var default, but it goes
-        # straight to requests, which wants a number.
-        tmdb.REQUESTS_TIMEOUT = LOOKUP_TIMEOUT_SECONDS  # ty: ignore[invalid-assignment]
+        configure_tmdb(config.tmdb_api_key)
         super().__init__(config, reporter, cache)
         self._media_type: str = config.media_type or ""
 

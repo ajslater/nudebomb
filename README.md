@@ -10,6 +10,9 @@ tracks, keeping only the languages you specify.
 - [MKVToolNix](https://mkvtoolnix.download/) — provides the `mkvmerge` binary.
   Available via Homebrew, apt, or your favorite package manager.
 
+Run [`nudebomb doctor`](#doctor) to check that nudebomb can find `mkvmerge` and
+reach the online lookup services.
+
 ### Install
 
 ```sh
@@ -64,6 +67,45 @@ nudebomb [options] path [path ...]
 
 Paths can be individual MKV files or directories. Use `-r` to recurse into
 directories.
+
+### Doctor
+
+```text
+nudebomb doctor [options] [path ...]
+```
+
+Checks nudebomb's external dependencies and exits: whether `mkvmerge` runs and
+which version it is, whether the TMDB and TVDB API keys are accepted, and
+whether the lookup cache directory is writable. Then it lists the nudebomb and
+Python versions, the config file it read, and the installed library versions.
+
+It takes the same options as a run and resolves config the same way, so put
+`doctor` in front of your usual command line to check exactly what that run
+would use:
+
+```sh
+nudebomb doctor -rtl eng -m tv /mnt/tv
+```
+
+Paths are not walked. Instead, doctor reports what the next run would make of
+each tree's timestamps file: how many entries it holds and when it was written,
+or that the run will discard it because the config changed (and which options
+changed), or that an interrupted run left a write-ahead log behind. The
+comparison is against the command line as given, so leaving out `-l` reports
+`languages` as changed. Per-directory `.nudebomb.yaml` overrides are not yet
+applied to the other checks.
+
+Doctor never writes files: `-w`, `-W`, and `--write-config-file` are ignored
+with a warning. It exits `1` if any check fails and `0` otherwise, so
+`nudebomb doctor && nudebomb …` works in scripts.
+
+With `-q`, doctor prints only warnings and failures, and nothing at all when
+everything is fine, which suits cron. As with any option, `verbose: 0` in a
+config file or `NUDEBOMB_NUDEBOMB__VERBOSE=0` has the same effect, and `-v`
+brings the full report back.
+
+A directory named `doctor` in the current directory must be passed as
+`./doctor`.
 
 ## Configuration
 
@@ -162,6 +204,8 @@ top of whatever it resolves to.
 a directory via its config), editing, adding, or removing a `.nudebomb.yaml`
 re-processes its directory tree on the next run, so a config change never leaves
 stale files behind. Re-checking an already-stripped file is a fast no-op.
+[`nudebomb doctor`](#doctor) with your usual options and paths shows whether the
+next run will keep or discard each tree's timestamps.
 
 ## Lang Files (deprecated)
 
