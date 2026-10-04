@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -1395,7 +1395,7 @@ requires-dist = [
     { name = "rich-argparse", specifier = "~=1.8" },
     { name = "ruamel-yaml", specifier = ">=0.18,<1.0" },
     { name = "tmdbsimple", specifier = "~=2.9" },
-    { name = "treestamps", specifier = "~=5.1.1" },
+    { name = "treestamps", specifier = "~=5.2.0" },
     { name = "tvdb-v4-official", specifier = "~=1.1" },
     { name = "typing-extensions", specifier = "~=4.13" },
 ]
@@ -1478,11 +1478,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.12.2"
+version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/17/c8/721b3855fe457da514fe249247d404b9b39c5d16532278f70ebaa6acf18b/platformdirs-4.12.2.tar.gz", hash = "sha256:eab5f70271a490ef74618bb314fbb86e3c7e82fa3b9c922c2ea0e0a1a155d329", size = 59353, upload-time = "2026-09-29T18:27:56.009Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/23/4a86fc741c38c5b69792a4ef954b281afa69bea9f083f881de1b0d23bc07/platformdirs-4.12.3.tar.gz", hash = "sha256:427fc0bb321ae0c5b037fa03238ca74820437be162e78b4848c4d4055b9b766c", size = 59538, upload-time = "2026-10-03T23:40:46.595Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/89/446044f33aba0348d35e433f56d12206d010a5281a1df54054d4cfb82388/platformdirs-4.12.2-py3-none-any.whl", hash = "sha256:29dbf06d96c500bc6bdbce75fb0a14d63279c93b1842f97e72a135b33e856983", size = 32457, upload-time = "2026-09-29T18:27:54.43Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/9b/6ce1ead737fe496611bda600c263b9a11ae7bd8f41bb13f9bd7e0a2c37a4/platformdirs-4.12.3-py3-none-any.whl", hash = "sha256:080f3b39423b5abfca9a23d84c4e9795f54d395cd8459867a8ded44084fcd5f8", size = 32493, upload-time = "2026-10-03T23:40:45.104Z" },
 ]
 
 [[package]]
@@ -2008,15 +2008,15 @@ wheels = [
 
 [[package]]
 name = "treestamps"
-version = "5.1.1"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ruamel-yaml" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/5d/8c4b345a2b650950850f345ad4c22c6b0846d2e6f7ac31a28dda3b547057/treestamps-5.1.1.tar.gz", hash = "sha256:54970edcc3cd8e7c5dc2e06e0efbbc67b6ba8d179a57c4610296a038472a7898", size = 224029, upload-time = "2026-10-01T18:39:24.733Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7c/2b/3412a1a5c6c139e4dfe22df90d2ff3da2cd94a5a84802a521ad97aa9d2a3/treestamps-5.2.0.tar.gz", hash = "sha256:bde9985bab868357ee40cd2cee113f64a44fb432502e973204378794ba569dca", size = 237689, upload-time = "2026-10-04T01:36:24.191Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/36/ef4b1b22ed14b96f5ae344581d9c9bb70b79b23dd5fcde5db9e3c3d8a9d0/treestamps-5.1.1-py3-none-any.whl", hash = "sha256:eb1b2e8b4b2ab3b3417eb528bcd9a2f7d907ec7457043e31eb2abcfe2fa6b84e", size = 38031, upload-time = "2026-10-01T18:39:23.536Z" },
+    { url = "https://files.pythonhosted.org/packages/63/50/29863334991592e2da1d3ac08f60c8dfda3ff9cba4032d7a26a2233c5cce/treestamps-5.2.0-py3-none-any.whl", hash = "sha256:97a967f9fbbfee6b5c51ca782f4412941769b7cc02a1bfeb9d19935530eb027d", size = 40900, upload-time = "2026-10-04T01:36:23.265Z" },
 ]
 
 [[package]]
