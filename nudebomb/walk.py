@@ -37,7 +37,7 @@ from nudebomb.version import PROGRAM_NAME
 
 if TYPE_CHECKING:
     from argparse import Namespace
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
     from nudebomb.config import NudebombSettings
 
@@ -80,6 +80,69 @@ _KEY_LABELS: Final[MappingProxyType[str, str]] = MappingProxyType(
     {_FINGERPRINT_KEY: f"{DIR_CONFIG_FILENAME} contents"}
 )
 _NOTE: Final = ("Safe to delete: nudebomb will re-examine this tree on the next run.",)
+
+
+def dir_configs_fingerprint(paths: Iterable[str]) -> str:
+    """
+    Hash the option values of every ``.nudebomb.yaml`` under the targets.
+
+    Folded into the treestamps ``program_config`` so that editing,
+    adding, or removing any directory config flips the digest and the
+    affected tree re-strips on the next run — over-invalidation that is
+    always safe (re-checking an already-stripped file is a cheap no-op)
+    and never wrong-skips a file whose effective config changed. Comment
+    and formatting edits do not change it, only option values do.
+
+    Root configs are included because the recorded program config holds
+    the run-wide settings, not each tree root's resolved ones.
+    """
+    hasher = sha256()
+    seen: set[Path] = set()
+    for path_str in paths:
+        root = Treestamps.get_dir(Path(path_str))
+        if root in seen:
+            continue
+        seen.add(root)
+        digest = dir_config_fingerprint(
+            root, DIR_CONFIG_FILENAME, PROGRAM_NAME, exclude_root=False
+        )
+        hasher.update(str(root).encode() + b"\0" + bytes.fromhex(digest))
+    return hasher.hexdigest()
+
+
+def build_grove_config(config: NudebombSettings) -> GrovestampsConfig:
+    """
+    Build the timestamps config a run records and compares against.
+
+    Shared by the walk and ``nudebomb doctor`` so the doctor's report on
+    stamp files can't drift from what a run would make of them.
+    """
+    # Fold a fingerprint of the directory configs into the program config
+    # so any change to a ``.nudebomb.yaml`` invalidates its tree's
+    # timestamps (the single global program_config can't otherwise see
+    # per-directory config changes).
+    program_config: dict[str, Any] = {
+        config_key: getattr(config, config_key) for config_key in TIMESTAMPS_CONFIG_KEYS
+    }
+    program_config[_FINGERPRINT_KEY] = dir_configs_fingerprint(config.paths)
+    # Force `verbose=0` so treestamps's own termcolor Printer
+    # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
+    # dots straight to stdout for each `.set()` call, bypassing
+    # rich's Live region and breaking the bar's in-place redraw.
+    return GrovestampsConfig(
+        PROGRAM_NAME,
+        paths=config.paths,
+        verbose=0,
+        symlinks=config.symlinks,
+        ignore=config.ignore,
+        check_config=config.timestamps_check_config,
+        # Plain dicts so CommonConfig.__post_init__ filters & normalizes.
+        program_config=program_config,
+        program_config_keys=_PROGRAM_CONFIG_KEYS,
+        program_config_defaults=dict(_PROGRAM_CONFIG_DEFAULTS),
+        program_config_key_labels=_KEY_LABELS,
+        note=_NOTE,
+    )
 
 
 class Walk:
@@ -477,31 +540,8 @@ class Walk:
             return []
 
     def _dir_config_fingerprint(self) -> str:
-        """
-        Hash the option values of every ``.nudebomb.yaml`` under the targets.
-
-        Folded into the treestamps ``program_config`` so that editing,
-        adding, or removing any directory config flips the digest and the
-        affected tree re-strips on the next run — over-invalidation that is
-        always safe (re-checking an already-stripped file is a cheap no-op)
-        and never wrong-skips a file whose effective config changed. Comment
-        and formatting edits do not change it, only option values do.
-
-        Root configs are included because the recorded program config holds
-        the run-wide settings, not each tree root's resolved ones.
-        """
-        hasher = sha256()
-        seen: set[Path] = set()
-        for path_str in self._config.paths:
-            root = Treestamps.get_dir(Path(path_str))
-            if root in seen:
-                continue
-            seen.add(root)
-            digest = dir_config_fingerprint(
-                root, DIR_CONFIG_FILENAME, PROGRAM_NAME, exclude_root=False
-            )
-            hasher.update(str(root).encode() + b"\0" + bytes.fromhex(digest))
-        return hasher.hexdigest()
+        """Hash the option values of every ``.nudebomb.yaml`` under the targets."""
+        return dir_configs_fingerprint(self._config.paths)
 
     def _config_dirs(self) -> Iterator[tuple[Path, Path]]:
         """Yield (top_path, directory) for each directory holding a config file."""
@@ -527,34 +567,7 @@ class Walk:
         # A directory config may enable timestamps even when the run-wide
         # flag is off; reflect that in the summary's timestamp row.
         self._stats.timestamps_active = True
-        # Fold a fingerprint of the directory configs into the program config
-        # so any change to a ``.nudebomb.yaml`` invalidates its tree's
-        # timestamps (the single global program_config can't otherwise see
-        # per-directory config changes).
-        program_config: dict[str, Any] = {
-            config_key: getattr(self._config, config_key)
-            for config_key in TIMESTAMPS_CONFIG_KEYS
-        }
-        program_config[_FINGERPRINT_KEY] = self._dir_config_fingerprint()
-        # Force `verbose=0` so treestamps's own termcolor Printer
-        # stays silent. At verbose>=1 it would emit `\x1b[2m\x1b[90m.`
-        # dots straight to stdout for each `.set()` call, bypassing
-        # rich's Live region and breaking the bar's in-place redraw.
-        grove_config = GrovestampsConfig(
-            PROGRAM_NAME,
-            paths=self._config.paths,
-            verbose=0,
-            symlinks=self._config.symlinks,
-            ignore=self._config.ignore,
-            check_config=self._config.timestamps_check_config,
-            # Plain dicts so CommonConfig.__post_init__ filters & normalizes.
-            program_config=program_config,
-            program_config_keys=_PROGRAM_CONFIG_KEYS,
-            program_config_defaults=dict(_PROGRAM_CONFIG_DEFAULTS),
-            program_config_key_labels=_KEY_LABELS,
-            note=_NOTE,
-        )
-        self._timestamps = Grovestamps(grove_config)
+        self._timestamps = Grovestamps(build_grove_config(self._config))
         roots = ", ".join(sorted(str(p) for p in self._timestamps))
         logger.info(f"Read timestamps from {roots}")
 

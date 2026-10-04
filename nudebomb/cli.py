@@ -5,15 +5,19 @@ from argparse import Action, ArgumentParser, Namespace
 from collections.abc import Sequence
 from typing import Any, ClassVar, Final
 
+from rich.markup import escape
 from rich_argparse import RawDescriptionRichHelpFormatter
 from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
+from nudebomb.doctor import NudebombDoctor
 from nudebomb.log import setup as setup_logging
 from nudebomb.log.styles import MARKS, MarkKind
 from nudebomb.lookup import MediaType
-from nudebomb.version import VERSION
+from nudebomb.version import PROGRAM_NAME, VERSION
 from nudebomb.walk import Walk
+
+DOCTOR_COMMAND: Final = "doctor"
 
 
 class CommaListAction(Action):
@@ -89,17 +93,36 @@ def get_progress_char_key() -> str:
     return "\n".join(lines)
 
 
-def get_arguments(
-    params: tuple[str, ...] | None = None,
-) -> Namespace:
-    """Command line interface."""
-    description = "Strips unnecessary tracks from MKV files."
-    epilog = get_progress_char_key()
-    parser = ArgumentParser(
-        description=description,
-        epilog=epilog,
-        formatter_class=NudebombHelpFormatter,
+def _get_doctor_usage() -> str:
+    """Describe doctor mode for the help epilogue."""
+    usage = escape(f"{PROGRAM_NAME} {DOCTOR_COMMAND} [options] [path ...]")
+    return (
+        "[bold]Doctor mode:[/bold]\n"
+        f"\t{usage}\n"
+        "\tChecks external dependencies and timestamp files.\n"
+        "\tTakes the same options as a run."
     )
+
+
+def _build_parser(*, doctor: bool = False) -> ArgumentParser:
+    """Build the run parser, or the doctor parser, which shares its options."""
+    if doctor:
+        parser = ArgumentParser(
+            prog=f"{PROGRAM_NAME} {DOCTOR_COMMAND}",
+            # The raw description formatter doesn't wrap.
+            description=(
+                "Check nudebomb's external dependencies and, for any paths given,\n"
+                "their timestamp files. Takes the same options as a run; options\n"
+                "that write files are ignored. Exits 1 if any check fails."
+            ),
+            formatter_class=NudebombHelpFormatter,
+        )
+    else:
+        parser = ArgumentParser(
+            description="Strips unnecessary tracks from MKV files.",
+            epilog=f"{get_progress_char_key()}\n\n{_get_doctor_usage()}",
+            formatter_class=NudebombHelpFormatter,
+        )
     # Flag options use default=None (not argparse's False/True) so that
     # confuse's set_args drops unset flags and the env var / config file /
     # config_default.yaml layers can take effect. A non-None default here
@@ -322,13 +345,29 @@ def get_arguments(
     parser.add_argument(
         "-V", "--version", action="version", version=f"%(prog)s {VERSION}"
     )
+    if doctor:
+        paths_nargs = "*"
+        paths_help = "Trees whose timestamp files to inspect. They are not walked."
+    else:
+        paths_nargs = "+"
+        paths_help = "Where your MKV files are stored. Can be a directories or files."
     parser.add_argument(
         "paths",
         metavar="path",
         type=str,
-        nargs="+",
-        help="Where your MKV files are stored. Can be a directories or files.",
+        nargs=paths_nargs,
+        help=paths_help,
     )
+    return parser
+
+
+def get_arguments(
+    params: tuple[str, ...] | None = None,
+    *,
+    doctor: bool = False,
+) -> Namespace:
+    """Command line interface."""
+    parser = _build_parser(doctor=doctor)
 
     # Parse the list of given arguments
     if params is not None:
@@ -344,14 +383,31 @@ def get_arguments(
     return Namespace(nudebomb=nns)
 
 
-def main(args: tuple[str, ...] | None = None) -> None:
-    """Process command line arguments, config and walk inputs."""
-    arguments = get_arguments(args)
-    # Provisional logging so config parsing problems are visible; the
-    # final verbosity may come from env vars or config files, so
-    # reconfigure once the full config resolves.
+def _setup_provisional_logging(arguments: Namespace) -> None:
+    """
+    Set up logging so config parsing problems are visible.
+
+    The final verbosity may come from env vars or config files, so logging
+    is set up again once the full config resolves.
+    """
     cli_verbose = arguments.nudebomb.verbose
     setup_logging(cli_verbose if cli_verbose is not None else 1)
+
+
+def main(args: tuple[str, ...] | None = None) -> None:
+    """Process command line arguments, config and walk inputs."""
+    argv = args if args is not None else tuple(sys.argv)
+    # Check for the doctor command before the run parser sees it, as picopt
+    # does: that parser would take "doctor" for a path. A directory named
+    # "doctor" in the cwd must be passed as ./doctor.
+    if argv[1:2] == (DOCTOR_COMMAND,):
+        # get_arguments drops its first param as the program name, so
+        # argv[1:] drops "doctor" and parses the rest.
+        arguments = get_arguments(argv[1:], doctor=True)
+        _setup_provisional_logging(arguments)
+        NudebombDoctor(arguments).doctor_mode()
+    arguments = get_arguments(argv)
+    _setup_provisional_logging(arguments)
     config = NudebombConfig().get_config(arguments)
     setup_logging(config.verbose)
     # Iterate over all found mkv files
