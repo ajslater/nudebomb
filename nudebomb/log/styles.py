@@ -3,7 +3,8 @@ Centralized color / style / char definitions for nudebomb output.
 
 Single source of truth for everything user-facing: the streaming-char
 column on the progress bar, the loguru sink that writes log lines, the
-end-of-run summary table, and the help-epilogue char-key legend.
+end-of-run summary table, the help-epilogue char-key legend, and the
+``nudebomb doctor`` report.
 
 Why centralize: the same outcome (e.g. "ignored file") should read the
 same way on the bar, in the summary, and in the legend. Changing the
@@ -22,9 +23,20 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 __all__ = (
+    "DOCTOR_COMMAND",
+    "DOCTOR_DETAIL_STYLES",
+    "DOCTOR_HINT",
+    "DOCTOR_LABEL",
+    "DOCTOR_NAME",
+    "DOCTOR_PATH",
+    "DOCTOR_SECTION",
+    "DOCTOR_STATUS_MARKS",
+    "DOCTOR_SUMMARY",
+    "DOCTOR_VERSION",
     "LEVEL_STYLES",
     "LOOKUP_HIT_LEVEL",
     "MARKS",
+    "DoctorStatus",
     "Mark",
     "MarkKind",
 )
@@ -100,3 +112,46 @@ LEVEL_STYLES: Final[Mapping[str, str]] = MappingProxyType(
         "ERROR": _style(MarkKind.ERROR),
     }
 )
+
+
+class DoctorStatus(StrEnum):
+    """Outcome of one ``nudebomb doctor`` check."""
+
+    OK = auto()
+    WARN = auto()
+    FAIL = auto()
+    SKIP = auto()
+
+
+# Doctor status tags reuse the per-file mark styles, so "ok" is the same
+# green as "already stripped" and "skip" the same dim as "ignored". The
+# char is the tag text.
+DOCTOR_STATUS_MARKS: Final[Mapping[DoctorStatus, Mark]] = MappingProxyType(
+    {
+        DoctorStatus.OK: Mark("ok", _style(MarkKind.ALREADY_STRIPPED)),
+        DoctorStatus.WARN: Mark("WARN", _style(MarkKind.WARNING)),
+        DoctorStatus.FAIL: Mark("FAIL", _style(MarkKind.ERROR)),
+        DoctorStatus.SKIP: Mark("skip", _style(MarkKind.IGNORED)),
+    }
+)
+# Detail text after the tag. A failure's detail is plain red rather than
+# the tag's bold red so the tag stays the loudest thing on the line.
+DOCTOR_DETAIL_STYLES: Final[Mapping[DoctorStatus, str]] = MappingProxyType(
+    {
+        DoctorStatus.OK: "",
+        DoctorStatus.WARN: DOCTOR_STATUS_MARKS[DoctorStatus.WARN].style,
+        DoctorStatus.FAIL: "red",
+        DoctorStatus.SKIP: DOCTOR_STATUS_MARKS[DoctorStatus.SKIP].style,
+    }
+)
+DOCTOR_SECTION: Final = "bold yellow"
+DOCTOR_NAME: Final = "bold cyan"
+DOCTOR_LABEL: Final = "cyan"
+# picopt uses `bold black`, which nearly vanishes on dark themes.
+DOCTOR_VERSION: Final = "bold"
+# picopt uses `dim white`, which washes out on light themes.
+DOCTOR_PATH: Final = "dim"
+DOCTOR_HINT: Final = "dim"
+# The `argparse.example` color in the help formatter.
+DOCTOR_COMMAND: Final = "green"
+DOCTOR_SUMMARY: Final = "bold"

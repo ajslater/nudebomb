@@ -2,6 +2,14 @@
 
 ## v1.7.1
 
+- Features
+    - `nudebomb doctor` checks mkvmerge, the TMDB and TVDB API keys, and the
+      lookup cache directory, and reports what the next run would make of the
+      timestamps files under any paths given. It takes the same options as a
+      run, writes nothing, and exits 1 if a check fails. `-q` prints only
+      problems.
+- Changes
+    - Requires treestamps 5.2.0.
 - Fixes
     - A rejected TVDB API key or unreachable TVDB no longer crashes the run.
       TVDB lookups are skipped with one error and the run continues. Runs that
