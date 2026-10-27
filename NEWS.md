@@ -1,5 +1,10 @@
 # 📰 Nudebomb News
 
+## v1.8.1
+
+- Changes
+    - Supports Python 3.15 and requires python-dateutil 3.0.
+
 ## v1.8.0
 
 - Features
