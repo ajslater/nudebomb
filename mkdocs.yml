@@ -18,9 +18,7 @@ plugins:
         - style.css
   - search
 site_author: AJ
-site_description:
-  The Nudebomb recursively strips matroska media files of unwanted
-  audio and subtitle tracks.
+site_description: The Nudebomb recursively strips matroska media files of unwanted audio and subtitle tracks.
 site_name: Nudebomb
 theme:
   color_mode: dark
