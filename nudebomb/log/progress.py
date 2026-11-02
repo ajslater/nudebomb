@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import threading
 from collections import defaultdict, deque
 from contextlib import contextmanager
@@ -18,9 +19,13 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from rich.text import Text
-from typing_extensions import override
 
 from nudebomb.log.styles import MARKS, MarkKind
+
+if sys.version_info >= (3, 12):
+    from typing import override  # pyright: ignore[reportUnreachable]
+else:
+    from typing_extensions import override
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator

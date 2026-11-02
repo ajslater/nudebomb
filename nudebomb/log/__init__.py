@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import suppress
 from typing import TYPE_CHECKING, Final
 
 from loguru import logger
 from rich.console import Console
-from typing_extensions import override
 
 from nudebomb.log.styles import LEVEL_STYLES, LOOKUP_HIT_LEVEL
+
+if sys.version_info >= (3, 12):
+    from typing import override  # pyright: ignore[reportUnreachable]
+else:
+    from typing_extensions import override
 
 if TYPE_CHECKING:
     from loguru import Record

@@ -1,5 +1,12 @@
 # 📰 Nudebomb News
 
+## v1.8.2
+
+### 🧑‍💻 Developer
+
+- Requires python-dateutil 4.0 and treestamps 5.2.1, and typing-extensions only
+  on Python 3.11.
+
 ## v1.8.1
 
 ### ✨ Added

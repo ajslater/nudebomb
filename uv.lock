@@ -1397,7 +1397,7 @@ wheels = [
 
 [[package]]
 name = "nudebomb"
-version = "1.8.1"
+version = "1.8.2"
 source = { editable = "." }
 dependencies = [
     { name = "confuse" },
@@ -1412,7 +1412,7 @@ dependencies = [
     { name = "tmdbsimple" },
     { name = "treestamps" },
     { name = "tvdb-v4-official" },
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
 
 [package.dev-dependencies]
@@ -1466,7 +1466,7 @@ requires-dist = [
     { name = "tmdbsimple", specifier = "~=2.9" },
     { name = "treestamps", specifier = "~=5.2.1" },
     { name = "tvdb-v4-official", specifier = "~=1.1" },
-    { name = "typing-extensions", specifier = "~=4.13" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = "~=4.13" },
 ]
 
 [package.metadata.requires-dev]
