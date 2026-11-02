@@ -1,10 +1,14 @@
 """MKV Track metadata."""
 
+import sys
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any
 
-from typing_extensions import override
+if sys.version_info >= (3, 12):
+    from typing import override  # pyright: ignore[reportUnreachable]
+else:
+    from typing_extensions import override
 
 
 class TrackType(StrEnum):

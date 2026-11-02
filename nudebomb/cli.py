@@ -7,7 +7,6 @@ from typing import Any, ClassVar, Final
 
 from rich.markup import escape
 from rich_argparse import RawDescriptionRichHelpFormatter
-from typing_extensions import override
 
 from nudebomb.config import NudebombConfig
 from nudebomb.doctor import NudebombDoctor
@@ -16,6 +15,11 @@ from nudebomb.log.styles import MARKS, MarkKind
 from nudebomb.lookup import MediaType
 from nudebomb.version import PROGRAM_NAME, VERSION
 from nudebomb.walk import Walk
+
+if sys.version_info >= (3, 12):
+    from typing import override  # pyright: ignore[reportUnreachable]
+else:
+    from typing_extensions import override
 
 DOCTOR_COMMAND: Final = "doctor"
 
