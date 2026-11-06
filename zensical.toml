@@ -1,5 +1,10 @@
 [project]
+site_name = "Nudebomb"
+site_url = "https://nudebomb.readthedocs.io/"
+site_author = "AJ"
+site_description = "The Nudebomb recursively strips matroska media files of unwanted audio and subtitle tracks."
 docs_dir = "docs"
+nav = ["NEWS.md"]
 
 [project.theme]
 variant = "modern"
