@@ -104,8 +104,10 @@ everything is fine, which suits cron. As with any option, `verbose: 0` in a
 config file or `NUDEBOMB_NUDEBOMB__VERBOSE=0` has the same effect, and `-v`
 brings the full report back.
 
-A directory named `doctor` in the current directory must be passed as
-`./doctor`.
+> [!NOTE]
+>
+> A directory named `doctor` in the current directory must be passed as
+> `./doctor`.
 
 ## Configuration
 
@@ -149,8 +151,12 @@ normally:
 
 Existing keys and comments are preserved. Run-mode flags (`--dry-run` and
 verbosity) are not persisted, and files are written owner-readable only since
-they may hold API keys. `-W` persists whatever you invoked, so omit API keys you
-don't want stored in a media tree.
+they may hold API keys.
+
+> [!WARNING]
+>
+> `-W` persists whatever you invoked, so omit API keys you don't want stored in
+> a media tree.
 
 ### Environment Variables
 
@@ -209,7 +215,9 @@ next run will keep or discard each tree's timestamps.
 
 ## Lang Files (deprecated)
 
-> **Deprecated.** Lang files are superseded by
+> [!WARNING]
+>
+> Lang files are superseded by
 > [Directory Config Files](#directory-config-files). Nudebomb now migrates them
 > automatically: on each run it rewrites every lang file it walks into a
 > `.nudebomb.yaml` (creating one, or adding the languages to an existing one)
