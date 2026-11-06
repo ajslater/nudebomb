@@ -36,7 +36,9 @@
 
 ### 💥 Breaking Changes
 
-- Requires Python 3.11 and treestamps 5.1.1.
+> [!WARNING]
+>
+> - Requires Python 3.11 and treestamps 5.1.1.
 
 ## v1.6.2
 
@@ -94,8 +96,10 @@
 
 ### 💥 Breaking Changes
 
-- `-c`/`--config` now fully replaces your user config for the run instead of
-  layering on top of it (packaged defaults still apply beneath).
+> [!WARNING]
+>
+> - `-c`/`--config` now fully replaces your user config for the run instead of
+>   layering on top of it (packaged defaults still apply beneath).
 
 ### ✨ Added
 
@@ -267,7 +271,9 @@
 
 ### 💥 Breaking Changes
 
-- updated treestamps - all timestamps will miss on first run
+> [!WARNING]
+>
+> - updated treestamps - all timestamps will miss on first run
 
 ### ✨ Added
 
@@ -316,7 +322,9 @@
 
 ### 💥 Breaking Changes
 
-- Require python 3.10
+> [!WARNING]
+>
+> - Require python 3.10
 
 ## v0.3.4
 
@@ -374,7 +382,9 @@
 
 ### 💥 Breaking Changes
 
-- Renamed subs\_languages config option to sub\_languages.
+> [!WARNING]
+>
+> - Renamed subs\_languages config option to sub\_languages.
 
 ### ✨ Added
 
