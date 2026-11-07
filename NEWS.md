@@ -1,5 +1,11 @@
 # 📰 Nudebomb News
 
+## v1.8.3
+
+### ♻️ Changed
+
+- Change docs to use Zensical instead of mkDocs.
+
 ## v1.8.2
 
 ### 🧑‍💻 Developer
