@@ -18,7 +18,7 @@ dependencies = [
   "rich~=15.0",
   "ruamel-yaml>=0.18,<1.0",
   "tmdbsimple~=2.9",
-  "treestamps~=5.2.1",
+  "treestamps~=5.2.3",
   "tvdb_v4_official~=1.1",
   "typing-extensions~=4.13; python_version < '3.12'",
 ]
@@ -28,7 +28,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-only"
 name = "nudebomb"
-version = "1.8.2"
+version = "1.8.3"
 
 [[project.authors]]
 name = "AJ Slater"
@@ -73,7 +73,7 @@ test = [
   "pytest-cov~=7.0",
   "pytest~=9.0",
 ]
-docs = ["mkapi~=4.4", "mkdocs-minify-plugin~=0.8", "mkdocs~=1.6"]
+docs = ["zensical~=0.1"]
 ci = ["requests~=2.32"]
 
 [build-system]
@@ -99,26 +99,16 @@ source-include = [
   "bin/**",
   "bun.lock",
   "compose.yaml",
-  "docs/DOCKER.md",
-  "docs/NEWS",
-  "docs/NEWS.md",
-  "docs/README.md",
-  "docs/WINDOWS.md",
-  "docs/requirements.txt",
-  "docs/style.css",
-  "docs/style.material.css",
-  "docs/style.mkdocs.css",
-  "docs/style.readthedocs.css",
+  "docs/**",
   "eslint.config.js",
   "frontend/**",
   "img/**",
-  "mkdocs.yml",
   "mock_comics/**",
   "package.json",
   "tests/**",
   "uv.lock",
   "vulture_ignorelist.py",
-  "docs/**",
+  "zensical.toml",
 ]
 source-exclude = ["**/*\\~", "**/.DS_Store", "frontend/node_modules"]
 wheel-exclude = ["**/*\\~", "**/.DS_Store"]
@@ -154,7 +144,7 @@ reportUnusedParameter = false
 [tool.codespell]
 builtin = "clear,code,rare"
 ignore-words-list = "coverd,crate,deque,falsy,iff,ro,searchd,thead,versio,wan,warmup,ws"
-skip = "*.pdf,*.svg,*~,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,tasks,test-results,typings,uv.lock"
+skip = "*.pdf,*.svg,*~,__pycache__,bun.lock,dist,htmlcov,node_modules,package.json,site,tasks,test-results,typings,uv.lock"
 
 [tool.complexipy]
 failed = true
