@@ -238,10 +238,12 @@
 
 ## v0.4.6
 
-### ♻️ Changed
+### 💥 Breaking Changes
 
-- The confuse library dependency doesn't support Python 3.14. So neither does
-  nudebomb :(
+> [!WARNING]
+>
+> - The confuse library dependency doesn't support Python 3.14. So neither does
+>   nudebomb :(
 
 ## v0.4.5
 
