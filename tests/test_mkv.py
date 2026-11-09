@@ -121,7 +121,7 @@ class TestMkv(DiffTracksTest):
         garbage.write_bytes(b"not a matroska file")
         reporter = Reporter(stats=Stats(), progress=MagicMock())
         MKVFile(self._config, garbage, reporter)
-        assert reporter.progress.mark_warning.called  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+        assert reporter.progress.mark_warning.called  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[missing-attribute]
 
     def test_stale_tmp_removed(self) -> None:
         """A leftover .tmp from a killed run is cleaned up on the next pass."""

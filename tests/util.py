@@ -38,7 +38,7 @@ class DiffTracksTest:
         self,
         out_tracks: list[dict[str, dict[str, bool] | int]],
     ) -> None:
-        diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+        diff = DeepDiff(self.src_tracks, out_tracks)  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[missing-attribute]
         if diff:
             print(diff)
         assert not diff

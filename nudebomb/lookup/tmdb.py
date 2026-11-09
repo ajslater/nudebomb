@@ -101,7 +101,7 @@ class TMDBLookup(BaseLookup):
                 # disambiguate same-titled results.
                 search.multi(query=title)
 
-        results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+        results = search.results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[missing-attribute]
 
         if effective_type:
             for r in results:
@@ -131,11 +131,11 @@ class TMDBLookup(BaseLookup):
         if parsed.imdb_id:
             find = tmdb.Find(parsed.imdb_id)  # pyright: ignore[reportArgumentType]
             find.info(external_source="imdb_id")
-            results = find.movie_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+            results = find.movie_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[missing-attribute]
             if results:
                 results[0]["media_type"] = MediaType.MOVIE
                 return results[0]
-            results = find.tv_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[unresolved-attribute]
+            results = find.tv_results  # pyright: ignore[reportAttributeAccessIssue], # ty: ignore[missing-attribute]
             if results:
                 results[0]["media_type"] = MediaType.TV
                 return results[0]
